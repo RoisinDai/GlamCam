@@ -2,19 +2,29 @@
 using System.Collections;
 using System.Collections.Generic;
 using Kinect = Windows.Kinect;
+using Vector3 = UnityEngine.Vector3;
+
+class UserMeasurements
+{
+  public float height;
+  public float shoulderWidth;
+  public float armLength;
+}
 
 // Responsible for drawing the 'skeleton' for each frame by 
 // connecting the joints from the BodySourceManager.
-public class BodySourceView : MonoBehaviour 
+public class BodySourceView : MonoBehaviour
 {
-    public Material BoneMaterial;
-    public GameObject BodySourceManager;
-    
-    private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
-    private BodySourceManager _BodyManager;
-    
-    // Maps joints to the joint they are connected to
-    private Dictionary<Kinect.JointType, Kinect.JointType> _BoneMap = new Dictionary<Kinect.JointType, Kinect.JointType>()
+  public Material BoneMaterial;
+  public GameObject BodySourceManager;
+
+  private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
+  private BodySourceManager _BodyManager;
+
+  private UserMeasurements _UserMeasurements = new UserMeasurements();
+
+  // Maps joints to the joint they are connected to
+  private Dictionary<Kinect.JointType, Kinect.JointType> _BoneMap = new Dictionary<Kinect.JointType, Kinect.JointType>()
     {
         // Lower left body
         { Kinect.JointType.FootLeft, Kinect.JointType.AnkleLeft },
@@ -50,155 +60,180 @@ public class BodySourceView : MonoBehaviour
         { Kinect.JointType.SpineShoulder, Kinect.JointType.Neck },
         { Kinect.JointType.Neck, Kinect.JointType.Head },
     };
-    
-    // Updates the body objects
-    void Update () 
+
+  // Updates the body objects
+  void Update()
+  {
+    if (BodySourceManager == null)
     {
-        if (BodySourceManager == null)
+      return;
+    }
+
+    _BodyManager = BodySourceManager.GetComponent<BodySourceManager>();
+    if (_BodyManager == null)
+    {
+      return;
+    }
+
+    Kinect.Body[] data = _BodyManager.GetData();
+    if (data == null)
+    {
+      return;
+    }
+
+    // Get the identifiers of the bodies currently in view (tracked)
+    List<ulong> trackedIds = new List<ulong>();
+    foreach (var body in data)
+    {
+      if (body == null)
+      {
+        continue;
+      }
+
+      if (body.IsTracked)
+      {
+        trackedIds.Add(body.TrackingId);
+      }
+    }
+
+    // Get the identifiers of the bodies that have been seen before
+    List<ulong> knownIds = new List<ulong>(_Bodies.Keys);
+
+    // First delete untracked bodies
+    foreach (ulong trackingId in knownIds)
+    {
+      if (!trackedIds.Contains(trackingId))
+      {
+        Destroy(_Bodies[trackingId]);
+        _Bodies.Remove(trackingId);
+      }
+    }
+
+    foreach (var body in data)
+    {
+      if (body == null)
+      {
+        continue;
+      }
+
+      // If the body is tracked, create a new body object if it doesn't exist
+      // and refresh the body object
+      if (body.IsTracked)
+      {
+        if (!_Bodies.ContainsKey(body.TrackingId))
         {
-            return;
-        }
-        
-        _BodyManager = BodySourceManager.GetComponent<BodySourceManager>();
-        if (_BodyManager == null)
-        {
-            return;
-        }
-        
-        Kinect.Body[] data = _BodyManager.GetData();
-        if (data == null)
-        {
-            return;
-        }
-        
-        // Get the identifiers of the bodies currently in view (tracked)
-        List<ulong> trackedIds = new List<ulong>();
-        foreach(var body in data)
-        {
-            if (body == null)
-            {
-                continue;
-              }
-                
-            if(body.IsTracked)
-            {
-                trackedIds.Add (body.TrackingId);
-            }
-        }
-        
-        // Get the identifiers of the bodies that have been seen before
-        List<ulong> knownIds = new List<ulong>(_Bodies.Keys);
-        
-        // First delete untracked bodies
-        foreach(ulong trackingId in knownIds)
-        {
-            if(!trackedIds.Contains(trackingId))
-            {
-                Destroy(_Bodies[trackingId]);
-                _Bodies.Remove(trackingId);
-            }
+          _Bodies[body.TrackingId] = CreateBodyObject(body.TrackingId);
         }
 
-        foreach(var body in data)
-        {
-            if (body == null)
-            {
-                continue;
-            }
-            
-            // If the body is tracked, create a new body object if it doesn't exist
-            // and refresh the body object
-            if(body.IsTracked)
-            {
-                if(!_Bodies.ContainsKey(body.TrackingId))
-                {
-                    _Bodies[body.TrackingId] = CreateBodyObject(body.TrackingId);
-                }
-                
-                RefreshBodyObject(body, _Bodies[body.TrackingId]);
-            }
-        }
-    }
-    
-    // Create a new body object for the given tracking id
-    private GameObject CreateBodyObject(ulong id)
-    {
-        GameObject body = new GameObject("Body:" + id);
-        
-        // Create a cube for each of the 20 joints
-        for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
-        {
-            GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            
-            LineRenderer lr = jointObj.AddComponent<LineRenderer>();
-            lr.SetVertexCount(2);
-            lr.material = BoneMaterial;
-            lr.SetWidth(0.05f, 0.05f);
-            
-            jointObj.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
-            jointObj.name = jt.ToString();
-            jointObj.transform.parent = body.transform;
-        }
-        
-        return body;
-    }
-    
-    // Update the position of each joint. Called for each frame.
-    private void RefreshBodyObject(Kinect.Body body, GameObject bodyObject)
-    {
-        for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
-        {
-            Kinect.Joint sourceJoint = body.Joints[jt];
-            Kinect.Joint? targetJoint = null;
-            
-            if(_BoneMap.ContainsKey(jt))
-            {
-                targetJoint = body.Joints[_BoneMap[jt]];
-            }
-            
-            Transform jointObj = bodyObject.transform.Find(jt.ToString());
-            jointObj.localPosition = GetVector3FromJoint(sourceJoint);
-            
-            LineRenderer lr = jointObj.GetComponent<LineRenderer>();
-            if(targetJoint.HasValue)
-            {
-                // Connect the joint to its target joint
-                lr.SetPosition(0, jointObj.localPosition);
-                lr.SetPosition(1, GetVector3FromJoint(targetJoint.Value));
+        RefreshBodyObject(body, _Bodies[body.TrackingId]);
 
-                // Set the color of the line based on the tracking state of source and target joints
-                // Green: tracked, red: inferred, black: not tracked
-                lr.SetColors(GetColorForState (sourceJoint.TrackingState), GetColorForState(targetJoint.Value.TrackingState));
-            }
-            else
-            {
-                lr.enabled = false;
-            }
-        }
-    }
-    
-    private static Color GetColorForState(Kinect.TrackingState state)
-    {
-        switch (state)
-        {
-        case Kinect.TrackingState.Tracked:
-            return Color.green;
+        // Compute measurements of the person's body
+        var joints = body.Joints;
+        Vector3 shoulderLeft = GetVector3FromJoint(joints[Kinect.JointType.ShoulderLeft]);
+        Vector3 shoulderRight = GetVector3FromJoint(joints[Kinect.JointType.ShoulderRight]);
+        Vector3 head = GetVector3FromJoint(joints[Kinect.JointType.Head]);
+        Vector3 footLeft = GetVector3FromJoint(joints[Kinect.JointType.FootLeft]);
+        Vector3 footRight = GetVector3FromJoint(joints[Kinect.JointType.FootRight]);
+        Vector3 elbowLeft = GetVector3FromJoint(joints[Kinect.JointType.ElbowLeft]);
+        Vector3 wristLeft = GetVector3FromJoint(joints[Kinect.JointType.WristLeft]);
 
-        case Kinect.TrackingState.Inferred:
-            return Color.red;
+        // Height
+        _UserMeasurements.height = head.y - ((footLeft.y + footRight.y) / 2f); // average foot height
+        Debug.Log("Height: " + _UserMeasurements.height.ToString("F3"));
 
-        default:
-            return Color.black;
-        }
+        // Shoulder width
+        _UserMeasurements.shoulderWidth = Vector3.Distance(shoulderLeft, shoulderRight);
+        Debug.Log("Shoulder width: " + _UserMeasurements.shoulderWidth.ToString("F3"));
+
+        // Arm length (Shoulder -> Elbow -> Wrist)
+        _UserMeasurements.armLength = Vector3.Distance(shoulderLeft, elbowLeft) + Vector3.Distance(elbowLeft, wristLeft);
+        Debug.Log("Arm length: " + _UserMeasurements.armLength.ToString("F3"));
+      }
     }
-    
-    // X: left to right
-    // Y: down to up
-    // Z: forward to back
-    // Convert the Joint position in Kinect Coordinate System (meters)
-    // to Unity Coordinate System (units)
-    private static Vector3 GetVector3FromJoint(Kinect.Joint joint)
+  }
+
+  // Create a new body object for the given tracking id
+  private GameObject CreateBodyObject(ulong id)
+  {
+    GameObject body = new GameObject("Body:" + id);
+
+    // Create a cube for each of the 20 joints
+    for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
     {
-        return new Vector3(joint.Position.X * 10, joint.Position.Y * 10, joint.Position.Z * 10);
+      GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+
+      LineRenderer lr = jointObj.AddComponent<LineRenderer>();
+      lr.positionCount = 2;
+      lr.material = BoneMaterial;
+      lr.startWidth = 0.05f;
+      lr.endWidth = 0.05f;
+
+
+      jointObj.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
+      jointObj.name = jt.ToString();
+      jointObj.transform.parent = body.transform;
     }
+
+    return body;
+  }
+
+  // Update the position of each joint. Called for each frame.
+  private void RefreshBodyObject(Kinect.Body body, GameObject bodyObject)
+  {
+    for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
+    {
+      Kinect.Joint sourceJoint = body.Joints[jt];
+      Kinect.Joint? targetJoint = null;
+
+      if (_BoneMap.ContainsKey(jt))
+      {
+        targetJoint = body.Joints[_BoneMap[jt]];
+      }
+
+      Transform jointObj = bodyObject.transform.Find(jt.ToString());
+      jointObj.localPosition = GetVector3FromJoint(sourceJoint);
+
+      LineRenderer lr = jointObj.GetComponent<LineRenderer>();
+      if (targetJoint.HasValue)
+      {
+        // Connect the joint to its target joint
+        lr.SetPosition(0, jointObj.localPosition);
+        lr.SetPosition(1, GetVector3FromJoint(targetJoint.Value));
+
+        // Set the color of the line based on the tracking state of source and target joints
+        // Green: tracked, red: inferred, black: not tracked
+        lr.startColor = GetColorForState(sourceJoint.TrackingState);
+        lr.endColor = GetColorForState(targetJoint.Value.TrackingState);
+      }
+      else
+      {
+        lr.enabled = false;
+      }
+    }
+  }
+
+  private static Color GetColorForState(Kinect.TrackingState state)
+  {
+    switch (state)
+    {
+      case Kinect.TrackingState.Tracked:
+        return Color.green;
+
+      case Kinect.TrackingState.Inferred:
+        return Color.red;
+
+      default:
+        return Color.black;
+    }
+  }
+
+  // X: left to right
+  // Y: down to up
+  // Z: forward to back
+  // Convert the Joint position in Kinect Coordinate System (meters)
+  // to Unity Coordinate System (units)
+  private static Vector3 GetVector3FromJoint(Kinect.Joint joint)
+  {
+    return new Vector3(joint.Position.X * 10, joint.Position.Y * 10, joint.Position.Z * 10);
+  }
 }
