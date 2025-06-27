@@ -3,6 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using Kinect = Windows.Kinect;
 
+// Responsible for drawing the 'skeleton' for each frame by 
+// connecting the joints from the BodySourceManager.
 public class BodySourceView : MonoBehaviour 
 {
     public Material BoneMaterial;
@@ -11,18 +13,22 @@ public class BodySourceView : MonoBehaviour
     private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
     private BodySourceManager _BodyManager;
     
+    // Maps joints to the joint they are connected to
     private Dictionary<Kinect.JointType, Kinect.JointType> _BoneMap = new Dictionary<Kinect.JointType, Kinect.JointType>()
     {
+        // Lower left body
         { Kinect.JointType.FootLeft, Kinect.JointType.AnkleLeft },
         { Kinect.JointType.AnkleLeft, Kinect.JointType.KneeLeft },
         { Kinect.JointType.KneeLeft, Kinect.JointType.HipLeft },
         { Kinect.JointType.HipLeft, Kinect.JointType.SpineBase },
         
+        // Lower right body
         { Kinect.JointType.FootRight, Kinect.JointType.AnkleRight },
         { Kinect.JointType.AnkleRight, Kinect.JointType.KneeRight },
         { Kinect.JointType.KneeRight, Kinect.JointType.HipRight },
         { Kinect.JointType.HipRight, Kinect.JointType.SpineBase },
         
+        // Left hand, arm, shoulder
         { Kinect.JointType.HandTipLeft, Kinect.JointType.HandLeft },
         { Kinect.JointType.ThumbLeft, Kinect.JointType.HandLeft },
         { Kinect.JointType.HandLeft, Kinect.JointType.WristLeft },
@@ -30,6 +36,7 @@ public class BodySourceView : MonoBehaviour
         { Kinect.JointType.ElbowLeft, Kinect.JointType.ShoulderLeft },
         { Kinect.JointType.ShoulderLeft, Kinect.JointType.SpineShoulder },
         
+        // Right hand, arm, shoulder
         { Kinect.JointType.HandTipRight, Kinect.JointType.HandRight },
         { Kinect.JointType.ThumbRight, Kinect.JointType.HandRight },
         { Kinect.JointType.HandRight, Kinect.JointType.WristRight },
@@ -37,12 +44,14 @@ public class BodySourceView : MonoBehaviour
         { Kinect.JointType.ElbowRight, Kinect.JointType.ShoulderRight },
         { Kinect.JointType.ShoulderRight, Kinect.JointType.SpineShoulder },
         
+        // Spine, neck, head
         { Kinect.JointType.SpineBase, Kinect.JointType.SpineMid },
         { Kinect.JointType.SpineMid, Kinect.JointType.SpineShoulder },
         { Kinect.JointType.SpineShoulder, Kinect.JointType.Neck },
         { Kinect.JointType.Neck, Kinect.JointType.Head },
     };
     
+    // Updates the body objects
     void Update () 
     {
         if (BodySourceManager == null)
@@ -62,6 +71,7 @@ public class BodySourceView : MonoBehaviour
             return;
         }
         
+        // Get the identifiers of the bodies currently in view (tracked)
         List<ulong> trackedIds = new List<ulong>();
         foreach(var body in data)
         {
@@ -76,6 +86,7 @@ public class BodySourceView : MonoBehaviour
             }
         }
         
+        // Get the identifiers of the bodies that have been seen before
         List<ulong> knownIds = new List<ulong>(_Bodies.Keys);
         
         // First delete untracked bodies
@@ -95,6 +106,8 @@ public class BodySourceView : MonoBehaviour
                 continue;
             }
             
+            // If the body is tracked, create a new body object if it doesn't exist
+            // and refresh the body object
             if(body.IsTracked)
             {
                 if(!_Bodies.ContainsKey(body.TrackingId))
@@ -107,10 +120,12 @@ public class BodySourceView : MonoBehaviour
         }
     }
     
+    // Create a new body object for the given tracking id
     private GameObject CreateBodyObject(ulong id)
     {
         GameObject body = new GameObject("Body:" + id);
         
+        // Create a cube for each of the 20 joints
         for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
         {
             GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -128,6 +143,7 @@ public class BodySourceView : MonoBehaviour
         return body;
     }
     
+    // Update the position of each joint. Called for each frame.
     private void RefreshBodyObject(Kinect.Body body, GameObject bodyObject)
     {
         for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
@@ -146,8 +162,12 @@ public class BodySourceView : MonoBehaviour
             LineRenderer lr = jointObj.GetComponent<LineRenderer>();
             if(targetJoint.HasValue)
             {
+                // Connect the joint to its target joint
                 lr.SetPosition(0, jointObj.localPosition);
                 lr.SetPosition(1, GetVector3FromJoint(targetJoint.Value));
+
+                // Set the color of the line based on the tracking state of source and target joints
+                // Green: tracked, red: inferred, black: not tracked
                 lr.SetColors(GetColorForState (sourceJoint.TrackingState), GetColorForState(targetJoint.Value.TrackingState));
             }
             else
@@ -172,6 +192,11 @@ public class BodySourceView : MonoBehaviour
         }
     }
     
+    // X: left to right
+    // Y: down to up
+    // Z: forward to back
+    // Convert the Joint position in Kinect Coordinate System (meters)
+    // to Unity Coordinate System (units)
     private static Vector3 GetVector3FromJoint(Kinect.Joint joint)
     {
         return new Vector3(joint.Position.X * 10, joint.Position.Y * 10, joint.Position.Z * 10);

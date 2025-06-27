@@ -2,6 +2,9 @@
 using System.Collections;
 using Windows.Kinect;
 
+// Responsible for getting the body data from the Kinect sensor
+// for each frame.
+// Body data can be retrieved from the GetData() method.
 public class BodySourceManager : MonoBehaviour 
 {
     private KinectSensor _Sensor;
