@@ -17,6 +17,9 @@ public class BodySourceView : MonoBehaviour
 {
   public Material BoneMaterial;
   public GameObject BodySourceManager;
+  public GameObject AvatarRoot;
+  public GameObject AvatarMesh;
+  private float AvatarHeight;
 
   private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
   private BodySourceManager _BodyManager;
@@ -60,6 +63,16 @@ public class BodySourceView : MonoBehaviour
         { Kinect.JointType.SpineShoulder, Kinect.JointType.Neck },
         { Kinect.JointType.Neck, Kinect.JointType.Head },
     };
+
+  void Start()
+  {
+    Debug.Log("Avatar reference: " + AvatarRoot.name);
+
+    // Get height of avatar, in Kinect's x10 space
+    Renderer meshRenderer = AvatarMesh.GetComponent<Renderer>();
+    AvatarHeight = meshRenderer.bounds.size.y;
+    Debug.Log("Avatar height (in Unity 1x): " + AvatarHeight);
+  }
 
   // Updates the body objects
   void Update()
@@ -139,15 +152,25 @@ public class BodySourceView : MonoBehaviour
 
         // Height
         _UserMeasurements.height = head.y - ((footLeft.y + footRight.y) / 2f); // average foot height
-        Debug.Log("Height: " + _UserMeasurements.height.ToString("F3"));
+        Debug.Log("Height (Kinect 10x): " + _UserMeasurements.height.ToString("F3"));
 
         // Shoulder width
         _UserMeasurements.shoulderWidth = Vector3.Distance(shoulderLeft, shoulderRight);
-        Debug.Log("Shoulder width: " + _UserMeasurements.shoulderWidth.ToString("F3"));
+        Debug.Log("Shoulder width (Kinect 10x): " + _UserMeasurements.shoulderWidth.ToString("F3"));
 
         // Arm length (Shoulder -> Elbow -> Wrist)
         _UserMeasurements.armLength = Vector3.Distance(shoulderLeft, elbowLeft) + Vector3.Distance(elbowLeft, wristLeft);
-        Debug.Log("Arm length: " + _UserMeasurements.armLength.ToString("F3"));
+        Debug.Log("Arm length (Kinect 10x): " + _UserMeasurements.armLength.ToString("F3"));
+
+        // Move the avatar to the location of the skeleton (X and Z coordinates)
+        Vector3 spineBase = GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
+        Vector3 currAvatarPos = AvatarRoot.transform.position;
+        AvatarRoot.transform.position = new Vector3(spineBase.x, currAvatarPos.y, spineBase.z);
+
+        // Get the scaling factor to apply to the avatar
+        float scaleFactor = _UserMeasurements.height / AvatarHeight; // AvatarHeight*scaleFactor = UserHeight
+        Debug.Log("Scale factor: " + scaleFactor);
+        AvatarRoot.transform.localScale = new Vector3(scaleFactor, scaleFactor, scaleFactor);
       }
     }
   }
@@ -230,10 +253,15 @@ public class BodySourceView : MonoBehaviour
   // X: left to right
   // Y: down to up
   // Z: forward to back
-  // Convert the Joint position in Kinect Coordinate System (meters)
-  // to Unity Coordinate System (units)
+  // Convert a position in Kinect Coordinate System (meters) to Unity Coordinate System (units)
+  // Joint positions are scaled by *10, so the skeleton is drawn at 10x its true size.
+  private static Vector3 GetVector3FromKinectCoord(float kinect_x, float kinect_y, float kinect_z)
+  {
+    return new Vector3(kinect_x * 10, kinect_y * 10, kinect_z * 10);
+  }
+
   private static Vector3 GetVector3FromJoint(Kinect.Joint joint)
   {
-    return new Vector3(joint.Position.X * 10, joint.Position.Y * 10, joint.Position.Z * 10);
+    return GetVector3FromKinectCoord(joint.Position.X, joint.Position.Y, joint.Position.Z);
   }
 }
