@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from enum import Enum
+from collections.abc import Mapping
 
 class Skeleton:
     class JointType(Enum):
@@ -59,7 +60,7 @@ class Skeleton:
     def __init__(
             self,
             # The joints coordinates as a dictionary
-            joints : dict [JointType, tuple[float, float]],
+            joints : Mapping[JointType, tuple[float, float]],
             # Do you want to normalize the coordinates?
             normalize : bool = True,
             # If you want to normalize, what is the reference point?
@@ -68,11 +69,12 @@ class Skeleton:
         joints: Nx2 numpy array or list of (x, y) coordinates
         connections: list of (idx1, idx2) tuples, indices into joints array
         """
+        self.joints = dict()
 
         if normalize:
             assert reference_point in joints, "Reference point must be in joints if normalization is enabled."
             origin = np.array(joints[reference_point])
-            self.joins = {jt: (np.array(coord) - origin) for jt, coord in joints.items()}
+            self.joints = {jt: (np.array(coord) - origin) for jt, coord in joints.items()}
         else:
             self.joints = joints
 
@@ -95,3 +97,38 @@ class Skeleton:
 
         ax.set_aspect('equal')
         plt.show()
+
+
+def create_sample_joints():
+    """Create a dictionary of sample joint coordinates, using the JointType enum."""
+    jt = Skeleton.JointType
+    # Just placing joints in a rough stickman shape in 2D
+    joints = {
+        jt.HEAD: (0, 10),
+        jt.NECK: (0, 8),
+        jt.SHOULDER_LEFT: (-2, 8),
+        jt.SHOULDER_RIGHT: (2, 8),
+        jt.ELBOW_LEFT: (-3, 6),
+        jt.ELBOW_RIGHT: (3, 6),
+        jt.WRIST_LEFT: (-4, 4),
+        jt.WRIST_RIGHT: (4, 4),
+        jt.HIP_LEFT: (-1, 4),
+        jt.HIP_RIGHT: (1, 4),
+        jt.KNEE_LEFT: (-1, 2),
+        jt.KNEE_RIGHT: (1, 2),
+        jt.ANKLE_LEFT: (-1, 0),
+        jt.ANKLE_RIGHT: (1, 0),
+        jt.TORSO_UP: (0, 7),
+        jt.TORSO_MID: (0, 6),
+        jt.TORSO_DOWN: (0, 4),
+        jt.FEET_LEFT: (-1, -1),
+        jt.FEET_RIGHT: (1, -1),
+    }
+    return joints
+
+
+# Example usage:
+def test_skeleton():
+    """Test function to create and draw a sample skeleton."""
+    ske = Skeleton(create_sample_joints())
+    ske.draw()
