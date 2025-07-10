@@ -1,8 +1,14 @@
 fileFormatVersion: 2
 guid: 8821130411451d343a1488e2a9db134e
 MonoImporter:
+  externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - BoneMaterial: {instanceID: 0}
+  - BodySourceManager: {instanceID: 0}
+  - ClothedBaseAvatar: {instanceID: 0}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 
+  assetBundleName: 
+  assetBundleVariant: 

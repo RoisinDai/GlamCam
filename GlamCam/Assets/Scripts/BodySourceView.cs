@@ -17,9 +17,10 @@ public class BodySourceView : MonoBehaviour
 {
   public Material BoneMaterial;
   public GameObject BodySourceManager;
-  public GameObject AvatarRoot;
-  public GameObject AvatarMesh;
-  private float AvatarHeight;
+  public GameObject ClothedBaseAvatar;
+  private GameObject UnclothedBaseAvatar;
+  private float BaseAvatarHeight;
+  private const string BASE_AVATAR_NAME = "BaseAvatar";
 
   private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
   private BodySourceManager _BodyManager;
@@ -66,12 +67,20 @@ public class BodySourceView : MonoBehaviour
 
   void Start()
   {
-    Debug.Log("Avatar reference: " + AvatarRoot.name);
+    if (ClothedBaseAvatar == null)
+    {
+        Debug.LogError("ClothedBaseAvatar is STILL null at runtime!");
+        return;
+    }
+    Debug.Log("Clothed Base Avatar: " + ClothedBaseAvatar.name);
+
+    // Set the unclothed base avatar
+    UnclothedBaseAvatar = ClothedBaseAvatar.transform.Find(BASE_AVATAR_NAME)?.gameObject;
+    Debug.Log("Unclothed Base Avatar: " + UnclothedBaseAvatar.name);
 
     // Get height of avatar, in Kinect's x10 space
-    Renderer meshRenderer = AvatarMesh.GetComponent<Renderer>();
-    AvatarHeight = meshRenderer.bounds.size.y;
-    Debug.Log("Avatar height (in Unity 1x): " + AvatarHeight);
+    BaseAvatarHeight = GetBaseAvatarHeight(UnclothedBaseAvatar);
+    Debug.Log("Avatar height (in Unity 1x): " + BaseAvatarHeight);
   }
 
   // Updates the body objects
@@ -164,13 +173,13 @@ public class BodySourceView : MonoBehaviour
 
         // Move the avatar to the location of the skeleton (X and Z coordinates)
         Vector3 spineBase = GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
-        Vector3 currAvatarPos = AvatarRoot.transform.position;
-        AvatarRoot.transform.position = new Vector3(spineBase.x, currAvatarPos.y, spineBase.z);
+        Vector3 currAvatarPos = ClothedBaseAvatar.transform.position; // Maintain y position of base avatar
+        ClothedBaseAvatar.transform.position = new Vector3(spineBase.x, currAvatarPos.y, spineBase.z);
 
         // Get the scaling factor to apply to the avatar
-        float scaleFactor = _UserMeasurements.height / AvatarHeight; // AvatarHeight*scaleFactor = UserHeight
+        float scaleFactor = _UserMeasurements.height / BaseAvatarHeight; // AvatarHeight*scaleFactor = UserHeight
         Debug.Log("Scale factor: " + scaleFactor);
-        AvatarRoot.transform.localScale = new Vector3(scaleFactor, scaleFactor, scaleFactor);
+        ClothedBaseAvatar.transform.localScale = new Vector3(scaleFactor, scaleFactor, scaleFactor);
       }
     }
   }
@@ -263,5 +272,17 @@ public class BodySourceView : MonoBehaviour
   private static Vector3 GetVector3FromJoint(Kinect.Joint joint)
   {
     return GetVector3FromKinectCoord(joint.Position.X, joint.Position.Y, joint.Position.Z);
+  }
+
+  private float GetBaseAvatarHeight(GameObject baseAvatar)
+  {
+    Renderer r = baseAvatar.GetComponent<Renderer>();
+    if (r == null)
+    {
+      Debug.LogWarning("No Renderer found on BaseAvatar object.");
+      return -1f;
+    }
+
+    return r.bounds.size.y;
   }
 }
