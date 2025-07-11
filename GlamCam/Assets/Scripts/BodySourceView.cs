@@ -174,7 +174,7 @@ public class BodySourceView : MonoBehaviour
         // Move the avatar to the location of the skeleton (X and Z coordinates)
         Vector3 spineBase = GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
         Vector3 currAvatarPos = ClothedBaseAvatar.transform.position; // Maintain y position of base avatar
-        ClothedBaseAvatar.transform.position = new Vector3(spineBase.x, currAvatarPos.y, spineBase.z);
+        ClothedBaseAvatar.transform.position = new Vector3(spineBase.x - 15, -5, spineBase.z);
 
         // Get the scaling factor to apply to the avatar
         float scaleFactor = _UserMeasurements.height / BaseAvatarHeight; // AvatarHeight*scaleFactor = UserHeight
