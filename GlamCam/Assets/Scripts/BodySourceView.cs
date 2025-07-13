@@ -176,9 +176,9 @@ public class BodySourceView : MonoBehaviour
         // _UserMeasurements.armLength = Vector3.Distance(shoulderLeft, elbowLeft) + Vector3.Distance(elbowLeft, wristLeft);
         // Debug.Log("Arm length (Kinect 10x): " + _UserMeasurements.armLength.ToString("F3"));
 
-        // Move the avatar to the location of the skeleton (X and Z coordinates)
+        // Move the avatar to the base location of the skeleton (X and Z coordinates)
         Vector3 spineBase = GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
-        // ClothedBaseAvatar.transform.position = new Vector3(spineBase.x - 15, -5, spineBase.z);
+        // // ClothedBaseAvatar.transform.position = new Vector3(spineBase.x - 15, -5, spineBase.z);
         ClothedBaseAvatar.transform.position = new Vector3(spineBase.x, spineBase.y, spineBase.z);
 
         // Get the scaling factor to apply to the avatar
