@@ -13,6 +13,9 @@ public class AvatarController : MonoBehaviour
   public GameObject ClothedBaseAvatar;
   private Kinect.Body trackedBody; // The body being tracked by the avatar
   public bool enableInverseKinematics = true;
+  private bool armExtended = false; // Flag to check if the arm has been extended already
+  private Vector3 initialLowerArmLocalPos;
+  private Vector3 initialHandLocalPos;
 
   // Weights for IK; controls how strongly the IK will force the avatar's limbs to match the Kinect data
   // (0 = at the original animation before IK, 1 = at the goal).
@@ -34,7 +37,29 @@ public class AvatarController : MonoBehaviour
     {
       Debug.LogError("BodySourceManager component not found.");
     }
+    
+    // Cache original local positions
+    initialLowerArmLocalPos = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm)?.localPosition ?? Vector3.zero;
+    initialHandLocalPos = animator.GetBoneTransform(HumanBodyBones.LeftHand)?.localPosition ?? Vector3.zero;
   }
+
+  void ExtendLimb(HumanBodyBones parent, HumanBodyBones child, float extension)
+  {
+    var childT = animator.GetBoneTransform(child);
+    var parentT = animator.GetBoneTransform(parent);
+
+    if (childT == null || parentT == null) {
+        Debug.Log("Failed to extend limb, childT or parentT is null");
+        return;
+    }
+
+    Vector3 worldDirection = (childT.position - parentT.position).normalized;
+    Vector3 localDirection = parentT.InverseTransformDirection(worldDirection);
+
+    childT.localPosition += localDirection * extension;
+    Debug.Log("Extended limb by modifying localPosition.");
+  }
+
 
   // Updates the body object currently being tracked
   void Update()
@@ -53,7 +78,10 @@ public class AvatarController : MonoBehaviour
   private void OnAnimatorIK(int layerIndex)
   {
     Debug.Log("OnAnimatorIK called with layer: " + layerIndex);
-    if (animator == null || trackedBody == null || !enableInverseKinematics) return;
+    if (animator == null || trackedBody == null || !enableInverseKinematics) {
+      Debug.Log("  But no trackedBody!");
+      return;
+    }
 
     // NOTE: Kinect uses camera-facing perspective, meaning its left is the avatar's right
     //       Meanwhile, Unity’s AvatarIKGoal.LeftHand refers to the avatar’s anatomical left
@@ -110,6 +138,33 @@ public class AvatarController : MonoBehaviour
     animator.SetIKPosition(goal, unityPos);
   }
 
+  private void LateUpdate()
+  {
+    float armLengthExtension = 0.005f;
+    ApplyLimbExtension(armLengthExtension);
+  }
+
+  void ApplyLimbExtension(float extension)
+  {
+    var upperArmT = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+    var lowerArmT = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+    var handT     = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+
+    if (upperArmT != null && lowerArmT != null)
+    {
+        Vector3 direction = (lowerArmT.position - upperArmT.position).normalized;
+        Vector3 localDir = upperArmT.InverseTransformDirection(direction);
+        lowerArmT.localPosition = initialLowerArmLocalPos + localDir * extension;
+    }
+
+    if (lowerArmT != null && handT != null)
+    {
+        Vector3 forearmDir = (handT.position - lowerArmT.position).normalized;
+        Vector3 localForearmDir = lowerArmT.InverseTransformDirection(forearmDir);
+        handT.localPosition = initialHandLocalPos + localForearmDir * extension;
+    }
+  }
+
   private void RotateAvatarBasedOnShoulders(Kinect.Joint leftShoulder, Kinect.Joint rightShoulder)
   {
     // Get positions of the shoulders in Unity coordinates
@@ -134,8 +189,8 @@ public class AvatarController : MonoBehaviour
     // Optional: smooth the rotation
     Quaternion targetRotation = Quaternion.LookRotation(-1 * forward /*Avatar faces Z-*/, Vector3.up);
     ClothedBaseAvatar.transform.rotation = Quaternion.Slerp(
-        ClothedBaseAvatar.transform.rotation, 
-        targetRotation, 
+        ClothedBaseAvatar.transform.rotation,
+        targetRotation,
         Time.deltaTime * 5f // smoothing speed
     );
   }
