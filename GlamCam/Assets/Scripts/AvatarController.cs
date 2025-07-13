@@ -14,6 +14,13 @@ public class AvatarController : MonoBehaviour
   private Kinect.Body trackedBody; // The body being tracked by the avatar
   public bool enableInverseKinematics = true;
 
+  // Weights for IK; controls how strongly the IK will force the avatar's limbs to match the Kinect data
+  // (0 = at the original animation before IK, 1 = at the goal).
+  private readonly float IK_HANDS_WEIGHT = 0.5f;
+  private readonly float IK_FEET_WEIGHT = 0.5f;
+  private readonly float IK_HEAD_DIRECTION_WEIGHT = 1f;
+  private readonly float IK_DEFAULT_WEIGHT = 1f;
+
   void Start()
   {
     animator = GetComponent<Animator>();
@@ -65,7 +72,7 @@ public class AvatarController : MonoBehaviour
     {
       Vector3 headTarget = BodySourceView.GetVector3FromKinectCoord(0, 0, 0); // Default position
 
-      animator.SetLookAtWeight(1f);
+      animator.SetLookAtWeight(IK_HEAD_DIRECTION_WEIGHT);
       animator.SetLookAtPosition(headTarget);
     }
 
@@ -84,7 +91,22 @@ public class AvatarController : MonoBehaviour
     var kinectJointPos = trackedBody.Joints[joint].Position;
     Vector3 unityPos = BodySourceView.GetVector3FromKinectCoord(kinectJointPos.X, kinectJointPos.Y, kinectJointPos.Z);
 
-    animator.SetIKPositionWeight(goal, 1f);
+    if (kinectJoint.JointType == Kinect.JointType.HandTipRight || kinectJoint.JointType == Kinect.JointType.HandTipLeft)
+    {
+      // For hands, we use a specific weight
+      animator.SetIKPositionWeight(goal, IK_HANDS_WEIGHT);
+    }
+    else if (kinectJoint.JointType == Kinect.JointType.FootRight || kinectJoint.JointType == Kinect.JointType.FootLeft)
+    {
+      // For feet, we use a different weight
+      animator.SetIKPositionWeight(goal, IK_FEET_WEIGHT);
+    }
+    else
+    {
+      // For other joints, use the default weight
+      animator.SetIKPositionWeight(goal, IK_DEFAULT_WEIGHT);
+    }
+
     animator.SetIKPosition(goal, unityPos);
   }
 
