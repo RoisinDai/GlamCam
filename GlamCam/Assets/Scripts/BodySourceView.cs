@@ -19,9 +19,10 @@ public class BodySourceView : MonoBehaviour
   public GameObject BodySourceManager;
   public GameObject ClothedBaseAvatar;
   private GameObject UnclothedBaseAvatar;
+  private GameObject Armature;
   private float BaseAvatarHeight;
   private const string BASE_AVATAR_NAME = "BaseAvatar";
-
+  private const string ARMATURE = "Armature";
   private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
   private BodySourceManager _BodyManager;
 
@@ -69,8 +70,8 @@ public class BodySourceView : MonoBehaviour
   {
     if (ClothedBaseAvatar == null)
     {
-        Debug.LogError("ClothedBaseAvatar is STILL null at runtime!");
-        return;
+      Debug.LogError("ClothedBaseAvatar is STILL null at runtime!");
+      return;
     }
     Debug.Log("Clothed Base Avatar: " + ClothedBaseAvatar.name);
 
@@ -78,8 +79,12 @@ public class BodySourceView : MonoBehaviour
     UnclothedBaseAvatar = ClothedBaseAvatar.transform.Find(BASE_AVATAR_NAME)?.gameObject;
     Debug.Log("Unclothed Base Avatar: " + UnclothedBaseAvatar.name);
 
-    // Get height of avatar, in Kinect's x10 space
-    BaseAvatarHeight = GetBaseAvatarHeight(UnclothedBaseAvatar);
+    // Set the armature
+    Armature = ClothedBaseAvatar.transform.Find(ARMATURE)?.gameObject;
+    Debug.Log("Armature: " + Armature.name);
+
+    // Get height of avatar
+    BaseAvatarHeight = GetBaseAvatarHeight(Armature);
     Debug.Log("Avatar height (in Unity 1x): " + BaseAvatarHeight);
   }
 
@@ -149,36 +154,38 @@ public class BodySourceView : MonoBehaviour
 
         RefreshBodyObject(body, _Bodies[body.TrackingId]);
 
-        // Compute measurements of the person's body
+        // Compute measurements of the person's body WRT Unity World space
         var joints = body.Joints;
-        Vector3 shoulderLeft = GetVector3FromJoint(joints[Kinect.JointType.ShoulderLeft]);
-        Vector3 shoulderRight = GetVector3FromJoint(joints[Kinect.JointType.ShoulderRight]);
+        // Vector3 shoulderLeft = GetVector3FromJoint(joints[Kinect.JointType.ShoulderLeft]);
+        // Vector3 shoulderRight = GetVector3FromJoint(joints[Kinect.JointType.ShoulderRight]);
         Vector3 head = GetVector3FromJoint(joints[Kinect.JointType.Head]);
         Vector3 footLeft = GetVector3FromJoint(joints[Kinect.JointType.FootLeft]);
         Vector3 footRight = GetVector3FromJoint(joints[Kinect.JointType.FootRight]);
-        Vector3 elbowLeft = GetVector3FromJoint(joints[Kinect.JointType.ElbowLeft]);
-        Vector3 wristLeft = GetVector3FromJoint(joints[Kinect.JointType.WristLeft]);
+        // Vector3 elbowLeft = GetVector3FromJoint(joints[Kinect.JointType.ElbowLeft]);
+        // Vector3 wristLeft = GetVector3FromJoint(joints[Kinect.JointType.WristLeft]);
 
         // Height
         _UserMeasurements.height = head.y - ((footLeft.y + footRight.y) / 2f); // average foot height
         Debug.Log("Height (Kinect 10x): " + _UserMeasurements.height.ToString("F3"));
 
         // Shoulder width
-        _UserMeasurements.shoulderWidth = Vector3.Distance(shoulderLeft, shoulderRight);
-        Debug.Log("Shoulder width (Kinect 10x): " + _UserMeasurements.shoulderWidth.ToString("F3"));
+        // _UserMeasurements.shoulderWidth = Vector3.Distance(shoulderLeft, shoulderRight);
+        // Debug.Log("Shoulder width (Kinect 10x): " + _UserMeasurements.shoulderWidth.ToString("F3"));
 
         // Arm length (Shoulder -> Elbow -> Wrist)
-        _UserMeasurements.armLength = Vector3.Distance(shoulderLeft, elbowLeft) + Vector3.Distance(elbowLeft, wristLeft);
-        Debug.Log("Arm length (Kinect 10x): " + _UserMeasurements.armLength.ToString("F3"));
+        // _UserMeasurements.armLength = Vector3.Distance(shoulderLeft, elbowLeft) + Vector3.Distance(elbowLeft, wristLeft);
+        // Debug.Log("Arm length (Kinect 10x): " + _UserMeasurements.armLength.ToString("F3"));
 
         // Move the avatar to the location of the skeleton (X and Z coordinates)
         Vector3 spineBase = GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
-        Vector3 currAvatarPos = ClothedBaseAvatar.transform.position; // Maintain y position of base avatar
-        ClothedBaseAvatar.transform.position = new Vector3(spineBase.x - 15, -5, spineBase.z);
+        // ClothedBaseAvatar.transform.position = new Vector3(spineBase.x - 15, -5, spineBase.z);
+        ClothedBaseAvatar.transform.position = new Vector3(spineBase.x, spineBase.y, spineBase.z);
 
         // Get the scaling factor to apply to the avatar
         float scaleFactor = _UserMeasurements.height / BaseAvatarHeight; // AvatarHeight*scaleFactor = UserHeight
-        Debug.Log("Scale factor: " + scaleFactor);
+        Debug.Log("User height (Unity units): " + _UserMeasurements.height);
+        Debug.Log("Avatar base height: " + BaseAvatarHeight);
+        Debug.Log("Scale factor based on height: " + scaleFactor);
         ClothedBaseAvatar.transform.localScale = new Vector3(scaleFactor, scaleFactor, scaleFactor);
       }
     }
@@ -264,7 +271,7 @@ public class BodySourceView : MonoBehaviour
   // Z: forward to back
   // Convert a position in Kinect Coordinate System (meters) to Unity Coordinate System (units)
   // Joint positions are scaled by *10, so the skeleton is drawn at 10x its true size.
-  private static Vector3 GetVector3FromKinectCoord(float kinect_x, float kinect_y, float kinect_z)
+  public static Vector3 GetVector3FromKinectCoord(float kinect_x, float kinect_y, float kinect_z)
   {
     return new Vector3(kinect_x * 10, kinect_y * 10, kinect_z * 10);
   }
@@ -274,15 +281,19 @@ public class BodySourceView : MonoBehaviour
     return GetVector3FromKinectCoord(joint.Position.X, joint.Position.Y, joint.Position.Z);
   }
 
-  private float GetBaseAvatarHeight(GameObject baseAvatar)
+  private float GetBaseAvatarHeight(GameObject armature)
   {
-    Renderer r = baseAvatar.GetComponent<Renderer>();
-    if (r == null)
+    Transform headTop = armature.transform.FindDeepChild("mixamorig:HeadTop_End");
+    Transform footLeft = armature.transform.FindDeepChild("mixamorig:LeftToeBase");
+    Transform footRight = armature.transform.FindDeepChild("mixamorig:RightToeBase");
+
+    if (headTop == null || footLeft == null || footRight == null)
     {
-      Debug.LogWarning("No Renderer found on BaseAvatar object.");
-      return -1f;
+      Debug.LogError("Could not find one or more required bones for avatar height calculation.");
+      return 0f; // fallback to no scaling
     }
 
-    return r.bounds.size.y;
+    float footAvgY = (footLeft.position.y + footRight.position.y) / 2f;
+    return headTop.position.y - footAvgY;
   }
 }

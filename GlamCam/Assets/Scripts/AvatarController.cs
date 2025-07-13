@@ -49,8 +49,10 @@ public class AvatarController : MonoBehaviour
     if (animator == null || trackedBody == null || !enableInverseKinematics) return;
 
     // Move hands to their goals
-    ApplyIK(Kinect.JointType.HandLeft, AvatarIKGoal.LeftHand);
-    ApplyIK(Kinect.JointType.HandRight, AvatarIKGoal.RightHand);
+    // NOTE: Kinect uses camera-facing perspective, meaning its left is the avatar's right
+    //       Meanwhile, Unity’s AvatarIKGoal.LeftHand refers to the avatar’s anatomical left
+    ApplyIK(Kinect.JointType.HandRight, AvatarIKGoal.LeftHand);
+    ApplyIK(Kinect.JointType.HandLeft, AvatarIKGoal.RightHand);
   }
     
 
