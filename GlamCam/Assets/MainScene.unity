@@ -446,12 +446,16 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: f0e97ea21ab6e624b965f926c9b45f25, type: 3}
       propertyPath: m_Name
-      value: dressedWoman
+      value: DressedWoman
       objectReference: {fileID: 0}
     - target: {fileID: 2682187754082633858, guid: f0e97ea21ab6e624b965f926c9b45f25, type: 3}
       propertyPath: m_Name
       value: BaseAvatar
       objectReference: {fileID: 0}
+    - target: {fileID: 5866666021909216657, guid: f0e97ea21ab6e624b965f926c9b45f25, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: d66ce25e1987cc44999d1a54cb76e86b, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
