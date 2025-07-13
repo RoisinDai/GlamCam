@@ -10,8 +10,12 @@ public class JointView : MonoBehaviour
 {
   public Material BoneMaterial;
   public GameObject BodySourceManager;
+  public GameObject AvatarJointsCamera; // The camera that will view the joints
+  public GameObject AvatarCamera; // The camera that will view the avatar
+  public GameObject ClothedAvatarHips; // The dressed avatar's hips
   private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
   private BodySourceManager _BodyManager;
+  private const int X_OFFSET = -40; // The X offset for where this joint view will be drawn
 
   // Maps joints to the joint they are connected to
   private Dictionary<Kinect.JointType, Kinect.JointType> _BoneMap = new Dictionary<Kinect.JointType, Kinect.JointType>()
@@ -116,6 +120,13 @@ public class JointView : MonoBehaviour
         }
 
         RefreshBodyObject(body, _Bodies[body.TrackingId]);
+
+        // Move the AvatarJoints camera to the spine base position of the joint skeleton
+        Vector3 spineBase = GetVector3FromJoint(body.Joints[Kinect.JointType.SpineBase]);
+        AvatarJointsCamera.transform.position = new Vector3(spineBase.x, spineBase.y - 1f, spineBase.z - 40f);
+
+        // Move the Avatar camera to the corresponding position for the dressed avatar
+        AvatarCamera.transform.position = new Vector3(ClothedAvatarHips.transform.position.x, spineBase.y - 1f, spineBase.z - 40f);
       }
     }
   }
@@ -185,9 +196,9 @@ public class JointView : MonoBehaviour
   // Z: forward to back
   // Convert a position in Kinect Coordinate System (meters) to Unity Coordinate System (units)
   // Joint positions are scaled by *10, so the skeleton is drawn at 10x its true size.
-  public static Vector3 GetVector3FromKinectCoord(float kinect_x, float kinect_y, float kinect_z)
+  private static Vector3 GetVector3FromKinectCoord(float kinect_x, float kinect_y, float kinect_z)
   {
-    return new Vector3(kinect_x * 10, kinect_y * 10, kinect_z * 10);
+    return new Vector3(kinect_x * 10 + X_OFFSET, kinect_y * 10, kinect_z * 10); //
   }
 
   private static Vector3 GetVector3FromJoint(Kinect.Joint joint)

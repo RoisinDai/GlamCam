@@ -182,7 +182,8 @@ public class BodySourceView : MonoBehaviour
         ClothedBaseAvatar.transform.position = new Vector3(spineBase.x, spineBase.y, spineBase.z);
 
         // Get the scaling factor to apply to the avatar
-        float scaleFactor = _UserMeasurements.height / BaseAvatarHeight; // AvatarHeight*scaleFactor = UserHeight
+        float scaleFactor = 3f; // AvatarHeight*scaleFactor = UserHeight // TODO: Fix this scaling factor
+        // float scaleFactor = _UserMeasurements.height / BaseAvatarHeight; // AvatarHeight*scaleFactor = UserHeight
         Debug.Log("User height (Unity units): " + _UserMeasurements.height);
         Debug.Log("Avatar base height: " + BaseAvatarHeight);
         Debug.Log("Scale factor based on height: " + scaleFactor);
