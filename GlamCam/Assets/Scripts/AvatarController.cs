@@ -25,7 +25,7 @@ public class AvatarController : MonoBehaviour
     _BodyManager = BodySourceManager.GetComponent<BodySourceManager>();
     if (_BodyManager == null)
     {
-        Debug.LogError("BodySourceManager component not found.");
+      Debug.LogError("BodySourceManager component not found.");
     }
   }
 
@@ -68,8 +68,12 @@ public class AvatarController : MonoBehaviour
       animator.SetLookAtWeight(1f);
       animator.SetLookAtPosition(headTarget);
     }
+
+    // Rotate avatar based on the orientation of the shoulders
+    RotateAvatarBasedOnShoulders(trackedBody.Joints[Kinect.JointType.ShoulderLeft],
+                                 trackedBody.Joints[Kinect.JointType.ShoulderRight]);
   }
-    
+
 
   // Apply inverse kinematics to the avatar's joints to move them to the goal
   private void ApplyIK(Kinect.JointType joint, AvatarIKGoal goal)
@@ -82,5 +86,35 @@ public class AvatarController : MonoBehaviour
 
     animator.SetIKPositionWeight(goal, 1f);
     animator.SetIKPosition(goal, unityPos);
+  }
+
+  private void RotateAvatarBasedOnShoulders(Kinect.Joint leftShoulder, Kinect.Joint rightShoulder)
+  {
+    // Get positions of the shoulders in Unity coordinates
+    Vector3 shoulderLeft = BodySourceView.GetVector3FromKinectCoord(
+      leftShoulder.Position.X,
+      leftShoulder.Position.Y,
+      leftShoulder.Position.Z
+    );
+
+    Vector3 shoulderRight = BodySourceView.GetVector3FromKinectCoord(
+      rightShoulder.Position.X,
+      rightShoulder.Position.Y,
+      rightShoulder.Position.Z
+    );
+
+    // Vector pointing from left shoulder to right shoulder
+    Vector3 shoulderDirection = shoulderRight - shoulderLeft;
+
+    // The forward direction is perpendicular to the shoulder vector in the horizontal plane
+    Vector3 forward = Vector3.Cross(shoulderDirection, Vector3.up);
+
+    // Optional: smooth the rotation
+    Quaternion targetRotation = Quaternion.LookRotation(-1 * forward /*Avatar faces Z-*/, Vector3.up);
+    ClothedBaseAvatar.transform.rotation = Quaternion.Slerp(
+        ClothedBaseAvatar.transform.rotation, 
+        targetRotation, 
+        Time.deltaTime * 5f // smoothing speed
+    );
   }
 }
