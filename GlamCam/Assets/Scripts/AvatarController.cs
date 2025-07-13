@@ -58,6 +58,16 @@ public class AvatarController : MonoBehaviour
     // Move feet to their goals
     ApplyIK(Kinect.JointType.FootRight, AvatarIKGoal.LeftFoot);
     ApplyIK(Kinect.JointType.FootLeft, AvatarIKGoal.RightFoot);
+
+    // Rotate head to look at a specific position
+    var kinectHead = trackedBody.Joints[Kinect.JointType.Head];
+    if (kinectHead.TrackingState == Kinect.TrackingState.Tracked)
+    {
+      Vector3 headTarget = BodySourceView.GetVector3FromKinectCoord(0, 0, 0); // Default position
+
+      animator.SetLookAtWeight(1f);
+      animator.SetLookAtPosition(headTarget);
+    }
   }
     
 
