@@ -16,8 +16,8 @@ public class AvatarController : MonoBehaviour
 
   // Weights for IK; controls how strongly the IK will force the avatar's limbs to match the Kinect data
   // (0 = at the original animation before IK, 1 = at the goal).
-  private readonly float IK_HANDS_WEIGHT = 0.5f;
-  private readonly float IK_FEET_WEIGHT = 0.5f;
+  private readonly float IK_HANDS_WEIGHT = 1f;
+  private readonly float IK_FEET_WEIGHT = 1f;
   private readonly float IK_HEAD_DIRECTION_WEIGHT = 1f;
   private readonly float IK_DEFAULT_WEIGHT = 1f;
 
