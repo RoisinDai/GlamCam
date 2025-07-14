@@ -15,7 +15,7 @@ def compute_rms_radius(points):
     return np.sqrt(np.mean(np.sum((points - centroid) ** 2, axis=1)))
 
 
-def rigid_icp_2d_accum(src, dst, max_iter=50, tolerance=1e-6, verbose=True):
+def rigid_icp_2d_accum(src, dst, max_iter=50, tolerance=1e-6, verbose=False):
     """
     Perform a rigid ICP (Iterative Closest Point) alignment of two sets of 2D points.
     Args:       
@@ -76,7 +76,7 @@ def rigid_icp_2d_accum(src, dst, max_iter=50, tolerance=1e-6, verbose=True):
     return R_accum, t_accum, src_trans  # Accumulated R, t
 
 
-def icp_with_prescaling(src, dst, max_iter=50, tolerance=1e-6, verbose=True):
+def icp_with_prescaling(src, dst, max_iter=50, tolerance=1e-6, verbose=False):
     """
     Perform ICP with an initial scaling step.
     Args:
@@ -97,7 +97,6 @@ def icp_with_prescaling(src, dst, max_iter=50, tolerance=1e-6, verbose=True):
     rms_src = compute_rms_radius(src)
     rms_dst = compute_rms_radius(dst)
     scale = rms_dst / rms_src if rms_src > 1e-8 else 1.0
-    print(f"Initial scaling factor: {scale:.4f}")
 
     # Step 2: Scale src
     src_scaled = src * scale
