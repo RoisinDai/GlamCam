@@ -25,6 +25,7 @@ public class BodySourceView : MonoBehaviour
   private const string ARMATURE = "Armature";
   private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
   private BodySourceManager _BodyManager;
+  private Material transparentMaterial;
 
   private UserMeasurements _UserMeasurements = new UserMeasurements();
 
@@ -86,6 +87,21 @@ public class BodySourceView : MonoBehaviour
     // Get height of avatar
     BaseAvatarHeight = GetBaseAvatarHeight(Armature);
     Debug.Log("Avatar height (in Unity 1x): " + BaseAvatarHeight);
+
+    // Create transparent material for joint cubes and lines
+    transparentMaterial = new Material(Shader.Find("Standard"));
+    transparentMaterial.SetFloat("_Mode", 3); // Set rendering mode to Transparent
+    transparentMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+    transparentMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+    transparentMaterial.SetInt("_ZWrite", 0);
+    transparentMaterial.DisableKeyword("_ALPHATEST_ON");
+    transparentMaterial.EnableKeyword("_ALPHABLEND_ON");
+    transparentMaterial.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+    transparentMaterial.renderQueue = 3000;
+    transparentMaterial.color = new Color(1f, 0f, 0f, 0f); // Red with no opacity
+
+    // Apply the transparent material to the object
+    UnclothedBaseAvatar.GetComponent<Renderer>().material = transparentMaterial;
   }
 
   // Updates the body objects
@@ -152,7 +168,7 @@ public class BodySourceView : MonoBehaviour
           _Bodies[body.TrackingId] = CreateBodyObject(body.TrackingId);
         }
 
-        RefreshBodyObject(body, _Bodies[body.TrackingId]);
+        // RefreshBodyObject(body, _Bodies[body.TrackingId]);
 
         // Compute measurements of the person's body WRT Unity World space
         var joints = body.Joints;
@@ -202,11 +218,14 @@ public class BodySourceView : MonoBehaviour
     {
       GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-      LineRenderer lr = jointObj.AddComponent<LineRenderer>();
-      lr.positionCount = 2;
-      lr.material = BoneMaterial;
-      lr.startWidth = 0.05f;
-      lr.endWidth = 0.05f;
+      // Apply the transparent material to the object
+      jointObj.GetComponent<Renderer>().material = transparentMaterial;
+
+      // LineRenderer lr = jointObj.AddComponent<LineRenderer>();
+      // lr.positionCount = 2;
+      // lr.material = BoneMaterial;
+      // lr.startWidth = 0.05f;
+      // lr.endWidth = 0.05f;
 
 
       jointObj.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
