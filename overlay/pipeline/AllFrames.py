@@ -41,14 +41,14 @@ def process_all(video_paths: list[str], output_path: str, fps: int = 30) -> None
 if __name__ == "__main__":
     # Path to the input video files
     VIDEO_FILES = [
-        "./input/unity-joints.mp4",
-        "./input/unity-vid.mp4",
-        "./input/kinect-joints.mp4",
-        "./input/live-vid.mp4"
+        "./input/full/unity-joints.mp4",
+        "./input/full/unity-vid.mp4",
+        "./input/full/kinect-joints.mp4",
+        "./input/full/live-vid.mp4"
     ]
 
     # Path to save the output video
-    OUTPUT_VIDEO = "./output/overlayed.mp4"
+    OUTPUT_VIDEO = "./output/full.mp4"
 
     # Process all videos
     process_all(VIDEO_FILES, OUTPUT_VIDEO)
