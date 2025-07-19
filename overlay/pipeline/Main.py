@@ -1,0 +1,71 @@
+# THE MAIN ENTRY POINT FOR THE PIPELINE
+
+import cv2
+
+from Receiver import (
+    StreamReceiver,
+    parse_kinect_packet,
+    parse_unity_packet,
+    decode_frame,
+)
+from Config import KINECT_HOST, KINECT_PORT, UNITY_HOST, UNITY_PORT
+from PerFrame import process_frame
+
+
+def main() -> None:
+    # Start receiver threads
+    kinect_receiver = StreamReceiver(
+        KINECT_HOST, KINECT_PORT, parse_kinect_packet, name="KinectReceiver"
+    )
+    unity_receiver = StreamReceiver(
+        UNITY_HOST, UNITY_PORT, parse_unity_packet, name="UnityReceiver"
+    )
+
+    kinect_latest = None
+    unity_latest = None
+
+    while True:
+        # Get latest Kinect data if available
+        kinect_latest = kinect_receiver.get_latest(kinect_latest)
+        # Get latest Unity data if available
+        unity_latest = unity_receiver.get_latest(unity_latest)
+
+        if kinect_latest is not None and unity_latest is not None:
+            k_jpg_bytes, k_joints = kinect_latest
+            imgA_bytes, imgB_bytes = unity_latest
+
+            kinect_video = decode_frame(k_jpg_bytes)
+            kinect_joints = (
+                k_joints[0] if k_joints is not None and len(k_joints) > 0 else None
+            )
+
+            unity_clothes = decode_frame(imgB_bytes)
+            unity_joints = decode_frame(imgA_bytes)
+
+            if (
+                unity_joints is not None
+                and unity_clothes is not None
+                and kinect_video is not None
+                and kinect_joints is not None
+                and len(kinect_joints) > 0
+            ):
+                # Feed the four inputs to overlay and process them
+                processed_frame = process_frame(
+                    unity_joints_frame=unity_joints,
+                    unity_clothes_frame=unity_clothes,
+                    kinect_joints_coords=kinect_joints,
+                    live_human_frame=kinect_video,
+                )
+
+                if processed_frame is not None:
+                    # Display the processed frame
+                    cv2.imshow("Processed Frame", processed_frame)
+
+        if cv2.waitKey(1) == 27:
+            break
+
+    cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()
