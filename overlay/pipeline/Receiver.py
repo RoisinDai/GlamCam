@@ -5,7 +5,52 @@ import cv2
 import json
 import threading
 import queue
-from Config import KINECT_HOST, KINECT_PORT, UNITY_HOST, UNITY_PORT
+
+
+class StreamReceiver:
+    def __init__(self, host, port, parse_packet_fn, name="Receiver"):
+        self.host = host
+        self.port = port
+        self.parse_packet_fn = parse_packet_fn
+        self.name = name
+        self.queue = queue.Queue(maxsize=1)
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+
+    def _run(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((self.host, self.port))
+            s.listen(1)
+            print(
+                f"[{self.name}] Waiting for connection on {self.host}:{self.port} ..."
+            )
+            conn, addr = s.accept()
+            print(f"[{self.name}] Connected by {addr}")
+            with conn:
+                while True:
+                    try:
+                        data = self.parse_packet_fn(conn)
+                        if data is not None:
+                            # Drain the queue to only keep the latest data
+                            if self.queue.full():
+                                try:
+                                    self.queue.get_nowait()
+                                except queue.Empty:
+                                    pass
+                            self.queue.put(data)
+                    except Exception as e:
+                        print(f"[{self.name}] Receiver error:", e)
+                        break
+
+    def get_latest(self, last_value=None):
+        """Get the latest item from the queue, or return last_value if empty."""
+        item = None
+        try:
+            item = self.queue.get_nowait()
+            while True:
+                item = self.queue.get_nowait()
+        except queue.Empty:
+            return item if item is not None else last_value
 
 
 def receive_exact(conn, length):
@@ -19,112 +64,57 @@ def receive_exact(conn, length):
     return data
 
 
-def receive_kinect_data():
-    """Thread target for Kinect data reception."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((KINECT_HOST, KINECT_PORT))
-        s.listen(1)
-        print("Waiting for Kinect C# connection...")
-        conn, addr = s.accept()
-        print("Kinect connected by", addr)
-        with conn:
-            while True:
-                try:
-                    # 1. Read total message length
-                    raw_total_len = receive_exact(conn, 4)
-                    total_len = struct.unpack("<I", raw_total_len)[0]
-                    if total_len <= 0 or total_len > 20_000_000:
-                        print(f"Invalid or too large total message length: {total_len}")
-                        continue
+def parse_kinect_packet(conn):
+    # 1. Read total message length
+    raw_total_len = receive_exact(conn, 4)
+    total_len = struct.unpack("<I", raw_total_len)[0]
+    if total_len <= 0 or total_len > 20_000_000:
+        print(f"Invalid or too large total message length: {total_len}")
+        return None
 
-                    # 2. Read JPEG length and JPEG bytes
-                    jpg_len = struct.unpack("<I", receive_exact(conn, 4))[0]
-                    if jpg_len <= 0 or jpg_len > total_len:
-                        print(f"Invalid or too large jpeg length: {jpg_len}")
-                        continue
-                    jpg_bytes = receive_exact(conn, jpg_len)
+    # 2. Read JPEG length and JPEG bytes
+    jpg_len = struct.unpack("<I", receive_exact(conn, 4))[0]
+    if jpg_len <= 0 or jpg_len > total_len:
+        print(f"Invalid or too large jpeg length: {jpg_len}")
+        return None
+    jpg_bytes = receive_exact(conn, jpg_len)
 
-                    # 3. Read joints JSON length and JSON bytes
-                    joints_len = struct.unpack("<I", receive_exact(conn, 4))[0]
-                    if joints_len < 0 or joints_len > (total_len - 4 - jpg_len - 4):
-                        print(f"Invalid or too large joints length: {joints_len}")
-                        continue
-                    joints_bytes = receive_exact(conn, joints_len)
+    # 3. Read joints JSON length and JSON bytes
+    joints_len = struct.unpack("<I", receive_exact(conn, 4))[0]
+    if joints_len < 0 or joints_len > (total_len - 4 - jpg_len - 4):
+        print(f"Invalid or too large joints length: {joints_len}")
+        return None
+    joints_bytes = receive_exact(conn, joints_len)
 
-                    # 4. Decode JSON
-                    try:
-                        joints_json = joints_bytes.decode("utf-8")
-                        joints_data = json.loads(joints_json)
-                    except Exception as ex:
-                        print("Failed to decode joint JSON:", ex)
-                        joints_data = None
-
-                    # 5. Drain the queue to only keep the latest data
-                    if kinect_queue.full():
-                        try:
-                            kinect_queue.get_nowait()
-                        except queue.Empty:
-                            pass
-
-                    # 6. Put the latest data into the queue
-                    kinect_queue.put((jpg_bytes, joints_data))
-
-                except Exception as e:
-                    print("Kinect receiver error:", e)
-                    break
-
-
-def receive_unity_data():
-    """Thread target for Unity data reception."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((UNITY_HOST, UNITY_PORT))
-        s.listen(1)
-        print("Waiting for Unity connection...")
-        conn, addr = s.accept()
-        print("Unity connected by", addr)
-        with conn:
-            while True:
-                try:
-                    # 1. Receive Camera A
-                    raw_lenA = receive_exact(conn, 4)
-                    if not raw_lenA:
-                        print("No data received for Camera A.")
-                        continue
-                    lenA = struct.unpack("<I", raw_lenA)[0]
-                    imgA_bytes = receive_exact(conn, lenA)
-
-                    # 2. Receive Camera B
-                    raw_lenB = receive_exact(conn, 4)
-                    if not raw_lenB:
-                        print("No data received for Camera B.")
-                        continue
-                    lenB = struct.unpack("<I", raw_lenB)[0]
-                    imgB_bytes = receive_exact(conn, lenB)
-
-                    # 3. Drain the queue to only keep the latest data
-                    if unity_queue.full():
-                        try:
-                            unity_queue.get_nowait()
-                        except queue.Empty:
-                            pass
-
-                    # 4. Put the latest data into the queue
-                    unity_queue.put((imgA_bytes, imgB_bytes))
-
-                except Exception as e:
-                    print("Unity receiver error:", e)
-                    break
-
-
-def get_latest_from_queue(q, last_value=None):
-    """Get the latest item from the queue, or return last_value if empty."""
-    item = None
+    # 4. Decode JSON
     try:
-        item = q.get_nowait()
-        while True:
-            item = q.get_nowait()
-    except queue.Empty:
-        return item if item is not None else last_value
+        joints_json = joints_bytes.decode("utf-8")
+        joints_data = json.loads(joints_json)
+    except Exception as ex:
+        print("Failed to decode joint JSON:", ex)
+        joints_data = None
+
+    return (jpg_bytes, joints_data)
+
+
+def parse_unity_packet(conn):
+    # 1. Receive Camera A
+    raw_lenA = receive_exact(conn, 4)
+    if not raw_lenA:
+        print("No data received for Camera A.")
+        return None
+    lenA = struct.unpack("<I", raw_lenA)[0]
+    imgA_bytes = receive_exact(conn, lenA)
+
+    # 2. Receive Camera B
+    raw_lenB = receive_exact(conn, 4)
+    if not raw_lenB:
+        print("No data received for Camera B.")
+        return None
+    lenB = struct.unpack("<I", raw_lenB)[0]
+    imgB_bytes = receive_exact(conn, lenB)
+
+    return (imgA_bytes, imgB_bytes)
 
 
 def decode_frame(frame_bytes):
@@ -147,22 +137,23 @@ def decode_frame(frame_bytes):
 
 
 if __name__ == "__main__":
-    # Queues for latest data (maxsize=1 to keep only the freshest)
-    kinect_queue = queue.Queue(maxsize=1)
-    unity_queue = queue.Queue(maxsize=1)
+    from Config import KINECT_HOST, KINECT_PORT, UNITY_HOST, UNITY_PORT
 
-    # Start receiver threads
-    threading.Thread(target=receive_kinect_data, daemon=True).start()
-    threading.Thread(target=receive_unity_data, daemon=True).start()
+    kinect_receiver = StreamReceiver(
+        KINECT_HOST, KINECT_PORT, parse_kinect_packet, name="KinectReceiver"
+    )
+    unity_receiver = StreamReceiver(
+        UNITY_HOST, UNITY_PORT, parse_unity_packet, name="UnityReceiver"
+    )
 
     kinect_latest = None
     unity_latest = None
 
     while True:
         # Get latest Kinect data if available
-        kinect_latest = get_latest_from_queue(kinect_queue, kinect_latest)
+        kinect_latest = kinect_receiver.get_latest(kinect_latest)
         # Get latest Unity data if available
-        unity_latest = get_latest_from_queue(unity_queue, unity_latest)
+        unity_latest = unity_receiver.get_latest(unity_latest)
 
         if kinect_latest is not None and unity_latest is not None:
             k_jpg_bytes, k_joints = kinect_latest
