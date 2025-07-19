@@ -18,7 +18,7 @@ def compute_rms_radius(points):
 def rigid_icp_2d_accum(src, dst, max_iter=50, tolerance=1e-6, verbose=False):
     """
     Perform a rigid ICP (Iterative Closest Point) alignment of two sets of 2D points.
-    Args:       
+    Args:
         src (np.ndarray): Source points of shape (N, 2).
         dst (np.ndarray): Destination points of shape (M, 2).
         max_iter (int): Maximum number of iterations.
@@ -53,7 +53,7 @@ def rigid_icp_2d_accum(src, dst, max_iter=50, tolerance=1e-6, verbose=False):
         U, _, Vt = np.linalg.svd(H)
         R = Vt.T @ U.T
         if np.linalg.det(R) < 0:
-            Vt[-1,:] *= -1
+            Vt[-1, :] *= -1
             R = Vt.T @ U.T
 
         t = centroid_dst - R @ centroid_src
@@ -102,7 +102,9 @@ def icp_with_prescaling(src, dst, max_iter=50, tolerance=1e-6, verbose=False):
     src_scaled = src * scale
 
     # Step 3: Rigid ICP (rotation + translation, no scaling)
-    R, t, src_aligned = rigid_icp_2d_accum(src_scaled, dst, max_iter=max_iter, tolerance=tolerance, verbose=verbose)
+    R, t, src_aligned = rigid_icp_2d_accum(
+        src_scaled, dst, max_iter=max_iter, tolerance=tolerance, verbose=verbose
+    )
 
     return scale, R, t, src_aligned
 
@@ -121,7 +123,7 @@ def run_icp(unity_coords, kinect_coords) -> np.ndarray:
     unity_coords = np.array(unity_coords)
 
     # Perform ICP to align Kinect coordinates to Unity coordinates
-    scale, R, t, _  = icp_with_prescaling(unity_coords, kinect_coords)
+    scale, R, t, _ = icp_with_prescaling(unity_coords, kinect_coords)
 
     # Create the affine transformation matrix
     M = scale * R
@@ -130,7 +132,7 @@ def run_icp(unity_coords, kinect_coords) -> np.ndarray:
     return affine_matrix
 
 
-def alpha_blend(bg : np.ndarray, fg : np.ndarray) -> np.ndarray:
+def alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
     """
     Perform alpha blending of two images.
     Args:
@@ -146,7 +148,9 @@ def alpha_blend(bg : np.ndarray, fg : np.ndarray) -> np.ndarray:
     out_alpha = fg[..., 3] + bg[..., 3] * (1 - fg[..., 3])
     mask = out_alpha > 0
     out_rgb = np.zeros_like(fg[..., :3])
-    out_rgb[mask] = (fg[..., :3] * fg[..., 3:4] + bg[..., :3] * bg[..., 3:4] * (1 - fg[..., 3:4]))[mask] / out_alpha[mask, None]
+    out_rgb[mask] = (
+        fg[..., :3] * fg[..., 3:4] + bg[..., :3] * bg[..., 3:4] * (1 - fg[..., 3:4])
+    )[mask] / out_alpha[mask, None]
     out = np.zeros_like(fg)
     out[..., :3] = out_rgb
     out[..., 3] = out_alpha

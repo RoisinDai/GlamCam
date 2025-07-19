@@ -744,7 +744,7 @@ MonoBehaviour:
   cameraB: {fileID: 300744147}
   host: 127.0.0.1
   port: 5005
-  frameRate: 15
+  frameRate: 30
   jpgQuality: 80
 --- !u!4 &483988793
 Transform:

@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
+from typing import Any, Dict, List
 
 
 def segment_joints(frame: np.ndarray) -> np.ndarray:
@@ -28,7 +29,7 @@ def segment_joints(frame: np.ndarray) -> np.ndarray:
     return mask
 
 
-def get_joints_coord(mask: np.ndarray) -> list[tuple[int, int]]:
+def _get_joints_coord(mask: np.ndarray) -> list[tuple[int, int]]:
     """
     Extract coordinates of green dots from the mask.
     Args:
@@ -57,3 +58,28 @@ def get_joints_coord(mask: np.ndarray) -> list[tuple[int, int]]:
     dot_centers_sorted = sorted(dot_centers, key=lambda p: (p[1], p[0]))
 
     return dot_centers_sorted
+
+
+def get_joints_coord(kinect_joints_coords: dict[str, Any]) -> list[tuple[int, int]]:
+    """
+    Get joint coordinates from Kinect data.
+    Args:
+        kinect_joints_coords (dict): Dictionary containing joint coordinates for one body.
+    Returns:
+        list[tuple[int, int]]: List of (x, y) coordinates of the joints.
+    """
+
+    if not isinstance(kinect_joints_coords, dict):
+        raise ValueError("kinect_joints_coords must be a dictionary")
+
+    kinect_coords = []
+    for joint in list(kinect_joints_coords.values()):
+        try:
+            x = float(joint["X"])
+            y = float(joint["Y"])
+            if np.isfinite(x) and np.isfinite(y):
+                kinect_coords.append((x, y))
+        except (KeyError, ValueError, TypeError):
+            continue
+
+    return kinect_coords
