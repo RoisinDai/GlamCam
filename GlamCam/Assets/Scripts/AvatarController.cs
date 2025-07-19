@@ -166,32 +166,48 @@ public class AvatarController : MonoBehaviour
         animator.SetIKPosition(goal, unityPos);
     }
 
-    private void LateUpdate()
+  private void LateUpdate()
+  {
+    float armLengthExtension = 0.005f; // 0.5cm extension
+    ApplyArmExtension(armLengthExtension);
+  }
+
+  // Stretches arms by an extension value
+  // extension: controls how much farther out to push the lower arm and hand
+  // in their respective bone-local directions.
+  // NOTE: effectiveExtension = extension * scaleFactor, which scaleFactor is performed uniformly based on height
+  void ApplyArmExtension(float extension)
+  {
+    var upperArmT = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+    var lowerArmT = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+    var handT = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+
+    // Extend the upper arm from the shoulder along the upper arm's direction.
+    if (upperArmT != null && lowerArmT != null)
     {
-        float armLengthExtension = 0.005f;
-        ApplyLimbExtension(armLengthExtension);
+      float before = Vector3.Distance(upperArmT.position, lowerArmT.position);
+
+      Vector3 direction = (lowerArmT.position - upperArmT.position).normalized; // Direction from upper arm to lower arm
+      Vector3 localDir = upperArmT.InverseTransformDirection(direction);        // Get direction of extension relative to the rig
+      lowerArmT.localPosition = initialLowerArmLocalPos + localDir * extension; // Extends the lower arm in the local direction
+
+      float after = Vector3.Distance(upperArmT.position, lowerArmT.position);
+      Debug.Log($"Elbow extended: {after - before} world units");
     }
 
-    void ApplyLimbExtension(float extension)
+    // Extend the hand farther from the elbow along the forearm's direction.
+    if (lowerArmT != null && handT != null)
     {
-        var upperArmT = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
-        var lowerArmT = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
-        var handT = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+      float before = Vector3.Distance(lowerArmT.position, handT.position);
 
-        if (upperArmT != null && lowerArmT != null)
-        {
-            Vector3 direction = (lowerArmT.position - upperArmT.position).normalized;
-            Vector3 localDir = upperArmT.InverseTransformDirection(direction);
-            lowerArmT.localPosition = initialLowerArmLocalPos + localDir * extension;
-        }
+      Vector3 forearmDir = (handT.position - lowerArmT.position).normalized;
+      Vector3 localForearmDir = lowerArmT.InverseTransformDirection(forearmDir);
+      handT.localPosition = initialHandLocalPos + localForearmDir * extension;
 
-        if (lowerArmT != null && handT != null)
-        {
-            Vector3 forearmDir = (handT.position - lowerArmT.position).normalized;
-            Vector3 localForearmDir = lowerArmT.InverseTransformDirection(forearmDir);
-            handT.localPosition = initialHandLocalPos + localForearmDir * extension;
-        }
+      float after = Vector3.Distance(lowerArmT.position, handT.position);
+      Debug.Log($"Hand extended: {after - before} world units");
     }
+  }
 
     private void RotateAvatarBasedOnShoulders(Kinect.Joint leftShoulder, Kinect.Joint rightShoulder)
     {
