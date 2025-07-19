@@ -1,6 +1,7 @@
 # THE MAIN ENTRY POINT FOR THE PIPELINE
 
 import cv2
+import numpy as np
 
 from Receiver import (
     StreamReceiver,
@@ -34,32 +35,38 @@ def main() -> None:
             k_jpg_bytes, k_joints = kinect_latest
             imgA_bytes, imgB_bytes = unity_latest
 
+            # Obtain the live video feed from Kinect
             kinect_video = decode_frame(k_jpg_bytes)
-            kinect_joints = (
-                k_joints[0] if k_joints is not None and len(k_joints) > 0 else None
-            )
+            # Obtain the joints coordinates from Kinect
+            # TODO: Write now, only the first body is used. Need to handle multiple bodies in the future.
+            kinect_joints = None
+            if k_joints is not None and len(k_joints) > 0:
+                kinect_joints = k_joints[0]
 
+            # Obtain clothing frame from Unity
             unity_clothes = decode_frame(imgB_bytes)
+            # Obtain joints coordinates frame from Unity
             unity_joints = decode_frame(imgA_bytes)
 
+            # Process only if all inputs are available
             if (
                 unity_joints is not None
                 and unity_clothes is not None
                 and kinect_video is not None
                 and kinect_joints is not None
-                and len(kinect_joints) > 0
             ):
                 # Feed the four inputs to overlay and process them
                 processed_frame = process_frame(
-                    unity_joints_frame=unity_joints,
-                    unity_clothes_frame=unity_clothes,
-                    kinect_joints_coords=kinect_joints,
-                    live_human_frame=kinect_video,
+                    unity_joints,
+                    unity_clothes,
+                    kinect_joints,
+                    kinect_video,
                 )
 
                 if processed_frame is not None:
                     # Display the processed frame
-                    cv2.imshow("Processed Frame", processed_frame)
+                    processed_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                    cv2.imshow("processed", processed_frame)
 
         if cv2.waitKey(1) == 27:
             break

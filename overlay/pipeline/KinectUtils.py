@@ -72,10 +72,14 @@ def get_joints_coord(kinect_joints_coords: dict[str, Any]) -> list[tuple[int, in
     if not isinstance(kinect_joints_coords, dict):
         raise ValueError("kinect_joints_coords must be a dictionary")
 
-    # Obtain the coordinates of the joints from Kinect
-    kinect_coords = [
-        (float(joint["X"]), float(joint["Y"]))
-        for joint in list(kinect_joints_coords.values())
-    ]
+    kinect_coords = []
+    for joint in list(kinect_joints_coords.values()):
+        try:
+            x = float(joint["X"])
+            y = float(joint["Y"])
+            if np.isfinite(x) and np.isfinite(y):
+                kinect_coords.append((x, y))
+        except (KeyError, ValueError, TypeError):
+            continue
 
     return kinect_coords
