@@ -6,7 +6,7 @@ import json
 
 # TCP host and port for Kinect C# connection
 HOST = "127.0.0.1"
-PORT = 5005
+PORT = 5006
 
 
 def receive_exact(conn, length):

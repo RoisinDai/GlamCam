@@ -25,7 +25,7 @@ namespace Microsoft.Samples.Kinect.ColorBasics
         private string statusText = null;
         private TcpClient client = null;
         private NetworkStream stream = null;
-        private int port = 5005;
+        private int port = 5006;
         private String host = "127.0.0.1";
 
         // Body tracking
