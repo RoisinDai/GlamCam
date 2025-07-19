@@ -7,12 +7,8 @@
       "RelativeMoniker": "D:0:0:{4467C0A4-9040-48BF-B9B7-911A4148D013}|ColorBasics-WPF.csproj|solutionrelative:mainwindow.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{4467C0A4-9040-48BF-B9B7-911A4148D013}|ColorBasics-WPF.csproj|c:\\users\\bungu\\dev\\glamcam\\kinectv2\\kinectsender\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
+      "AbsoluteMoniker": "D:0:0:{4467C0A4-9040-48BF-B9B7-911A4148D013}|ColorBasics-WPF.csproj|C:\\Users\\bungu\\dev\\GlamCam\\KinectV2\\KinectSender\\mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}",
       "RelativeMoniker": "D:0:0:{4467C0A4-9040-48BF-B9B7-911A4148D013}|ColorBasics-WPF.csproj|solutionrelative:mainwindow.xaml||{F11ACC28-31D1-4C80-A34B-F4E09D3D753C}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4467C0A4-9040-48BF-B9B7-911A4148D013}|ColorBasics-WPF.csproj|C:\\Users\\bungu\\dev\\GlamCam\\KinectV2\\KinectSender\\app.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4467C0A4-9040-48BF-B9B7-911A4148D013}|ColorBasics-WPF.csproj|solutionrelative:app.xaml.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -22,7 +18,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
@@ -38,25 +34,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "App.xaml.cs",
-              "DocumentMoniker": "C:\\Users\\bungu\\dev\\GlamCam\\KinectV2\\KinectSender\\App.xaml.cs",
-              "RelativeDocumentMoniker": "App.xaml.cs",
-              "ToolTip": "C:\\Users\\bungu\\dev\\GlamCam\\KinectV2\\KinectSender\\App.xaml.cs",
-              "RelativeToolTip": "App.xaml.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-07-18T21:07:51.803Z"
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 0,
               "Title": "MainWindow.xaml.cs",
               "DocumentMoniker": "C:\\Users\\bungu\\dev\\GlamCam\\KinectV2\\KinectSender\\MainWindow.xaml.cs",
               "RelativeDocumentMoniker": "MainWindow.xaml.cs",
               "ToolTip": "C:\\Users\\bungu\\dev\\GlamCam\\KinectV2\\KinectSender\\MainWindow.xaml.cs",
               "RelativeToolTip": "MainWindow.xaml.cs",
-              "ViewState": "AgIAAPkAAAAAAAAAAAAqwBUBAAABAAAAAAAAAA==",
+              "ViewState": "AgIAALQBAAAAAAAAAAAcwMcBAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-07-18T19:02:00.852Z",
               "EditorCaption": ""

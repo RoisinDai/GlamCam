@@ -4,16 +4,16 @@
 winexe
 C#
 .cs
-C:\Program Files\Microsoft SDKs\Kinect\v2.0_1409\Samples\Managed\ColorBasics-WPF\obj\Debug\
+C:\Users\bungu\dev\GlamCam\KinectV2\KinectSender\obj\Debug\
 Microsoft.Samples.Kinect.ColorBasics
 none
 false
 DEBUG;TRACE
-C:\Program Files\Microsoft SDKs\Kinect\v2.0_1409\Samples\Managed\ColorBasics-WPF\App.xaml
+C:\Users\bungu\dev\GlamCam\KinectV2\KinectSender\App.xaml
 1219584333
 
 6-793535042
-131575499181
+14-1102422894
 MainWindow.xaml;
 
 False

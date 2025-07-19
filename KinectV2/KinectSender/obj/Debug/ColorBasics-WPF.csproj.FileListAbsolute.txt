@@ -52,3 +52,5 @@ C:\Users\bungu\dev\GlamCam\KinectV2\KinectSender\obj\Debug\ColorBasics-WPF.cspro
 C:\Users\bungu\dev\GlamCam\KinectV2\KinectSender\obj\Debug\ColorBas.819BBC69.Up2Date
 C:\Users\bungu\dev\GlamCam\KinectV2\KinectSender\obj\Debug\ColorBasics-WPF.exe
 C:\Users\bungu\dev\GlamCam\KinectV2\KinectSender\obj\Debug\ColorBasics-WPF.pdb
+C:\Users\bungu\dev\GlamCam\KinectV2\KinectSender\bin\AnyCPU\Debug\Newtonsoft.Json.dll
+C:\Users\bungu\dev\GlamCam\KinectV2\KinectSender\bin\AnyCPU\Debug\Newtonsoft.Json.xml
