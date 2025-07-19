@@ -102,7 +102,7 @@ public class ScaleController : MonoBehaviour
             _CapturedDepthData = depthData;
             _CapturedTrackedBody = trackedBody;
             
-            ComputeScaleFactor();
+            // ComputeScaleFactor();
             Debug.Log("Successfully captured frame!");
         }
         else
@@ -371,11 +371,11 @@ public class ScaleController : MonoBehaviour
         return finalWidthScale;
     }
     
-    private void GetBaseAvatarHeight()
+    public float GetBaseAvatarHeight(GameObject armature)
     {
-        Transform headTop = Armature.transform.FindDeepChild("mixamorig:HeadTop_End");
-        Transform footLeft = Armature.transform.FindDeepChild("mixamorig:LeftToeBase");
-        Transform footRight = Armature.transform.FindDeepChild("mixamorig:RightToeBase");
+        Transform headTop = armature.transform.FindDeepChild("mixamorig:HeadTop_End");
+        Transform footLeft = armature.transform.FindDeepChild("mixamorig:LeftToeBase");
+        Transform footRight = armature.transform.FindDeepChild("mixamorig:RightToeBase");
 
         if (headTop == null || footLeft == null || footRight == null)
         {
@@ -386,6 +386,64 @@ public class ScaleController : MonoBehaviour
         float footAvgY = (footLeft.position.y + footRight.position.y) / 2f;
         return headTop.position.y - footAvgY;
     }
+
+    public float GetBaseAvatarArmLength(GameObject armature)
+    {
+        Transform leftShoulder = armature.transform.FindDeepChild("mixamorig:LeftShoulder");
+        Transform leftArm = armature.transform.FindDeepChild("mixamorig:LeftArm");
+        Transform leftForeArm = armature.transform.FindDeepChild("mixamorig:LeftForeArm");
+
+        if (leftShoulder == null || leftArm == null || leftForeArm == null)
+        {
+            Debug.LogError("Could not find one or more required bones for avatar arm length calculation.");
+            return 0f; // fallback to no scaling
+        }
+
+        // Calculate distance from left shoulder to left arm (upper arm length)
+        float upperArmLength = Vector3.Distance(leftShoulder.position, leftArm.position);
+        
+        // Calculate distance from left arm to left forearm (forearm length)
+        float foreArmLength = Vector3.Distance(leftArm.position, leftForeArm.position);
+        
+        // Total arm length
+        float totalArmLength = upperArmLength + foreArmLength;
+        
+        if (showDebugInfo)
+        {
+            Debug.Log($"Avatar Upper Arm Length: {upperArmLength:F3} Unity units");
+            Debug.Log($"Avatar Forearm Length: {foreArmLength:F3} Unity units");
+            Debug.Log($"Avatar Total Arm Length: {totalArmLength:F3} Unity units");
+        }
+        
+        return totalArmLength;
+    }
+
+    public float GetBaseAvartarLegLength(GameObject armature)
+    {
+        Transform leftUpLeg = armature.transform.FindDeepChild("mixamorig:LeftUpLeg");
+        Transform leftLeg = armature.transform.FindDeepChild("mixamorig:LeftLeg");
+        Transform leftFoot = armature.transform.FindDeepChild("mixamorig:LeftFoot");
+
+        if (leftUpLeg == null || leftLeg == null || leftFoot == null)
+        {
+            Debug.LogError("Could not find one or more required bones for avatar leg length calculation.");
+            return 0f; // fallback to no scaling
+        }
+
+        float leftUpLegLength = Vector3.Distance(leftUpLeg.position, leftLeg.position);
+        float leftLegLength = Vector3.Distance(leftLeg.position, leftFoot.position);
+        float totalLegLength = leftUpLegLength + leftLegLength;
+
+        if (showDebugInfo)
+        {
+            Debug.Log($"Avatar Left Up Leg Length: {leftUpLegLength:F3} Unity units");
+            Debug.Log($"Avatar Left Leg Length: {leftLegLength:F3} Unity units");
+            Debug.Log($"Avatar Total Leg Length: {totalLegLength:F3} Unity units");
+        }
+
+        return totalLegLength;
+    }
+   
     // private float GetBaseAvatarWidth()
     // {
     //     // You need to pass the avatar/armature reference here
