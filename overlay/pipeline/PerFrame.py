@@ -75,27 +75,27 @@ def process_frame(
 
 
 # For testing purposes, you can run this script directly
-if __name__ == "__main__":
-    # The paths to the input video files
-    unity_joints = "./input/unity-joints.mp4"
-    unity_clothes = "./input/unity-vid.mp4"
-    kinect_joints = "./input/kinect-joints.mp4"
-    live_human = "./input/live-vid.mp4"
+# if __name__ == "__main__":
+#     # The paths to the input video files
+#     unity_joints = "./input/unity-joints.mp4"
+#     unity_clothes = "./input/unity-vid.mp4"
+#     kinect_joints = "./input/kinect-joints.mp4"
+#     live_human = "./input/live-vid.mp4"
 
-    # Load only the first frame of each video
-    unity_joints_frame = cv2.VideoCapture(unity_joints).read()[1]
-    unity_clothes_frame = cv2.VideoCapture(unity_clothes).read()[1]
-    kinect_joints_frame = cv2.VideoCapture(kinect_joints).read()[1]
-    live_human_frame = cv2.VideoCapture(live_human).read()[1]
+#     # Load only the first frame of each video
+#     unity_joints_frame = cv2.VideoCapture(unity_joints).read()[1]
+#     unity_clothes_frame = cv2.VideoCapture(unity_clothes).read()[1]
+#     kinect_joints_frame = cv2.VideoCapture(kinect_joints).read()[1]
+#     live_human_frame = cv2.VideoCapture(live_human).read()[1]
 
-    # Process the frames
-    output_frame = process_frame(
-        unity_joints_frame, unity_clothes_frame, kinect_joints_frame, live_human_frame
-    )
+#     # Process the frames
+#     output_frame = process_frame(
+#         unity_joints_frame, unity_clothes_frame, kinect_joints_frame, live_human_frame
+#     )
 
-    # Display the output frame using matplotlib
-    plt.figure(figsize=(8, 8))
-    plt.imshow(output_frame)
-    plt.axis("off")
-    plt.title("Processed Output Frame")
-    plt.show()
+#     # Display the output frame using matplotlib
+#     plt.figure(figsize=(8, 8))
+#     plt.imshow(output_frame)
+#     plt.axis("off")
+#     plt.title("Processed Output Frame")
+#     plt.show()
