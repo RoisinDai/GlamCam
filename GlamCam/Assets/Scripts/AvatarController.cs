@@ -43,22 +43,22 @@ public class AvatarController : MonoBehaviour
     initialHandLocalPos = animator.GetBoneTransform(HumanBodyBones.LeftHand)?.localPosition ?? Vector3.zero;
   }
 
-  void ExtendLimb(HumanBodyBones parent, HumanBodyBones child, float extension)
-  {
-    var childT = animator.GetBoneTransform(child);
-    var parentT = animator.GetBoneTransform(parent);
+  // void ExtendLimb(HumanBodyBones parent, HumanBodyBones child, float extension)
+  // {
+  //   var childT = animator.GetBoneTransform(child);
+  //   var parentT = animator.GetBoneTransform(parent);
 
-    if (childT == null || parentT == null) {
-        Debug.Log("Failed to extend limb, childT or parentT is null");
-        return;
-    }
+  //   if (childT == null || parentT == null) {
+  //       Debug.Log("Failed to extend limb, childT or parentT is null");
+  //       return;
+  //   }
 
-    Vector3 worldDirection = (childT.position - parentT.position).normalized;
-    Vector3 localDirection = parentT.InverseTransformDirection(worldDirection);
+  //   Vector3 worldDirection = (childT.position - parentT.position).normalized;
+  //   Vector3 localDirection = parentT.InverseTransformDirection(worldDirection);
 
-    childT.localPosition += localDirection * extension;
-    Debug.Log("Extended limb by modifying localPosition.");
-  }
+  //   childT.localPosition += localDirection * extension;
+  //   Debug.Log("Extended limb by modifying localPosition.");
+  // }
 
 
   // Updates the body object currently being tracked
@@ -140,28 +140,44 @@ public class AvatarController : MonoBehaviour
 
   private void LateUpdate()
   {
-    float armLengthExtension = 0.005f;
-    ApplyLimbExtension(armLengthExtension);
+    float armLengthExtension = 0.005f; // 0.5cm extension
+    ApplyArmExtension(armLengthExtension);
   }
 
-  void ApplyLimbExtension(float extension)
+  // Stretches arms by an extension value
+  // extension: controls how much farther out to push the lower arm and hand
+  // in their respective bone-local directions.
+  // NOTE: effectiveExtension = extension * scaleFactor, which scaleFactor is performed uniformly based on height
+  void ApplyArmExtension(float extension)
   {
     var upperArmT = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
     var lowerArmT = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
-    var handT     = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+    var handT = animator.GetBoneTransform(HumanBodyBones.LeftHand);
 
+    // Extend the upper arm from the shoulder along the upper arm's direction.
     if (upperArmT != null && lowerArmT != null)
     {
-        Vector3 direction = (lowerArmT.position - upperArmT.position).normalized;
-        Vector3 localDir = upperArmT.InverseTransformDirection(direction);
-        lowerArmT.localPosition = initialLowerArmLocalPos + localDir * extension;
+      float before = Vector3.Distance(upperArmT.position, lowerArmT.position);
+
+      Vector3 direction = (lowerArmT.position - upperArmT.position).normalized; // Direction from upper arm to lower arm
+      Vector3 localDir = upperArmT.InverseTransformDirection(direction);        // Get direction of extension relative to the rig
+      lowerArmT.localPosition = initialLowerArmLocalPos + localDir * extension; // Extends the lower arm in the local direction
+
+      float after = Vector3.Distance(upperArmT.position, lowerArmT.position);
+      Debug.Log($"Elbow extended: {after - before} world units");
     }
 
+    // Extend the hand farther from the elbow along the forearm's direction.
     if (lowerArmT != null && handT != null)
     {
-        Vector3 forearmDir = (handT.position - lowerArmT.position).normalized;
-        Vector3 localForearmDir = lowerArmT.InverseTransformDirection(forearmDir);
-        handT.localPosition = initialHandLocalPos + localForearmDir * extension;
+      float before = Vector3.Distance(lowerArmT.position, handT.position);
+
+      Vector3 forearmDir = (handT.position - lowerArmT.position).normalized;
+      Vector3 localForearmDir = lowerArmT.InverseTransformDirection(forearmDir);
+      handT.localPosition = initialHandLocalPos + localForearmDir * extension;
+
+      float after = Vector3.Distance(lowerArmT.position, handT.position);
+      Debug.Log($"Hand extended: {after - before} world units");
     }
   }
 
