@@ -40,7 +40,8 @@ def _get_joints_coord(mask: np.ndarray) -> list[tuple[int, int]]:
 
     # Find contours in the mask
     mask = (mask.astype(np.uint8)) * 255
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     dot_centers = []
     min_area = 1  # Minimum area to filter out noise

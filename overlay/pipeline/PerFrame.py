@@ -13,7 +13,7 @@ from UnityUtils import segment_joints, segment_clothes
 
 def process_frame(
     unity_joints_frame, unity_clothes_frame, kinect_joints_coords, live_human_frame
-) -> np.ndarray:
+) -> np.ndarray | None:
     """
     Process four input frames and output a single frame.
     Args:
@@ -26,7 +26,8 @@ def process_frame(
     """
 
     # Obtain the coordinates of the joints from Unity
-    unity_coords = UnityUtils.get_joints_coord(segment_joints(unity_joints_frame))
+    unity_coords = UnityUtils.get_joints_coord(
+        segment_joints(unity_joints_frame))
     if len(unity_coords) == 0:
         return None
 
@@ -48,7 +49,8 @@ def process_frame(
         live_human_rgba = np.concatenate(
             [
                 cv2.cvtColor(live_human_frame, cv2.COLOR_BGR2RGB),
-                np.full(live_human_frame.shape[:2] + (1,), 255, dtype=np.uint8),
+                np.full(live_human_frame.shape[:2] +
+                        (1,), 255, dtype=np.uint8),
             ],
             axis=2,
         )

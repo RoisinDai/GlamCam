@@ -14,7 +14,8 @@ def process_all(video_paths: list[str], output_path: str, fps: int = 30) -> None
 
     # Open all videos
     caps = [cv2.VideoCapture(path) for path in video_paths]
-    num_frames = int(caps[0].get(cv2.CAP_PROP_FRAME_COUNT))  # Assuming all videos have same frame count
+    # Assuming all videos have same frame count
+    num_frames = int(caps[0].get(cv2.CAP_PROP_FRAME_COUNT))
 
     processed_frames = []
     for frame_idx in range(num_frames):
@@ -22,13 +23,14 @@ def process_all(video_paths: list[str], output_path: str, fps: int = 30) -> None
         for cap in caps:
             ret, frame = cap.read()
             if not ret:
-                raise RuntimeError(f"Failed to read frame {frame_idx} from one of the videos.")
+                raise RuntimeError(
+                    f"Failed to read frame {frame_idx} from one of the videos.")
             frames.append(frame)
-        
+
         # Process the frames together
         processed_frame = PerFrame.process_frame(*frames)
         processed_frames.append(processed_frame)
-        
+
     # Release resources
     for cap in caps:
         cap.release()

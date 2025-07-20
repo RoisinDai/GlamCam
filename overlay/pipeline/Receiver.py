@@ -182,9 +182,11 @@ if __name__ == "__main__":
                                 and 0 <= y < img_kinect.shape[0]
                             ):
                                 color = (
-                                    (0, 255, 0) if state == "Tracked" else (0, 255, 255)
+                                    (0, 255, 0) if state == "Tracked"
+                                    else (0, 255, 255)
                                 )
-                                cv2.circle(img_kinect, (int(x), int(y)), 7, color, 2)
+                                cv2.circle(
+                                    img_kinect, (int(x), int(y)), 7, color, 2)
                     cv2.imshow("Kinect Stream", img_kinect)
             if imgA is not None:
                 cv2.imshow("Unity Camera A", imgA)
