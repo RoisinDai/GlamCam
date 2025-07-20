@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 
 
-def segment_joints(frame: np.ndarray) -> np.ndarray:
+def _segment_joints(frame: np.ndarray) -> np.ndarray:
     """
     Segment red dots from a frame and return a mask of the segmented red dots.
     Args:
@@ -43,6 +43,36 @@ def segment_joints(frame: np.ndarray) -> np.ndarray:
     return red_mask_clean
 
 
+def segment_joints(frame: np.ndarray) -> np.ndarray:
+    """
+    Segment non-green dots from a frame with a pure green background.
+    Args:
+        frame (np.ndarray): Input image frame in BGR format.
+    Returns:
+        np.ndarray: A binary mask where non-green dots are white (255) and the green background is black (0).
+    """
+    # Convert BGR to HSV for easier color masking
+    img_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # Pure green in HSV (OpenCV): H about 60, S and V high
+    # Allow some tolerance for green background
+    lower_green = np.array([40, 100, 100])
+    upper_green = np.array([80, 255, 255])
+
+    # Mask for green background
+    green_mask = cv2.inRange(img_hsv, lower_green, upper_green)
+
+    # Invert mask to get non-green areas (i.e., the dots)
+    dots_mask = cv2.bitwise_not(green_mask)
+
+    # Clean up small noise with morphological operations
+    kernel = np.ones((5, 5), np.uint8)
+    dots_mask_clean = cv2.morphologyEx(dots_mask, cv2.MORPH_OPEN, kernel)
+    dots_mask_clean = cv2.morphologyEx(dots_mask_clean, cv2.MORPH_CLOSE, kernel)
+
+    return dots_mask_clean
+
+
 def get_joints_coord(red_mask_clean: np.ndarray) -> list[tuple[int, int]]:
     """
     Extract coordinates of red dots from the cleaned mask.
@@ -54,7 +84,8 @@ def get_joints_coord(red_mask_clean: np.ndarray) -> list[tuple[int, int]]:
 
     # Find contours in the mask
     contours, _ = cv2.findContours(
-        red_mask_clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        red_mask_clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
 
     dot_centers = []
     min_area = 10  # Minimum area to filter out noise
