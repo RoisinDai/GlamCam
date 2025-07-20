@@ -2,12 +2,22 @@ using System.Linq;
 using UnityEngine;
 using Kinect = Windows.Kinect;
 using Vector3 = UnityEngine.Vector3;
+using System;
 
 class HumanoidMeasurements
 {
     public float height;
-    public float armLength;
-    public float legLength;
+    public float upperArmLength; // Shoulder to elbow
+    public float lowerArmLength; // Elbow to wrist
+    public float upperLegLength; // Hip to knee
+    public float lowerLegLength; // Knee to foot
+}
+
+// Used for non-uniform scaling of legs/arms
+class ExtensionFactors
+{
+    public float upperArmExtensionFactor = 0;
+    public float lowerArmExtensionFactor = 0;
 }
 
 // Responsible for controlling the clothed base avatar, making it track the user's body
@@ -21,7 +31,7 @@ public class AvatarController : MonoBehaviour
     private GameObject Armature;
     private const string ARMATURE = "Armature";
     private Kinect.Body trackedBody; // The body being tracked by the avatar
-    
+
     // Inverse Kinematics Variables
     public bool enableInverseKinematics = true;
     private bool armExtended = false; // Flag to check if the arm has been extended already
@@ -37,6 +47,10 @@ public class AvatarController : MonoBehaviour
 
     // Clothed Base Avatar Measurement Variables
     private HumanoidMeasurements _AvatarMeasurements = new();
+
+    // Scaling factor variables
+    private float UniformScaleFactor = -1f;
+    private ExtensionFactors _ExtensionFactors = new();
 
     void Start()
     {
@@ -54,12 +68,14 @@ public class AvatarController : MonoBehaviour
 
         // Get the measurements of the ClothedBaseAvatar
         Armature = ClothedBaseAvatar.transform.Find(ARMATURE)?.gameObject;
-        _AvatarMeasurements.height = GetHeight(Armature);
-        _AvatarMeasurements.armLength = GetArmLength(Armature);
-        _AvatarMeasurements.legLength = GetLegLength(Armature);
+        GetAvatarHeight(Armature);
+        GetAvatarArmLengths(Armature);
+        GetAvatarLegLength(Armature);
         Debug.Log("_AvatarMeasurements - Height: " + _AvatarMeasurements.height);
-        Debug.Log("_AvatarMeasurements - Arm Length: " + _AvatarMeasurements.armLength);
-        Debug.Log("_AvatarMeasurements - Leg Length: " + _AvatarMeasurements.legLength);
+        Debug.Log("_AvatarMeasurements - Upper Arm Length: " + _AvatarMeasurements.upperArmLength);
+        Debug.Log("_AvatarMeasurements - Lower Arm Length: " + _AvatarMeasurements.lowerArmLength);
+        Debug.Log("_AvatarMeasurements - Upper Leg Length: " + _AvatarMeasurements.upperLegLength);
+        Debug.Log("_AvatarMeasurements - Lower Leg Length: " + _AvatarMeasurements.lowerLegLength);
 
         // Cache original local positions
         initialLowerArmLocalPos = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm)?.localPosition ?? Vector3.zero;
@@ -85,20 +101,39 @@ public class AvatarController : MonoBehaviour
         Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
         ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
 
-        // Determine scaling factors
+        // Get joints of interest
         Vector3 head = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.Head]);
         Vector3 footLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootLeft]);
         Vector3 footRight = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootRight]);
 
-        // First uniformly scale based on height
-        _UserMeasurements.height = head.y - ((footLeft.y + footRight.y) / 2f); // average foot height
-        Debug.Log("Height (Kinect 10x): " + _UserMeasurements.height.ToString("F3"));
-        float scaleFactor = _UserMeasurements.height / _AvatarMeasurements.height; // AvatarHeight*scaleFactor = UserHeight
-        ClothedBaseAvatar.transform.localScale = new Vector3(scaleFactor, scaleFactor, scaleFactor);
+        Vector3 shoulderLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ShoulderLeft]);
+        Vector3 elbowLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ElbowLeft]);
+        Vector3 wristLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.WristLeft]);
 
-        // Arm length (Shoulder -> Elbow -> Wrist)
-        // _UserMeasurements.armLength = Vector3.Distance(shoulderLeft, elbowLeft) + Vector3.Distance(elbowLeft, wristLeft);
-        // Debug.Log("Arm length (Kinect 10x): " + _UserMeasurements.armLength.ToString("F3"));
+        // First uniformly scale based on height
+        _UserMeasurements.height = head.y - ((footLeft.y + footRight.y) / 2f);
+        if (UniformScaleFactor == -1f)
+        {
+            // Set uniform scaling factor once
+            UniformScaleFactor = _UserMeasurements.height / _AvatarMeasurements.height; // AvatarHeight * scaleFactor = UserHeight
+            ClothedBaseAvatar.transform.localScale = new Vector3(UniformScaleFactor, UniformScaleFactor, UniformScaleFactor);
+            // Update avatar's measurements after uniform scaling
+            GetAvatarHeight(Armature);
+            GetAvatarArmLengths(Armature);
+            GetAvatarLegLength(Armature);
+        }
+        
+        // Scale arms
+        _UserMeasurements.upperArmLength = Vector3.Distance(shoulderLeft, elbowLeft);
+        _UserMeasurements.lowerArmLength = Vector3.Distance(elbowLeft, wristLeft);
+        Debug.Log("_TESTING: Uniform Scale Factor: " + UniformScaleFactor);
+        Debug.Log("_TESTING Height: Avatar:" + _AvatarMeasurements.height + "  User:" + _UserMeasurements.height);
+        Debug.Log("_TESTING Upper Arm Length: Avatar: " + _AvatarMeasurements.upperArmLength + "  User: " + _UserMeasurements.upperArmLength);
+        Debug.Log("_TESTING Lower Arm Length: Avatar: " + _AvatarMeasurements.lowerArmLength + "  User: " + _UserMeasurements.lowerArmLength);
+        _ExtensionFactors.upperArmExtensionFactor = (_UserMeasurements.upperArmLength - _AvatarMeasurements.upperArmLength) / UniformScaleFactor;
+        _ExtensionFactors.lowerArmExtensionFactor = (_UserMeasurements.lowerArmLength - _AvatarMeasurements.lowerArmLength) / UniformScaleFactor;
+        Debug.Log("_TESTING Upper Arm Ext Factor: " + _ExtensionFactors.upperArmExtensionFactor);
+        Debug.Log("_TESTING Lower Arm Ext Factor: " + _ExtensionFactors.lowerArmExtensionFactor);
     }
 
     // A callback function to calculate inverse kinematics
@@ -166,48 +201,49 @@ public class AvatarController : MonoBehaviour
         animator.SetIKPosition(goal, unityPos);
     }
 
-  private void LateUpdate()
-  {
-    float armLengthExtension = 0.005f; // 0.5cm extension
-    ApplyArmExtension(armLengthExtension);
-  }
-
-  // Stretches arms by an extension value
-  // extension: controls how much farther out to push the lower arm and hand
-  // in their respective bone-local directions.
-  // NOTE: effectiveExtension = extension * scaleFactor, which scaleFactor is performed uniformly based on height
-  void ApplyArmExtension(float extension)
-  {
-    var upperArmT = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
-    var lowerArmT = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
-    var handT = animator.GetBoneTransform(HumanBodyBones.LeftHand);
-
-    // Extend the upper arm from the shoulder along the upper arm's direction.
-    if (upperArmT != null && lowerArmT != null)
+    private void LateUpdate()
     {
-      float before = Vector3.Distance(upperArmT.position, lowerArmT.position);
-
-      Vector3 direction = (lowerArmT.position - upperArmT.position).normalized; // Direction from upper arm to lower arm
-      Vector3 localDir = upperArmT.InverseTransformDirection(direction);        // Get direction of extension relative to the rig
-      lowerArmT.localPosition = initialLowerArmLocalPos + localDir * extension; // Extends the lower arm in the local direction
-
-      float after = Vector3.Distance(upperArmT.position, lowerArmT.position);
-      Debug.Log($"Elbow extended: {after - before} world units");
+        ApplyArmExtension();
     }
 
-    // Extend the hand farther from the elbow along the forearm's direction.
-    if (lowerArmT != null && handT != null)
+    // Stretches arms by an extension value
+    // extension: controls how much farther out to push the lower arm and hand
+    // in their respective bone-local directions.
+    // NOTE: effectiveExtension = extension * scaleFactor, which scaleFactor is performed uniformly based on height
+    void ApplyArmExtension()
     {
-      float before = Vector3.Distance(lowerArmT.position, handT.position);
+        if (_ExtensionFactors.lowerArmExtensionFactor == 0 || _ExtensionFactors.upperArmExtensionFactor == 0) return;
 
-      Vector3 forearmDir = (handT.position - lowerArmT.position).normalized;
-      Vector3 localForearmDir = lowerArmT.InverseTransformDirection(forearmDir);
-      handT.localPosition = initialHandLocalPos + localForearmDir * extension;
+        var upperArmT = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+        var lowerArmT = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+        var handT = animator.GetBoneTransform(HumanBodyBones.LeftHand);
 
-      float after = Vector3.Distance(lowerArmT.position, handT.position);
-      Debug.Log($"Hand extended: {after - before} world units");
+        // Extend the upper arm from the shoulder along the upper arm's direction.
+        if (upperArmT != null && lowerArmT != null)
+        {
+            float before = Vector3.Distance(upperArmT.position, lowerArmT.position);
+
+            Vector3 direction = (lowerArmT.position - upperArmT.position).normalized; // Direction from upper arm to lower arm
+            Vector3 localDir = upperArmT.InverseTransformDirection(direction);        // Get direction of extension relative to the rig
+            lowerArmT.localPosition = initialLowerArmLocalPos + localDir * _ExtensionFactors.upperArmExtensionFactor; // Extends the lower arm in the local direction
+
+            float after = Vector3.Distance(upperArmT.position, lowerArmT.position);
+            Debug.Log($"Elbow extended: {after - before} world units");
+        }
+
+        // Extend the hand farther from the elbow along the forearm's direction.
+        if (lowerArmT != null && handT != null)
+        {
+            float before = Vector3.Distance(lowerArmT.position, handT.position);
+
+            Vector3 forearmDir = (handT.position - lowerArmT.position).normalized;
+            Vector3 localForearmDir = lowerArmT.InverseTransformDirection(forearmDir);
+            handT.localPosition = initialHandLocalPos + localForearmDir * _ExtensionFactors.lowerArmExtensionFactor;
+
+            float after = Vector3.Distance(lowerArmT.position, handT.position);
+            Debug.Log($"Hand extended: {after - before} world units");
+        }
     }
-  }
 
     private void RotateAvatarBasedOnShoulders(Kinect.Joint leftShoulder, Kinect.Joint rightShoulder)
     {
@@ -240,7 +276,7 @@ public class AvatarController : MonoBehaviour
     }
 
     // Get avatar height from head to feet
-    public static float GetHeight(GameObject armature)
+    void GetAvatarHeight(GameObject armature)
     {
         Transform headTop = armature.transform.FindDeepChild("mixamorig:HeadTop_End");
         Transform footLeft = armature.transform.FindDeepChild("mixamorig:LeftToeBase");
@@ -249,18 +285,17 @@ public class AvatarController : MonoBehaviour
         if (headTop == null || footLeft == null || footRight == null)
         {
             Debug.LogError("AvatarMeasurement: Could not find bones for height calculation.");
-            return 0f;
         }
 
         float footAvgY = (footLeft.position.y + footRight.position.y) / 2f;
         float height = headTop.position.y - footAvgY;
 
         Debug.Log($"AvatarMeasurement: Height = {height:F3} Unity units");
-        return height;
+        _AvatarMeasurements.height = height;
     }
 
-    // Get total arm length (shoulder to wrist)
-    public static float GetArmLength(GameObject armature)
+    // Populate arm lengths
+    void GetAvatarArmLengths(GameObject armature)
     {
         Transform leftShoulder = armature.transform.FindDeepChild("mixamorig:LeftArm");
         Transform leftElbow = armature.transform.FindDeepChild("mixamorig:LeftForeArm");
@@ -269,20 +304,18 @@ public class AvatarController : MonoBehaviour
         if (leftShoulder == null || leftElbow == null || leftWrist == null)
         {
             Debug.LogError("AvatarMeasurement: Could not find bones for arm length calculation.");
-            return 0f;
         }
 
         float upperArmLength = Vector3.Distance(leftShoulder.position, leftElbow.position);
         float foreArmLength = Vector3.Distance(leftElbow.position, leftWrist.position);
-        float totalArmLength = upperArmLength + foreArmLength;
 
-        Debug.Log($"AvatarMeasurement: Upper arm = {upperArmLength:F3}, Forearm = {foreArmLength:F3}, Total = {totalArmLength:F3}");
-        return totalArmLength;
+        Debug.Log($"AvatarMeasurement: Upper arm = {upperArmLength:F3}, Forearm = {foreArmLength:F3}");
+        _AvatarMeasurements.upperArmLength = upperArmLength;
+        _AvatarMeasurements.lowerArmLength = foreArmLength;
     }
 
-
     // Get total leg length (hip to foot)
-    public static float GetLegLength(GameObject armature)
+    public void GetAvatarLegLength(GameObject armature)
     {
         Transform hipLeft = armature.transform.FindDeepChild("mixamorig:LeftUpLeg");
         Transform kneeLeft = armature.transform.FindDeepChild("mixamorig:LeftLeg");
@@ -291,14 +324,13 @@ public class AvatarController : MonoBehaviour
         if (hipLeft == null || kneeLeft == null || ankleLeft == null)
         {
             Debug.LogError("AvatarMeasurement: Could not find bones for leg length calculation.");
-            return 0f;
         }
 
         float upperLegLength = Vector3.Distance(hipLeft.position, kneeLeft.position);
         float lowerLegLength = Vector3.Distance(kneeLeft.position, ankleLeft.position);
-        float totalLegLength = upperLegLength + lowerLegLength;
 
-        Debug.Log($"AvatarMeasurement: Upper leg = {upperLegLength:F3}, Lower leg = {lowerLegLength:F3}, Total = {totalLegLength:F3}");
-        return totalLegLength;
+        Debug.Log($"AvatarMeasurement: Upper leg = {upperLegLength:F3}, Lower leg = {lowerLegLength:F3}");
+        _AvatarMeasurements.upperLegLength = upperLegLength;
+        _AvatarMeasurements.lowerLegLength = lowerLegLength;
     }
 }
