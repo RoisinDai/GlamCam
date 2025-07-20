@@ -178,19 +178,21 @@
           ws.onmessage = (event) => {
             try {
               const data = JSON.parse(event.data);
-              console.log("WS data:", data);
-              if (
-                typeof data.x === "number" &&
-                typeof data.y === "number" &&
-                data.x >= 0 &&
-                data.x <= 1 &&
-                data.y >= 0 &&
-                data.y <= 1
-              ) {
-                useKinect = true;
-                cursorX = data.x * window.innerWidth;
-                cursorY = data.y * window.innerHeight;
-                updateVirtualCursor();
+              // Fallback: if coords are -1, -1, disable Kinect and use mouse
+              if (typeof data.x === "number" && typeof data.y === "number") {
+                if (data.x === -1 && data.y === -1) {
+                  useKinect = false; // fallback to mouse
+                } else if (
+                  data.x >= 0 &&
+                  data.x <= 1 &&
+                  data.y >= 0 &&
+                  data.y <= 1
+                ) {
+                  useKinect = true;
+                  cursorX = data.x * window.innerWidth;
+                  cursorY = data.y * window.innerHeight;
+                  updateVirtualCursor();
+                }
               }
             } catch (e) {
               useKinect = false;

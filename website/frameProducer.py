@@ -79,6 +79,7 @@ def main() -> None:
                 try:
                     conn.sendall(length.to_bytes(4, "big") + data)
                 except Exception as e:
+                    print("[STREAMER] Error sending frame:", e)
                     print("Connection closed.")
                     break
 
