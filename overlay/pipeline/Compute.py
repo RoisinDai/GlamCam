@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.spatial import cKDTree  # type: ignore
+from JointMapping import JointType
 
 
 def compute_rms_radius(points):
@@ -109,21 +110,29 @@ def icp_with_prescaling(src, dst, max_iter=50, tolerance=1e-6, verbose=False):
     return scale, R, t, src_aligned
 
 
-def run_icp(unity_coords, kinect_coords) -> np.ndarray:
+def run_icp(
+    unity_coords: dict[JointType, tuple[float, float]],
+    kinect_coords: dict[JointType, tuple[float, float]],
+) -> np.ndarray:
     """
     Run ICP to align Unity coordinates with Kinect coordinates.
     Args:
-      unity_coords (list[tuple[int, int]]): List of (x, y) coordinates from Unity.
-      kinect_coords (list[tuple[int, int]]): List of (x, y) coordinates from Kinect.
+      unity_coords (dict[JointType, tuple[float, float]]): Dictionary of (x, y) from Unity.
+      kinect_coords (dict[JointType, tuple[float, float]]): Dictionary of (x, y) from Kinect.
     Returns:
       np.ndarray: The 2x3 affine transformation matrix (scale * R | t).
     """
+    # Find common joints
+    common_joints = sorted(
+        set(unity_coords.keys()) & set(kinect_coords.keys()), key=lambda jt: jt.value
+    )
 
-    kinect_coords = np.array(kinect_coords)
-    unity_coords = np.array(unity_coords)
+    # Establish one-to-one correspondence, sorted by JointType value
+    unity_points = np.array([unity_coords[jt] for jt in common_joints])
+    kinect_points = np.array([kinect_coords[jt] for jt in common_joints])
 
     # Perform ICP to align Kinect coordinates to Unity coordinates
-    scale, R, t, _ = icp_with_prescaling(unity_coords, kinect_coords)
+    scale, R, t, _ = icp_with_prescaling(unity_points, kinect_points)
 
     # Create the affine transformation matrix
     M = scale * R
@@ -149,8 +158,7 @@ def alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
     mask = out_alpha > 0
     out_rgb = np.zeros_like(fg[..., :3])
     out_rgb[mask] = (
-        fg[..., :3] * fg[..., 3:4] + bg[..., :3] *
-        bg[..., 3:4] * (1 - fg[..., 3:4])
+        fg[..., :3] * fg[..., 3:4] + bg[..., :3] * bg[..., 3:4] * (1 - fg[..., 3:4])
     )[mask] / out_alpha[mask, None]
     out = np.zeros_like(fg)
     out[..., :3] = out_rgb

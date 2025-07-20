@@ -65,8 +65,7 @@ def main() -> None:
 
                 if processed_frame is not None:
                     # Display the processed frame
-                    processed_frame = cv2.cvtColor(
-                        processed_frame, cv2.COLOR_BGR2RGB)
+                    processed_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
                     cv2.imshow("processed", processed_frame)
 
         if cv2.waitKey(1) == 27:

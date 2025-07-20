@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
+from JointMapping import joint_color, JointType
 
 
 def _segment_joints(frame: np.ndarray) -> np.ndarray:
@@ -43,13 +44,66 @@ def _segment_joints(frame: np.ndarray) -> np.ndarray:
     return red_mask_clean
 
 
-def segment_joints(frame: np.ndarray) -> np.ndarray:
+def get_dots_mapping(
+    frame: np.ndarray, joints: list[tuple[int, int]]
+) -> list[JointType | None]:
+    """
+    Map the segmented dots to the closest joint type based on color.
+
+    Args:
+        frame (np.ndarray): Input image frame in BGR format.
+        joints (list[tuple[int, int]]): List of (x, y) coordinates of the segmented joints.
+
+    Returns:
+        list[JointType | None]: The joint type corresponding to each dot color, or None if no match found.
+    """
+
+    mapping: list[JointType | None] = []
+    for x, y in joints:
+        # Make sure (x, y) are in bounds, which should be true always.
+        if 0 <= y < frame.shape[0] and 0 <= x < frame.shape[1]:
+            b, g, r = frame[y, x]  # OpenCV uses BGR format
+            rgb = (r, g, b)
+            joint_type = find_closest_joint(rgb)
+            mapping.append(joint_type)
+        else:
+            mapping.append(None)
+
+    # Ensure the mapping is consistent with the number of joints
+    assert len(mapping) == len(joints), "Mapping length does not match number of joints"
+    return mapping
+
+
+def find_closest_joint(rgb: tuple[float, float, float]) -> JointType | None:
+    """
+    Args:
+        rgb: A tuple or list of (R, G, B) in 0-255 or 0-1 range.
+
+    Returns:
+        closest_joint: The joint whose color is closest to rgb.
+    """
+    # If rgb is in 0-255 range, normalize to 0-1
+    rgb = np.array(rgb, dtype=float)
+    if np.max(rgb) > 1.0:
+        rgb = rgb / 255.0
+
+    min_dist = float("inf")
+    closest_joint = None
+    for joint, color in joint_color.items():
+        dist = np.linalg.norm(rgb - np.array(color))
+        if dist < min_dist:
+            min_dist = dist
+            closest_joint = joint
+    return closest_joint
+
+
+def segment_joints(frame: np.ndarray) -> list[tuple[float, float]]:
     """
     Segment non-green dots from a frame with a pure green background.
     Args:
         frame (np.ndarray): Input image frame in BGR format.
     Returns:
-        np.ndarray: A binary mask where non-green dots are white (255) and the green background is black (0).
+        list[tuple[int, int]]: List of (x, y) coordinates of the segmented joints.
     """
     # Convert BGR to HSV for easier color masking
     img_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -70,7 +124,7 @@ def segment_joints(frame: np.ndarray) -> np.ndarray:
     dots_mask_clean = cv2.morphologyEx(dots_mask, cv2.MORPH_OPEN, kernel)
     dots_mask_clean = cv2.morphologyEx(dots_mask_clean, cv2.MORPH_CLOSE, kernel)
 
-    return dots_mask_clean
+    return get_joints_coord(dots_mask_clean)
 
 
 def get_joints_coord(red_mask_clean: np.ndarray) -> list[tuple[int, int]]:

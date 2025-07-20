@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from typing import Any, Dict, List
+from JointMapping import joint_color, JointType
 
 
 def segment_joints(frame: np.ndarray) -> np.ndarray:
@@ -40,8 +41,7 @@ def _get_joints_coord(mask: np.ndarray) -> list[tuple[int, int]]:
 
     # Find contours in the mask
     mask = (mask.astype(np.uint8)) * 255
-    contours, _ = cv2.findContours(
-        mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     dot_centers = []
     min_area = 1  # Minimum area to filter out noise
@@ -61,7 +61,7 @@ def _get_joints_coord(mask: np.ndarray) -> list[tuple[int, int]]:
     return dot_centers_sorted
 
 
-def get_joints_coord(kinect_joints_coords: dict[str, Any]) -> list[tuple[int, int]]:
+def _get_joints_coord(kinect_joints_coords: dict[str, Any]) -> list[tuple[int, int]]:
     """
     Get joint coordinates from Kinect data.
     Args:
@@ -80,6 +80,35 @@ def get_joints_coord(kinect_joints_coords: dict[str, Any]) -> list[tuple[int, in
             y = float(joint["Y"])
             if np.isfinite(x) and np.isfinite(y):
                 kinect_coords.append((x, y))
+        except (KeyError, ValueError, TypeError):
+            continue
+
+    return kinect_coords
+
+
+def get_joints_coord(
+    kinect_joints_coords: dict[str, Any],
+) -> Dict[JointType, tuple[float, float]]:
+    """
+    Get joint coordinates from Kinect data, returning a dictionary mapping joint_type to (x, y).
+    Args:
+        kinect_joints_coords (dict): Dictionary containing joint coordinates for one body.
+    Returns:
+        dict[JointType, tuple[float, float]]: Dictionary of joint_type to (x, y) for each joint.
+    """
+
+    if not isinstance(kinect_joints_coords, dict):
+        raise ValueError("kinect_joints_coords must be a dictionary")
+
+    kinect_coords = {}
+    for joint_name, joint in kinect_joints_coords.items():
+        try:
+            x = float(joint["X"])
+            y = float(joint["Y"])
+            if np.isfinite(x) and np.isfinite(y):
+                # Convert joint_name string to JointType enum
+                joint_type = JointType[joint_name]
+                kinect_coords[joint_type] = (x, y)
         except (KeyError, ValueError, TypeError):
             continue
 
