@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GlamCam</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      background-color: black;
+    }
+
+    #video-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #video-feed {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+      transform: scaleX(-1); /* Mirror the video feed!! */
+    }
+
+    #closet-drawer {
+      position: absolute;
+      top: 5%;
+      right: 0;
+      height: 75%;
+      width: 180px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 20px 10px;
+      z-index: 2;
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 16px 0 0 16px;
+      backdrop-filter: blur(8px);
+      transition: transform 0.4s ease-in-out, opacity 0.3s;
+      transform: translateX(100%);
+      opacity: 0;
+    }
+
+    #closet-drawer.active {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
+    .closet-item {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 10px;
+      overflow: hidden;
+      background-color: rgba(255, 255, 255, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: outline 0.2s ease;
+    }
+
+    .closet-item.selected {
+      outline: 4px solid lightgreen;
+    }
+
+    .closet-item img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    #closet-button {
+      position: absolute;
+      bottom: 30px;
+      right: 30px;
+      width: 120px;
+      height: 120px;
+      z-index: 3;
+      background-color: transparent;
+      border: 4px solid gold;
+      border-radius: 50%;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    #closet-button img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <div id="video-container">
+    <img id="video-feed" src="/video_feed" alt="Live Fashion Feed" />
+
+    <!-- Clothing drawer -->
+    <!-- Grouped by top and bottom; only one of each can be selected at a time -->
+    <div id="closet-drawer">
+      <div class="closet-item" data-type="top">
+        <img src="/static/shirt1.png" alt="Shirt" />
+      </div>
+      <div class="closet-item" data-type="bottom">
+        <img src="/static/skirt1.png" alt="Skirt" />
+      </div>
+      <div class="closet-item" data-type="bottom">
+        <img src="/static/placeholder.png" alt="Pants" />
+      </div>
+      <div class="closet-item" data-type="bottom">
+        <img src="/static/placeholder.png" alt="Long Skirt" />
+      </div>
+      <div class="closet-item" data-type="bottom">
+        <img src="/static/placeholder.png" alt="Shorts" />
+      </div>
+    </div>
+
+    <!-- Circular closet icon button -->
+    <button id="closet-button">
+      <img src="/static/closet-icon.png" alt="Closet" />
+    </button>
+  </div>
+
+  <script>
+    const closetButton = document.getElementById("closet-button");
+    const closetDrawer = document.getElementById("closet-drawer");
+    const closetItems = document.querySelectorAll(".closet-item");
+
+    let selectedTop = null;
+    let selectedBottom = null;
+
+    closetButton.addEventListener("click", () => {
+      closetDrawer.classList.toggle("active");
+    });
+
+    closetItems.forEach(item => {
+      item.addEventListener("click", () => {
+        const type = item.getAttribute("data-type");
+
+        // Deselect if already selected
+        if (item.classList.contains("selected")) {
+          item.classList.remove("selected");
+          if (type === "top") selectedTop = null;
+          if (type === "bottom") selectedBottom = null;
+          return;
+        }
+
+        // Replace selection for the same type
+        if (type === "top") {
+          if (selectedTop) selectedTop.classList.remove("selected");
+          item.classList.add("selected");
+          selectedTop = item;
+        }
+
+        if (type === "bottom") {
+          if (selectedBottom) selectedBottom.classList.remove("selected");
+          item.classList.add("selected");
+          selectedBottom = item;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
