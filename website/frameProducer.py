@@ -52,27 +52,38 @@ def main() -> None:
                 and kinect_video is not None
                 and kinect_joints is not None
             ):
-                processed_frame = process_frame(
-                    unity_joints,
-                    unity_clothes,
-                    kinect_joints,
-                    kinect_video,
-                )
+                # processed_frame = process_frame(
+                #     unity_joints,
+                #     unity_clothes,
+                #     kinect_joints,
+                #     kinect_video,
+                # )
 
-                if processed_frame is not None:
-                    processed_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
-                    # ---- SOCKET SEND LOGIC ----
-                    _, img_encoded = cv2.imencode(".jpg", processed_frame)
-                    data = img_encoded.tobytes()
-                    length = len(data)
-                    try:
-                        conn.sendall(length.to_bytes(4, "big") + data)
-                    except Exception as e:
-                        print("Connection closed.")
-                        break
+                # if processed_frame is not None:
+                #     processed_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                #     # ---- SOCKET SEND LOGIC ----
+                #     _, img_encoded = cv2.imencode(".jpg", processed_frame)
+                #     data = img_encoded.tobytes()
+                #     length = len(data)
+                #     try:
+                #         conn.sendall(length.to_bytes(4, "big") + data)
+                #     except Exception as e:
+                #         print("Connection closed.")
+                #         break
 
-                    print("Sent processed frame to consumer.")
-                    cv2.imshow("processed", processed_frame)
+                # ---- SOCKET SEND LOGIC ----
+                kinect_video = cv2.cvtColor(kinect_video, cv2.COLOR_BGR2RGB)
+                _, img_encoded = cv2.imencode(".jpg", kinect_video)
+                data = img_encoded.tobytes()
+                length = len(data)
+                try:
+                    conn.sendall(length.to_bytes(4, "big") + data)
+                except Exception as e:
+                    print("Connection closed.")
+                    break
+
+                print("Sent processed frame to consumer.")
+                cv2.imshow("processed", kinect_video)
 
         if cv2.waitKey(1) == 27:
             break

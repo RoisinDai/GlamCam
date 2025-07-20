@@ -26,7 +26,7 @@
         height: 100%;
         object-fit: cover;
         z-index: 1;
-        transform: scaleX(-1);
+        transform: scaleX(1);
       }
       #closet-drawer {
         position: absolute;
@@ -156,12 +156,73 @@
       let cursorX = window.innerWidth / 2;
       let cursorY = window.innerHeight / 2;
 
+      // document.addEventListener("mousemove", (e) => {
+      //   cursorX = e.clientX;
+      //   cursorY = e.clientY;
+      //   virtualCursor.style.left = `${cursorX}px`;
+      //   virtualCursor.style.top = `${cursorY}px`;
+      // });
+
+      let useKinect = false;
+
+      // WebSocket Kinect hand data handler
+      (function setupKinectWebSocket() {
+        let ws = null;
+        let reconnectTimer = null;
+
+        function connect() {
+          ws = new WebSocket(`ws://${window.location.hostname}:8765`);
+          ws.onopen = () => {
+            console.log("Kinect WebSocket connected");
+          };
+          ws.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              console.log("WS data:", data);
+              if (
+                typeof data.x === "number" &&
+                typeof data.y === "number" &&
+                data.x >= 0 &&
+                data.x <= 1 &&
+                data.y >= 0 &&
+                data.y <= 1
+              ) {
+                useKinect = true;
+                cursorX = data.x * window.innerWidth;
+                cursorY = data.y * window.innerHeight;
+                updateVirtualCursor();
+              }
+            } catch (e) {
+              useKinect = false;
+            }
+          };
+          ws.onclose = () => {
+            useKinect = false;
+            // Try to reconnect after a delay
+            reconnectTimer = setTimeout(connect, 2000);
+          };
+          ws.onerror = (e) => {
+            useKinect = false;
+            ws.close();
+          };
+        }
+
+        connect();
+      })();
+
+      // Mouse fallback only if Kinect not active
       document.addEventListener("mousemove", (e) => {
-        cursorX = e.clientX;
-        cursorY = e.clientY;
+        if (!useKinect) {
+          cursorX = e.clientX;
+          cursorY = e.clientY;
+          updateVirtualCursor();
+        }
+      });
+
+      function updateVirtualCursor() {
         virtualCursor.style.left = `${cursorX}px`;
         virtualCursor.style.top = `${cursorY}px`;
-      });
+      }
 
       function getRectCenter(rect) {
         return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
