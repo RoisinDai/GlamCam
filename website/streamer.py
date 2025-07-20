@@ -1,39 +1,56 @@
-"""streamer.py is responsible for taking the numpy livestream video feed as input and embedding it onto the website"""
-
 from flask import Flask, Response
 import cv2
+import numpy as np
+import socket
 
 app = Flask(__name__)
 
+HOST = 'localhost'
+PORT = 5007 # same port as the producer
 
-def generate():
-    # use our default camera for now, we will replace it with the live video feed
-    cap = cv2.VideoCapture(0) 
-    # infinite loop to continuously read and stream frames
-    while True:
-        success, frame = cap.read()
-        if not success:
-            break
-        # encodes numpy frame into jpg
-        _, buffer = cv2.imencode(".jpg", frame)
-        # convert jpg buffer to real bytes to send over HTTP
-        frame_bytes = buffer.tobytes()
-        yield (
-            b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
-        )
+def socket_frame_generator():
+    """Yield JPEG bytes from socket streaming producer."""
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((HOST, PORT))
 
+    try:
+        while True:
+            # Receive 4 bytes for frame length
+            length_data = b''
+            while len(length_data) < 4:
+                more = client.recv(4 - len(length_data))
+                if not more:
+                    return
+                length_data += more
+            frame_length = int.from_bytes(length_data, 'big')
+
+            # Receive the frame data
+            frame_data = b''
+            while len(frame_data) < frame_length:
+                more = client.recv(frame_length - len(frame_data))
+                if not more:
+                    return
+                frame_data += more
+
+            # MJPEG stream expects JPEG bytes, so just yield
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n" + frame_data + b"\r\n"
+            )
+    finally:
+        client.close()
 
 @app.route("/video_feed")
 def video_feed():
-    return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
-
+    return Response(
+        socket_frame_generator(),
+        mimetype="multipart/x-mixed-replace; boundary=frame"
+    )
 
 @app.route("/")
 def index():
     with open("index.html", "r") as f:
         return f.read()
 
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
-
