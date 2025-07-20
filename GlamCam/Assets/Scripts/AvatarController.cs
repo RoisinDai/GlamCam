@@ -93,6 +93,7 @@ public class AvatarController : MonoBehaviour
 
         // Use the first tracked body
         trackedBody = data.FirstOrDefault(b => b != null && b.IsTracked);
+        if (trackedBody == null) return;
 
         // Get the joints map
         var joints = trackedBody.Joints;
@@ -214,39 +215,72 @@ public class AvatarController : MonoBehaviour
     {
         if (_ExtensionFactors.lowerArmExtensionFactor == 0 || _ExtensionFactors.upperArmExtensionFactor == 0) return;
 
-        var upperArmT = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
-        var lowerArmT = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
-        var handT = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+        // LEFT HAND
+        var l_UpperArmT = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+        var l_lowerArmT = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+        var l_handT = animator.GetBoneTransform(HumanBodyBones.LeftHand);
 
-        // Extend the upper arm from the shoulder along the upper arm's direction.
-        if (upperArmT != null && lowerArmT != null)
+        // Extend the left upper arm from the shoulder along the upper arm's direction.
+        if (l_UpperArmT != null && l_lowerArmT != null)
         {
-            float before = Vector3.Distance(upperArmT.position, lowerArmT.position);
+            float before = Vector3.Distance(l_UpperArmT.position, l_lowerArmT.position);
 
-            Vector3 direction = (lowerArmT.position - upperArmT.position).normalized;
+            Vector3 direction = (l_lowerArmT.position - l_UpperArmT.position).normalized;
 
             // Extension should be scaled to world space (because UniformScaleFactor was applied to the whole avatar)
             Vector3 worldOffset = direction * _ExtensionFactors.upperArmExtensionFactor;
 
-            lowerArmT.position += worldOffset;
+            l_lowerArmT.position += worldOffset;
 
-            float after = Vector3.Distance(upperArmT.position, lowerArmT.position);
-            Debug.Log($"[FIXED] Elbow extended: {after - before} world units");
+            float after = Vector3.Distance(l_UpperArmT.position, l_lowerArmT.position);
         }
 
 
         // Extend the hand farther from the elbow along the forearm's direction.
-        if (lowerArmT != null && handT != null)
+        if (l_lowerArmT != null && l_handT != null)
         {
-            float before = Vector3.Distance(lowerArmT.position, handT.position);
+            float before = Vector3.Distance(l_lowerArmT.position, l_handT.position);
 
-            Vector3 forearmDir = (handT.position - lowerArmT.position).normalized;
+            Vector3 forearmDir = (l_handT.position - l_lowerArmT.position).normalized;
             Vector3 worldOffset = forearmDir * _ExtensionFactors.lowerArmExtensionFactor;
 
-            handT.position += worldOffset;
+            l_handT.position += worldOffset;
 
-            float after = Vector3.Distance(lowerArmT.position, handT.position);
-            Debug.Log($"[FIXED] Hand extended: {after - before} world units");
+            float after = Vector3.Distance(l_lowerArmT.position, l_handT.position);
+        }
+
+        // RIGHT HAND
+        var r_UpperArmT = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+        var r_lowerArmT = animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+        var r_handT = animator.GetBoneTransform(HumanBodyBones.RightHand);
+
+        // Extend the left upper arm from the shoulder along the upper arm's direction.
+        if (r_UpperArmT != null && r_lowerArmT != null)
+        {
+            float before = Vector3.Distance(r_UpperArmT.position, r_lowerArmT.position);
+
+            Vector3 direction = (r_lowerArmT.position - r_UpperArmT.position).normalized;
+
+            // Extension should be scaled to world space (because UniformScaleFactor was applied to the whole avatar)
+            Vector3 worldOffset = direction * _ExtensionFactors.upperArmExtensionFactor;
+
+            r_lowerArmT.position += worldOffset;
+
+            float after = Vector3.Distance(r_UpperArmT.position, r_lowerArmT.position);
+        }
+
+
+        // Extend the hand farther from the elbow along the forearm's direction.
+        if (r_lowerArmT != null && r_handT != null)
+        {
+            float before = Vector3.Distance(r_lowerArmT.position, r_handT.position);
+
+            Vector3 forearmDir = (r_handT.position - r_lowerArmT.position).normalized;
+            Vector3 worldOffset = forearmDir * _ExtensionFactors.lowerArmExtensionFactor;
+
+            r_handT.position += worldOffset;
+
+            float after = Vector3.Distance(r_lowerArmT.position, r_handT.position);
         }
     }
 
