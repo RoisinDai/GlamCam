@@ -95,7 +95,13 @@ public class ClothingSelectionListener : MonoBehaviour
                 if (go != null)
                 {
                     Debug.Log($"[Action] Activating GameObject: {packet.name}");
-                    go.SetActive(true);
+                    go.SetActive(true); // Show the activated ClothedBaseAvatar
+                    AvatarController.ClothedBaseAvatar = go; // Update AvatarController GameObject
+
+                    // Update camera's reference point (ClothedBaseAvatar's Hip)
+                    GameObject armature = go.transform.GetChild(0).gameObject;
+                    JointView.ClothedAvatarHips = armature.transform.GetChild(0).gameObject;
+                    Debug.Log("ClothedAvatarHips set to: " + JointView.ClothedAvatarHips);
                 }
                 else
                 {

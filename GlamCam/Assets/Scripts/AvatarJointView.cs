@@ -12,7 +12,7 @@ public class JointView : MonoBehaviour
   public GameObject BodySourceManager;
   public GameObject AvatarJointsCamera; // The camera that will view the joints
   public GameObject AvatarCamera; // The camera that will view the avatar
-  public GameObject ClothedAvatarHips; // The dressed avatar's hips
+  public static GameObject ClothedAvatarHips; // The dressed avatar's hips
   private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
   private BodySourceManager _BodyManager;
   private const int X_OFFSET = -40; // The X offset for where this joint view will be drawn
@@ -164,33 +164,33 @@ public class JointView : MonoBehaviour
 
   // Create a new body object for the given tracking id
   private GameObject CreateBodyObject(ulong id)
-{
+  {
     GameObject body = new GameObject("Body:" + id);
 
     int jointIndex = 0;
     for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
     {
-        GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+      GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-        // Set color
-        Color color = jointColors[jointIndex % jointColors.Length];
-        jointObj.GetComponent<Renderer>().material.color = color;
+      // Set color
+      Color color = jointColors[jointIndex % jointColors.Length];
+      jointObj.GetComponent<Renderer>().material.color = color;
 
-        LineRenderer lr = jointObj.AddComponent<LineRenderer>();
-        lr.positionCount = 2;
-        lr.material = BoneMaterial;
-        lr.startWidth = 0.05f;
-        lr.endWidth = 0.05f;
+      LineRenderer lr = jointObj.AddComponent<LineRenderer>();
+      lr.positionCount = 2;
+      lr.material = BoneMaterial;
+      lr.startWidth = 0.05f;
+      lr.endWidth = 0.05f;
 
-        jointObj.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
-        jointObj.name = jt.ToString();
-        jointObj.transform.parent = body.transform;
+      jointObj.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
+      jointObj.name = jt.ToString();
+      jointObj.transform.parent = body.transform;
 
-        jointIndex++;
+      jointIndex++;
     }
 
     return body;
-}
+  }
 
   // Update the position of each joint. Called for each frame.
   private void RefreshBodyObject(Kinect.Body body, GameObject bodyObject)

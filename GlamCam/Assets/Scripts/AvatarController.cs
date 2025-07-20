@@ -10,7 +10,7 @@ public class AvatarController : MonoBehaviour
   public Animator animator;
   public GameObject BodySourceManager;
   private BodySourceManager _BodyManager;
-  public GameObject ClothedBaseAvatar;
+  public static GameObject ClothedBaseAvatar;
   private Kinect.Body trackedBody; // The body being tracked by the avatar
   public bool enableInverseKinematics = true;
 
@@ -134,8 +134,8 @@ public class AvatarController : MonoBehaviour
     // Optional: smooth the rotation
     Quaternion targetRotation = Quaternion.LookRotation(-1 * forward /*Avatar faces Z-*/, Vector3.up);
     ClothedBaseAvatar.transform.rotation = Quaternion.Slerp(
-        ClothedBaseAvatar.transform.rotation, 
-        targetRotation, 
+        ClothedBaseAvatar.transform.rotation,
+        targetRotation,
         Time.deltaTime * 5f // smoothing speed
     );
   }
