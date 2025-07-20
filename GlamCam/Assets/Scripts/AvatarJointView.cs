@@ -55,37 +55,39 @@ public class JointView : MonoBehaviour
         { Kinect.JointType.Neck, Kinect.JointType.Head },
     };
 
-    // Colors map
-    // Vibrant, distinct, non-green colors in hex
-    Color[] jointColors = new Color[]
-        {
-            new Color(0.482f, 0.408f, 0.933f, 1f), // #7b68ee - Medium Slate Blue
-            new Color(0.933f, 0.510f, 0.933f, 1f), // #ee82ee - Violet
-            new Color(1.000f, 0.753f, 0.796f, 1f), // #ffc0cb - Pink
-            new Color(1.000f, 0.078f, 0.576f, 1f), // #ff1493 - Deep Pink
-            new Color(0.000f, 1.000f, 1.000f, 1f), // #00ffff - Cyan
-            new Color(0.000f, 0.000f, 1.000f, 1f), // #0000ff - Blue
-            new Color(0.863f, 0.078f, 0.235f, 1f), // #dc143c - Crimson
-            new Color(0.541f, 0.169f, 0.886f, 1f), // #8a2be2 - Blue Violet
-            new Color(0.859f, 0.439f, 0.576f, 1f), // #db7093 - Pale Violet Red
-            new Color(0.545f, 0.000f, 0.545f, 1f), // #8b008b - Dark Magenta
-            new Color(1.000f, 0.000f, 1.000f, 1f), // #ff00ff - Magenta
-            new Color(1.000f, 0.271f, 0.000f, 1f), // #ff4500 - Orange Red
-            new Color(0.941f, 1.000f, 1.000f, 1f), // #f0ffff - Azure
-            new Color(0.000f, 0.545f, 0.545f, 1f), // #008b8b - Dark Cyan
-            new Color(0.282f, 0.239f, 0.545f, 1f), // #483d8b - Dark Slate Blue
-            new Color(1.000f, 0.431f, 0.780f, 1f), // #ff6ec7 - Hot Pink
-            new Color(1.000f, 0.361f, 0.361f, 1f), // #FF5C5C - Coral Red
-            new Color(0.275f, 0.541f, 1.000f, 1f), // #468AFF - Sky Blue
-            new Color(1.000f, 0.541f, 0.396f, 1f), // #FF8A65 - Light Orange
-            new Color(0.910f, 0.451f, 1.000f, 1f), // #E873FF - Light Purple
-            new Color(0.400f, 0.267f, 1.000f, 1f), // #6644FF - Royal Purple
-            new Color(1.000f, 0.200f, 1.000f, 1f), // #FF33FF - Bright Magenta
-            new Color(0.600f, 0.200f, 1.000f, 1f)  // #9933FF - Purple
-        };
+  // Colors map
+  // Vibrant, distinct, non-green colors in hex
+  Color[] jointColors = new Color[]
+  {
+    new Color(0.482f, 0.408f, 0.933f, 1f), // #7b68ee - Medium Slate Blue
+    new Color(0.933f, 0.510f, 0.933f, 1f), // #ee82ee - Violet
+    new Color(1.000f, 0.753f, 0.796f, 1f), // #ffc0cb - Pink
+    new Color(1.000f, 0.078f, 0.576f, 1f), // #ff1493 - Deep Pink
+    new Color(0.000f, 1.000f, 1.000f, 1f), // #00ffff - Cyan
+    new Color(0.000f, 0.000f, 1.000f, 1f), // #0000ff - Blue
+    new Color(0.863f, 0.078f, 0.235f, 1f), // #dc143c - Crimson
+    new Color(0.541f, 0.169f, 0.886f, 1f), // #8a2be2 - Blue Violet
+    new Color(0.859f, 0.439f, 0.576f, 1f), // #db7093 - Pale Violet Red
+    new Color(0.545f, 0.000f, 0.545f, 1f), // #8b008b - Dark Magenta
+    new Color(1.000f, 0.000f, 1.000f, 1f), // #ff00ff - Magenta
+    new Color(1.000f, 0.271f, 0.000f, 1f), // #af2956ff - Red Pink
+    new Color(0.941f, 1.000f, 1.000f, 1f), // #c7fefeff - Azure
+    new Color(0.000f, 0.545f, 0.545f, 1f), // #008b8b - Dark Cyan
+    new Color(0.282f, 0.239f, 0.545f, 1f), // #483d8b - Dark Slate Blue
+    new Color(1.000f, 0.431f, 0.780f, 1f), // #ff6ec7 - Hot Pink
+    new Color(1.000f, 0.361f, 0.361f, 1f), // #FF5C5C - Coral Red
+    new Color(0.275f, 0.541f, 1.000f, 1f), // #468AFF - Sky Blue
+    new Color(1.000f, 0.541f, 0.396f, 1f), // #FF8A65 - Light Orange
+    new Color(0.910f, 0.451f, 1.000f, 1f), // #E873FF - Light Purple
+    new Color(0.400f, 0.267f, 1.000f, 1f), // #6644FF - Royal Purple
+    new Color(1.000f, 0.200f, 1.000f, 1f), // #FF33FF - Bright Magenta
+    new Color(0.600f, 0.200f, 1.000f, 1f),  // #9933FF - Purple
+    new Color(1.000f, 0.302f, 0.000f, 1f), // #ff4d00 - Orange Red
+    new Color(0.310f, 0.318f, 0.694f, 1f),  // #6163e5ff - Dark Blue
+  };
 
   // Updates the body objects
-    void Update()
+  void Update()
   {
     if (BodySourceManager == null)
     {
