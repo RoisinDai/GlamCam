@@ -130,8 +130,8 @@ public class AvatarController : MonoBehaviour
         Debug.Log("_TESTING Height: Avatar:" + _AvatarMeasurements.height + "  User:" + _UserMeasurements.height);
         Debug.Log("_TESTING Upper Arm Length: Avatar: " + _AvatarMeasurements.upperArmLength + "  User: " + _UserMeasurements.upperArmLength);
         Debug.Log("_TESTING Lower Arm Length: Avatar: " + _AvatarMeasurements.lowerArmLength + "  User: " + _UserMeasurements.lowerArmLength);
-        _ExtensionFactors.upperArmExtensionFactor = (_UserMeasurements.upperArmLength - _AvatarMeasurements.upperArmLength) / UniformScaleFactor;
-        _ExtensionFactors.lowerArmExtensionFactor = (_UserMeasurements.lowerArmLength - _AvatarMeasurements.lowerArmLength) / UniformScaleFactor;
+        _ExtensionFactors.upperArmExtensionFactor = (_UserMeasurements.upperArmLength - _AvatarMeasurements.upperArmLength);
+        _ExtensionFactors.lowerArmExtensionFactor = (_UserMeasurements.lowerArmLength - _AvatarMeasurements.lowerArmLength);
         Debug.Log("_TESTING Upper Arm Ext Factor: " + _ExtensionFactors.upperArmExtensionFactor);
         Debug.Log("_TESTING Lower Arm Ext Factor: " + _ExtensionFactors.lowerArmExtensionFactor);
     }
@@ -223,13 +223,17 @@ public class AvatarController : MonoBehaviour
         {
             float before = Vector3.Distance(upperArmT.position, lowerArmT.position);
 
-            Vector3 direction = (lowerArmT.position - upperArmT.position).normalized; // Direction from upper arm to lower arm
-            Vector3 localDir = upperArmT.InverseTransformDirection(direction);        // Get direction of extension relative to the rig
-            lowerArmT.localPosition = initialLowerArmLocalPos + localDir * _ExtensionFactors.upperArmExtensionFactor; // Extends the lower arm in the local direction
+            Vector3 direction = (lowerArmT.position - upperArmT.position).normalized;
+
+            // Extension should be scaled to world space (because UniformScaleFactor was applied to the whole avatar)
+            Vector3 worldOffset = direction * _ExtensionFactors.upperArmExtensionFactor;
+
+            lowerArmT.position += worldOffset;
 
             float after = Vector3.Distance(upperArmT.position, lowerArmT.position);
-            Debug.Log($"Elbow extended: {after - before} world units");
+            Debug.Log($"[FIXED] Elbow extended: {after - before} world units");
         }
+
 
         // Extend the hand farther from the elbow along the forearm's direction.
         if (lowerArmT != null && handT != null)
@@ -237,11 +241,12 @@ public class AvatarController : MonoBehaviour
             float before = Vector3.Distance(lowerArmT.position, handT.position);
 
             Vector3 forearmDir = (handT.position - lowerArmT.position).normalized;
-            Vector3 localForearmDir = lowerArmT.InverseTransformDirection(forearmDir);
-            handT.localPosition = initialHandLocalPos + localForearmDir * _ExtensionFactors.lowerArmExtensionFactor;
+            Vector3 worldOffset = forearmDir * _ExtensionFactors.lowerArmExtensionFactor;
+
+            handT.position += worldOffset;
 
             float after = Vector3.Distance(lowerArmT.position, handT.position);
-            Debug.Log($"Hand extended: {after - before} world units");
+            Debug.Log($"[FIXED] Hand extended: {after - before} world units");
         }
     }
 
