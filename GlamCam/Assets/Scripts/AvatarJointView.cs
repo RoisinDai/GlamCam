@@ -134,27 +134,34 @@ public class JointView : MonoBehaviour
   // Create a new body object for the given tracking id
   private GameObject CreateBodyObject(ulong id)
   {
-    GameObject body = new GameObject("Body:" + id);
+      GameObject body = new GameObject("Body:" + id);
 
-    // Create a cube for each of the 20 joints
-    for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
-    {
-      GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-      jointObj.GetComponent<Renderer>().material.color = Color.red;
+      int jointCount = (int)Kinect.JointType.ThumbRight - (int)Kinect.JointType.SpineBase + 1;
+      float step = 1.0f / jointCount; // Step size for R so it stays in [0,1]
 
-      LineRenderer lr = jointObj.AddComponent<LineRenderer>();
-      lr.positionCount = 2;
-      lr.material = BoneMaterial;
-      lr.startWidth = 0.05f;
-      lr.endWidth = 0.05f;
+      int jointIndex = 0;
+      for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
+      {
+          GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
+          float r = Mathf.Clamp01(jointIndex * step); // Ensure R does not exceed 1.0
+          float b = Mathf.Clamp01(jointIndex * step);
+          jointObj.GetComponent<Renderer>().material.color = new Color(r, 0, b);
 
-      jointObj.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
-      jointObj.name = jt.ToString();
-      jointObj.transform.parent = body.transform;
-    }
+          LineRenderer lr = jointObj.AddComponent<LineRenderer>();
+          lr.positionCount = 2;
+          lr.material = BoneMaterial;
+          lr.startWidth = 0.05f;
+          lr.endWidth = 0.05f;
 
-    return body;
+          jointObj.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
+          jointObj.name = jt.ToString();
+          jointObj.transform.parent = body.transform;
+
+          jointIndex++;
+      }
+
+      return body;
   }
 
   // Update the position of each joint. Called for each frame.
