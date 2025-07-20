@@ -83,7 +83,7 @@ def select():
 
 @app.route("/")
 def index():
-    with open("index.html", "r") as f:
+    with open("C:\\Users\\bungu\\dev\\GlamCam\\website\\index.html", "r") as f:
         return f.read()
 
 

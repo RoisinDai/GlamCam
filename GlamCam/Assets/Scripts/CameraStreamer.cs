@@ -15,8 +15,8 @@ public class UnityCameraTcpMultiStreamer : MonoBehaviour
     public int frameRate = 15; // Frames per second
     public int jpgQuality = 80;
 
-    private TcpClient client;
-    private NetworkStream stream;
+    private TcpClient client = null;
+    private NetworkStream stream = null;
     private bool streaming = false;
 
     void Start()
@@ -36,8 +36,18 @@ public class UnityCameraTcpMultiStreamer : MonoBehaviour
 
     void Connect()
     {
-        client = new TcpClient(host, port);
-        stream = client.GetStream();
+        try
+        {
+          client = new TcpClient(host, port);
+        }
+        catch
+        {
+          client = null;
+        }
+        if (client != null)
+        {
+          stream = client.GetStream();
+        }
     }
 
     IEnumerator StreamFrames()
