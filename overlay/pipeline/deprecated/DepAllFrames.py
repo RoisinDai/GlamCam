@@ -1,4 +1,4 @@
-import overlay.pipeline.deprecated.DepPerFrame as DepPerFrame
+import DepPerFrame
 import cv2
 import imageio.v2 as imageio
 
@@ -43,10 +43,10 @@ def process_all(video_paths: list[str], output_path: str, fps: int = 30) -> None
 if __name__ == "__main__":
     # Path to the input video files
     VIDEO_FILES = [
-        "./input/full/unity-joints.mp4",
-        "./input/full/unity-vid.mp4",
-        "./input/full/kinect-joints.mp4",
-        "./input/full/live-vid.mp4"
+        "../input/full/unity-joints.mp4",
+        "../input/full/unity-vid.mp4",
+        "../input/full/kinect-joints.mp4",
+        "../input/full/live-vid.mp4"
     ]
 
     # Path to save the output video
