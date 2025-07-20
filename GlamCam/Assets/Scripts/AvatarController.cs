@@ -18,6 +18,8 @@ class ExtensionFactors
 {
     public float upperArmExtensionFactor = 0;
     public float lowerArmExtensionFactor = 0;
+    public float upperLegExtensionFactor = 0;
+    public float lowerLegExtensionFactor = 0;
 }
 
 // Responsible for controlling the clothed base avatar, making it track the user's body
@@ -82,60 +84,75 @@ public class AvatarController : MonoBehaviour
         initialHandLocalPos = animator.GetBoneTransform(HumanBodyBones.LeftHand)?.localPosition ?? Vector3.zero;
     }
 
-    // Updates the body object currently being tracked
-    void Update()
+  // Updates the body object currently being tracked
+  void Update()
+  {
+    if (_BodyManager == null) return;
+
+    // Get the bodies
+    Kinect.Body[] data = _BodyManager.GetData();
+    if (data == null) return;
+
+    // Use the first tracked body
+    trackedBody = data.FirstOrDefault(b => b != null && b.IsTracked);
+    if (trackedBody == null) return;
+
+    // Get the joints map
+    var joints = trackedBody.Joints;
+
+    // Move the avatar to the location of the skeleton
+    Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
+    ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
+
+    // Get joints of interest
+    Vector3 head = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.Head]);
+    Vector3 footLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootLeft]);
+    Vector3 footRight = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootRight]);
+
+    Vector3 shoulderLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ShoulderLeft]);
+    Vector3 elbowLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ElbowLeft]);
+    Vector3 wristLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.WristLeft]);
+
+    Vector3 hipLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.HipLeft]);
+    Vector3 kneeLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.KneeLeft]);
+    Vector3 ankleLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.AnkleLeft]);
+
+    // First uniformly scale based on height
+    _UserMeasurements.height = head.y - ((footLeft.y + footRight.y) / 2f);
+    if (UniformScaleFactor == -1f)
     {
-        if (_BodyManager == null) return;
-
-        // Get the bodies
-        Kinect.Body[] data = _BodyManager.GetData();
-        if (data == null) return;
-
-        // Use the first tracked body
-        trackedBody = data.FirstOrDefault(b => b != null && b.IsTracked);
-        if (trackedBody == null) return;
-
-        // Get the joints map
-        var joints = trackedBody.Joints;
-
-        // Move the avatar to the location of the skeleton
-        Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
-        ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
-
-        // Get joints of interest
-        Vector3 head = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.Head]);
-        Vector3 footLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootLeft]);
-        Vector3 footRight = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootRight]);
-
-        Vector3 shoulderLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ShoulderLeft]);
-        Vector3 elbowLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ElbowLeft]);
-        Vector3 wristLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.WristLeft]);
-
-        // First uniformly scale based on height
-        _UserMeasurements.height = head.y - ((footLeft.y + footRight.y) / 2f);
-        if (UniformScaleFactor == -1f)
-        {
-            // Set uniform scaling factor once
-            UniformScaleFactor = _UserMeasurements.height / _AvatarMeasurements.height; // AvatarHeight * scaleFactor = UserHeight
-            ClothedBaseAvatar.transform.localScale = new Vector3(UniformScaleFactor, UniformScaleFactor, UniformScaleFactor);
-            // Update avatar's measurements after uniform scaling
-            GetAvatarHeight(Armature);
-            GetAvatarArmLengths(Armature);
-            GetAvatarLegLength(Armature);
-        }
-        
-        // Scale arms
-        _UserMeasurements.upperArmLength = Vector3.Distance(shoulderLeft, elbowLeft);
-        _UserMeasurements.lowerArmLength = Vector3.Distance(elbowLeft, wristLeft);
-        Debug.Log("_TESTING: Uniform Scale Factor: " + UniformScaleFactor);
-        Debug.Log("_TESTING Height: Avatar:" + _AvatarMeasurements.height + "  User:" + _UserMeasurements.height);
-        Debug.Log("_TESTING Upper Arm Length: Avatar: " + _AvatarMeasurements.upperArmLength + "  User: " + _UserMeasurements.upperArmLength);
-        Debug.Log("_TESTING Lower Arm Length: Avatar: " + _AvatarMeasurements.lowerArmLength + "  User: " + _UserMeasurements.lowerArmLength);
-        _ExtensionFactors.upperArmExtensionFactor = (_UserMeasurements.upperArmLength - _AvatarMeasurements.upperArmLength);
-        _ExtensionFactors.lowerArmExtensionFactor = (_UserMeasurements.lowerArmLength - _AvatarMeasurements.lowerArmLength);
-        Debug.Log("_TESTING Upper Arm Ext Factor: " + _ExtensionFactors.upperArmExtensionFactor);
-        Debug.Log("_TESTING Lower Arm Ext Factor: " + _ExtensionFactors.lowerArmExtensionFactor);
+      // Set uniform scaling factor once
+      // UniformScaleFactor = _UserMeasurements.height / _AvatarMeasurements.height; // AvatarHeight * scaleFactor = UserHeight
+      UniformScaleFactor = 3f; // For testing purposes
+      ClothedBaseAvatar.transform.localScale = new Vector3(UniformScaleFactor, UniformScaleFactor, UniformScaleFactor);
+      // Update avatar's measurements after uniform scaling
+      GetAvatarHeight(Armature);
+      GetAvatarArmLengths(Armature);
+      GetAvatarLegLength(Armature);
     }
+
+    // Scale arms
+    _UserMeasurements.upperArmLength = Vector3.Distance(shoulderLeft, elbowLeft);
+    _UserMeasurements.lowerArmLength = Vector3.Distance(elbowLeft, wristLeft);
+    Debug.Log("_TESTING: Uniform Scale Factor: " + UniformScaleFactor);
+    Debug.Log("_TESTING Height: Avatar:" + _AvatarMeasurements.height + "  User:" + _UserMeasurements.height);
+    Debug.Log("_TESTING Upper Arm Length: Avatar: " + _AvatarMeasurements.upperArmLength + "  User: " + _UserMeasurements.upperArmLength);
+    Debug.Log("_TESTING Lower Arm Length: Avatar: " + _AvatarMeasurements.lowerArmLength + "  User: " + _UserMeasurements.lowerArmLength);
+    _ExtensionFactors.upperArmExtensionFactor = (_UserMeasurements.upperArmLength - _AvatarMeasurements.upperArmLength);
+    _ExtensionFactors.lowerArmExtensionFactor = (_UserMeasurements.lowerArmLength - _AvatarMeasurements.lowerArmLength);
+    Debug.Log("_TESTING Upper Arm Ext Factor: " + _ExtensionFactors.upperArmExtensionFactor);
+    Debug.Log("_TESTING Lower Arm Ext Factor: " + _ExtensionFactors.lowerArmExtensionFactor);
+
+    // Scale legs
+    _UserMeasurements.upperLegLength = Vector3.Distance(hipLeft, kneeLeft);
+    _UserMeasurements.lowerLegLength = Vector3.Distance(kneeLeft, ankleLeft);
+    Debug.Log("_TESTING Upper Leg Length: Avatar: " + _AvatarMeasurements.upperLegLength + "  User: " + _UserMeasurements.upperLegLength);
+    Debug.Log("_TESTING Lower Leg Length: Avatar: " + _AvatarMeasurements.lowerLegLength + "  User: " + _UserMeasurements.lowerLegLength);
+    _ExtensionFactors.upperLegExtensionFactor = (_UserMeasurements.upperLegLength - _AvatarMeasurements.upperLegLength);
+    _ExtensionFactors.lowerLegExtensionFactor = (_UserMeasurements.lowerLegLength - _AvatarMeasurements.lowerLegLength);
+    Debug.Log("_TESTING Upper Leg Ext Factor: " + _ExtensionFactors.upperLegExtensionFactor);
+    Debug.Log("_TESTING Lower Leg Ext Factor: " + _ExtensionFactors.lowerLegExtensionFactor);
+  }
 
     // A callback function to calculate inverse kinematics
     private void OnAnimatorIK(int layerIndex)
@@ -210,7 +227,7 @@ public class AvatarController : MonoBehaviour
         animator.SetIKPosition(goal, unityPos);
     }
     // Inverse Kinematics Hints for elbows and knees
-    private void ApplyIKHint(Kinect.JointType joint, AvartarIKHint hint)
+    private void ApplyIKHint(Kinect.JointType joint, AvatarIKHint hint)
     {
         var kinectJoint = trackedBody.Joints[joint];
         if (kinectJoint.TrackingState == Kinect.TrackingState.NotTracked) return; // Avoid phantom movements
