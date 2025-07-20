@@ -237,6 +237,7 @@ public class AvatarController : MonoBehaviour
     private void LateUpdate()
     {
         ApplyArmExtension();
+        ApplyLegExtension();
     }
 
     // Stretches arms by an extension value
@@ -313,6 +314,79 @@ public class AvatarController : MonoBehaviour
             r_handT.position += worldOffset;
 
             float after = Vector3.Distance(r_lowerArmT.position, r_handT.position);
+        }
+    }
+
+    private void ApplyLegExtension()
+    {
+        if (_ExtensionFactors.lowerLegExtensionFactor == 0 || _ExtensionFactors.upperLegExtensionFactor == 0) return;
+
+        // LEFT LEG
+        var l_UpperLegT = animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
+        var l_lowerLegT = animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg);
+        var l_footT = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+
+        // Extend the left upper leg from the hip along the upper leg's direction.
+        if (l_UpperLegT != null && l_lowerLegT != null)
+        {
+            float before = Vector3.Distance(l_UpperLegT.position, l_lowerLegT.position);
+
+            Vector3 direction = (l_lowerLegT.position - l_UpperLegT.position).normalized;
+
+            Vector3 worldOffset = direction * _ExtensionFactors.upperLegExtensionFactor;
+
+            l_lowerLegT.position += worldOffset;
+
+            float after = Vector3.Distance(l_UpperLegT.position, l_lowerLegT.position);
+        }
+
+        // Extend the foot farther from the knee along the lower leg's direction.
+
+        if (l_lowerLegT != null && l_footT != null)
+        {
+            float before = Vector3.Distance(l_lowerLegT.position, l_footT.position);
+
+            Vector3 lowerLegDir = (l_footT.position - l_lowerLegT.position).normalized;
+
+            Vector3 worldOffset = lowerLegDir * _ExtensionFactors.lowerLegExtensionFactor;
+
+            l_footT.position += worldOffset;
+
+            float after = Vector3.Distance(l_lowerLegT.position, l_footT.position);
+        }
+
+        // RIGHT LEG
+        var r_UpperLegT = animator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
+        var r_lowerLegT = animator.GetBoneTransform(HumanBodyBones.RightLowerLeg);
+        var r_footT = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+
+        // Extend the right upper leg from the hip along the upper leg's direction.
+        if (r_UpperLegT != null && r_lowerLegT != null)
+        {
+            float before = Vector3.Distance(r_UpperLegT.position, r_lowerLegT.position);
+
+            Vector3 direction = (r_lowerLegT.position - r_UpperLegT.position).normalized;
+
+            Vector3 worldOffset = direction * _ExtensionFactors.upperLegExtensionFactor;
+
+            r_lowerLegT.position += worldOffset;
+
+            float after = Vector3.Distance(r_UpperLegT.position, r_lowerLegT.position);
+        }
+
+        // Extend the foot farther from the knee along the lower leg's direction.
+
+        if (r_lowerLegT != null && r_footT != null)
+        {
+            float before = Vector3.Distance(r_lowerLegT.position, r_footT.position);
+
+            Vector3 lowerLegDir = (r_footT.position - r_lowerLegT.position).normalized;
+
+            Vector3 worldOffset = lowerLegDir * _ExtensionFactors.lowerLegExtensionFactor;
+
+            r_footT.position += worldOffset;
+
+            float after = Vector3.Distance(r_lowerLegT.position, r_footT.position);
         }
     }
 
