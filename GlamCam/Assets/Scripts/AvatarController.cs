@@ -151,12 +151,20 @@ public class AvatarController : MonoBehaviour
         //       Meanwhile, Unity’s AvatarIKGoal.LeftHand refers to the avatar’s anatomical left
 
         // Move hands to their goals
-        ApplyIK(Kinect.JointType.HandTipRight, AvatarIKGoal.LeftHand);
-        ApplyIK(Kinect.JointType.HandTipLeft, AvatarIKGoal.RightHand);
+        ApplyIKGoal(Kinect.JointType.HandTipRight, AvatarIKGoal.LeftHand);
+        ApplyIKGoal(Kinect.JointType.HandTipLeft, AvatarIKGoal.RightHand);
 
         // Move feet to their goals
-        ApplyIK(Kinect.JointType.FootRight, AvatarIKGoal.LeftFoot);
-        ApplyIK(Kinect.JointType.FootLeft, AvatarIKGoal.RightFoot);
+        ApplyIKGoal(Kinect.JointType.FootRight, AvatarIKGoal.LeftFoot);
+        ApplyIKGoal(Kinect.JointType.FootLeft, AvatarIKGoal.RightFoot);
+
+        // Move elbows to their hints
+        ApplyIKHint(Kinect.JointType.ElbowRight, AvatarIKHint.LeftElbow);
+        ApplyIKHint(Kinect.JointType.ElbowLeft, AvatarIKHint.RightElbow);
+
+        // Move knees to their hints
+        ApplyIKHint(Kinect.JointType.KneeRight, AvatarIKHint.LeftKnee);
+        ApplyIKHint(Kinect.JointType.KneeLeft, AvatarIKHint.RightKnee);
 
         // Rotate head to look at a specific position
         var kinectHead = trackedBody.Joints[Kinect.JointType.Head];
@@ -175,7 +183,7 @@ public class AvatarController : MonoBehaviour
 
 
     // Apply inverse kinematics to the avatar's joints to move them to the goal
-    private void ApplyIK(Kinect.JointType joint, AvatarIKGoal goal)
+    private void ApplyIKGoal(Kinect.JointType joint, AvatarIKGoal goal)
     {
         var kinectJoint = trackedBody.Joints[joint];
         if (kinectJoint.TrackingState == Kinect.TrackingState.NotTracked) return; // Avoid phantom movements
@@ -200,6 +208,30 @@ public class AvatarController : MonoBehaviour
         }
 
         animator.SetIKPosition(goal, unityPos);
+    }
+    // Inverse Kinematics Hints for elbows and knees
+    private void ApplyIKHint(Kinect.JointType joint, AvartarIKHint hint)
+    {
+        var kinectJoint = trackedBody.Joints[joint];
+        if (kinectJoint.TrackingState == Kinect.TrackingState.NotTracked) return; // Avoid phantom movements
+
+        var kinectJointPos = trackedBody.Joints[joint].Position;
+        Vector3 unityPos = BodySourceView.GetVector3FromKinectCoord(kinectJointPos.X, kinectJointPos.Y, kinectJointPos.Z);
+        
+        if (kinectJoint.JointType == Kinect.JointType.ElbowLeft || kinectJoint.JointType == Kinect.JointType.ElbowRight)
+        {
+          animator.SetIKHintPositionWeight(hint, IK_DEFAULT_WEIGHT);
+        }
+        else if (kinectJoint.JointType == Kinect.JointType.KneeLeft || kinectJoint.JointType == Kinect.JointType.KneeRight)
+        {
+          animator.SetIKHintPositionWeight(hint, IK_DEFAULT_WEIGHT);
+        }
+        else
+        {
+          animator.SetIKHintPositionWeight(hint, IK_DEFAULT_WEIGHT);
+        }
+
+        animator.SetIKHintPosition(hint, unityPos);
     }
 
     private void LateUpdate()
