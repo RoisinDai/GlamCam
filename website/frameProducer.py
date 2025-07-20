@@ -12,6 +12,7 @@ from overlay.pipeline.Receiver import (
 from overlay.pipeline.Config import KINECT_HOST, KINECT_PORT, UNITY_HOST, UNITY_PORT
 from overlay.pipeline.PerFrame import process_frame
 
+
 def main() -> None:
     # Socket setup
     HOST = 'localhost'
@@ -42,7 +43,8 @@ def main() -> None:
             imgA_bytes, imgB_bytes = unity_latest
 
             kinect_video = decode_frame(k_jpg_bytes)
-            kinect_joints = k_joints[0] if k_joints and len(k_joints) > 0 else None
+            kinect_joints = k_joints[0] if k_joints and len(
+                k_joints) > 0 else None
             unity_clothes = decode_frame(imgB_bytes)
             unity_joints = decode_frame(imgA_bytes)
 
@@ -60,7 +62,8 @@ def main() -> None:
                 )
 
                 if processed_frame is not None:
-                    processed_frame = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2RGB)
+                    processed_frame = cv2.cvtColor(
+                        processed_frame, cv2.COLOR_BGR2RGB)
                     # ---- SOCKET SEND LOGIC ----
                     _, img_encoded = cv2.imencode('.jpg', processed_frame)
                     data = img_encoded.tobytes()
@@ -79,6 +82,7 @@ def main() -> None:
     cv2.destroyAllWindows()
     conn.close()
     server.close()
+
 
 if __name__ == "__main__":
     main()

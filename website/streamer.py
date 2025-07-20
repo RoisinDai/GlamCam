@@ -1,12 +1,14 @@
-from flask import Flask, Response
-import cv2
+from flask import Flask, Response, request
 import numpy as np
 import socket
+import json
 
 app = Flask(__name__)
 
 HOST = 'localhost'
-PORT = 5007 # same port as the producer
+PORT = 5007 # Video producer port
+UNITY_HOST = 'localhost'   # need to update...
+UNITY_PORT = 5008    
 
 def socket_frame_generator():
     """Yield JPEG bytes from socket streaming producer."""
@@ -46,6 +48,23 @@ def video_feed():
         socket_frame_generator(),
         mimetype="multipart/x-mixed-replace; boundary=frame"
     )
+
+@app.route("/select", methods=["POST"])
+def select():
+    data = request.json
+    print("[UI Selection] ", data)
+
+    # Send to Unity via TCP
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((UNITY_HOST, UNITY_PORT))
+        message = json.dumps(data).encode("utf-8")
+        s.sendall(message)
+        s.close()
+        print("[Sent to Unity] ", message)
+    except Exception as e:
+        print("[Error sending to Unity]", e)
+    return "", 204
 
 @app.route("/")
 def index():
