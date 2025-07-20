@@ -24,8 +24,7 @@ def process_all(video_paths: list[str], output_path: str, fps: int = 30) -> None
             ret, frame = cap.read()
             if not ret:
                 raise RuntimeError(
-                    f"Failed to read frame {frame_idx} from one of the videos."
-                )
+                    f"Failed to read frame {frame_idx} from one of the videos.")
             frames.append(frame)
 
         # Process the frames together
@@ -47,7 +46,7 @@ if __name__ == "__main__":
         "./input/full/unity-joints.mp4",
         "./input/full/unity-vid.mp4",
         "./input/full/kinect-joints.mp4",
-        "./input/full/live-vid.mp4",
+        "./input/full/live-vid.mp4"
     ]
 
     # Path to save the output video

@@ -5,10 +5,11 @@ import json
 
 app = Flask(__name__)
 
-HOST = 'localhost'
-PORT = 5007 # Video producer port
-UNITY_HOST = 'localhost'   # need to update...
-UNITY_PORT = 5008    
+HOST = "localhost"
+PORT = 5007  # Video producer port
+UNITY_HOST = "localhost"  # need to update...
+UNITY_PORT = 5008
+
 
 def socket_frame_generator():
     """Yield JPEG bytes from socket streaming producer."""
@@ -18,16 +19,16 @@ def socket_frame_generator():
     try:
         while True:
             # Receive 4 bytes for frame length
-            length_data = b''
+            length_data = b""
             while len(length_data) < 4:
                 more = client.recv(4 - len(length_data))
                 if not more:
                     return
                 length_data += more
-            frame_length = int.from_bytes(length_data, 'big')
+            frame_length = int.from_bytes(length_data, "big")
 
             # Receive the frame data
-            frame_data = b''
+            frame_data = b""
             while len(frame_data) < frame_length:
                 more = client.recv(frame_length - len(frame_data))
                 if not more:
@@ -42,12 +43,13 @@ def socket_frame_generator():
     finally:
         client.close()
 
+
 @app.route("/video_feed")
 def video_feed():
     return Response(
-        socket_frame_generator(),
-        mimetype="multipart/x-mixed-replace; boundary=frame"
+        socket_frame_generator(), mimetype="multipart/x-mixed-replace; boundary=frame"
     )
+
 
 @app.route("/select", methods=["POST"])
 def select():
@@ -66,10 +68,12 @@ def select():
         print("[Error sending to Unity]", e)
     return "", 204
 
+
 @app.route("/")
 def index():
-    with open("index.html", "r") as f:
+    with open("C:\\Users\\bungu\\dev\\GlamCam\\website\\index.html", "r") as f:
         return f.read()
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)
