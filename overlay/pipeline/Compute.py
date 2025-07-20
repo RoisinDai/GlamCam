@@ -113,6 +113,7 @@ def icp_with_prescaling(src, dst, max_iter=50, tolerance=1e-6, verbose=False):
 def run_icp(
     unity_coords: dict[JointType, tuple[float, float]],
     kinect_coords: dict[JointType, tuple[float, float]],
+    common_joints: list[JointType],
 ) -> np.ndarray:
     """
     Run ICP to align Unity coordinates with Kinect coordinates.
@@ -122,14 +123,10 @@ def run_icp(
     Returns:
       np.ndarray: The 2x3 affine transformation matrix (scale * R | t).
     """
-    # Find common joints
-    common_joints = sorted(
-        set(unity_coords.keys()) & set(kinect_coords.keys()), key=lambda jt: jt.value
-    )
-
     # Establish one-to-one correspondence, sorted by JointType value
     unity_points = np.array([unity_coords[jt] for jt in common_joints])
     kinect_points = np.array([kinect_coords[jt] for jt in common_joints])
+    assert len(unity_points) == len(kinect_points), "Mismatched joint counts"
 
     # Perform ICP to align Kinect coordinates to Unity coordinates
     scale, R, t, _ = icp_with_prescaling(unity_points, kinect_points)

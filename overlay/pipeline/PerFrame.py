@@ -44,13 +44,20 @@ def process_frame(
     if len(kinect_coords) == 0:
         return None
 
+    # Get the common joints between Unity and Kinect
+    common_joints = sorted(
+        set(unity_coords.keys()) & set(kinect_coords.keys()), key=lambda jt: jt.value
+    )
+    if len(common_joints) == 0:
+        return None
+
     # Segment the clothing from the Unity frame
     cloth_transparent = UnityUtils.apply_mask_to_image(
         unity_clothes_frame, segment_clothes(unity_clothes_frame)
     )
 
     # Run the ICP algorithm to align Kinect coordinates with Unity coordinates
-    affine_matrix = Compute.run_icp(unity_coords, kinect_coords)
+    affine_matrix = Compute.run_icp(unity_coords, kinect_coords, common_joints)
 
     # Ensure both images are RGBA for blending
     if live_human_frame.shape[2] == 3:
