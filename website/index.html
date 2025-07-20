@@ -180,17 +180,31 @@
               const data = JSON.parse(event.data);
               // Fallback: if coords are -1, -1, disable Kinect and use mouse
               if (typeof data.x === "number" && typeof data.y === "number") {
-                if (data.x === -1 && data.y === -1) {
-                  useKinect = false; // fallback to mouse
-                } else if (
-                  data.x >= 0 &&
-                  data.x <= 1 &&
-                  data.y >= 0 &&
-                  data.y <= 1
+                var window_width = window.innerWidth;
+                var window_height = window.innerHeight;
+                var frame_width = 1920; // Kinect frame width
+                var frame_height = 1080; // Kinect frame height
+
+                // Normalize Kinect coordinates to window size
+                var left_cut = (frame_width - window_width) / 2;
+                var top_cut = (frame_height - window_height) / 2;
+
+                // Shift Kinect coordinates to match window size
+                data.x = data.x - left_cut;
+                data.y = data.y - top_cut;
+
+                // If the Kinect coordinates are outside the window bounds, fallback to mouse
+                if (
+                  data.x < 0 ||
+                  data.x > window_width ||
+                  data.y < 0 ||
+                  data.y > window_height
                 ) {
+                  useKinect = false; // fallback to mouse
+                } else {
                   useKinect = true;
-                  cursorX = data.x * window.innerWidth;
-                  cursorY = data.y * window.innerHeight;
+                  cursorX = data.x;
+                  cursorY = data.y;
                   updateVirtualCursor();
                 }
               }

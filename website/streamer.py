@@ -142,9 +142,17 @@ def kinect_hand_tcp_listener():
 
                     hands_dict = hands_list[0]
                     try:
+                        hand_tip_x = float(hands_dict["HandTipRight"]["X"])
+                        hand_tip_y = float(hands_dict["HandTipRight"]["Y"])
+                        hand_x = float(hands_dict["HandRight"]["X"])
+                        hand_y = float(hands_dict["HandRight"]["Y"])
+                        # Calculate the center position between the hand and the hand tip
+                        hand_center_x = (hand_x + hand_tip_x) / 2
+                        hand_center_y = (hand_y + hand_tip_y) / 2
+                        # Use the center position as the latest right hand position
                         latest_right_hand = {
-                            "x": hands_dict["HandRight"]["X"] / frame_width,
-                            "y": hands_dict["HandRight"]["Y"] / frame_height,
+                            "x": hand_center_x,
+                            "y": hand_center_y,
                         }
                     except KeyError as e:
                         latest_right_hand = {
