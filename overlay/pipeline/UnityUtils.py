@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 
 
-def segment_joints(frame : np.ndarray) -> np.ndarray:
+def segment_joints(frame: np.ndarray) -> np.ndarray:
     """
     Segment red dots from a frame and return a mask of the segmented red dots.
     Args:
@@ -23,9 +23,11 @@ def segment_joints(frame : np.ndarray) -> np.ndarray:
 
     # Tune HSV ranges for bright red
     # Red hue is around 0 and 180 (OpenCV: 0-179). Bright red: high S and V.
-    lower_red1 = np.array([0, 120, 100])    # [H, S, V] (lower hue, higher sat/val)
+    # [H, S, V] (lower hue, higher sat/val)
+    lower_red1 = np.array([0, 120, 100])
     upper_red1 = np.array([10, 255, 255])
-    lower_red2 = np.array([170, 120, 100])  # [H, S, V] (upper hue, higher sat/val)
+    # [H, S, V] (upper hue, higher sat/val)
+    lower_red2 = np.array([170, 120, 100])
     upper_red2 = np.array([180, 255, 255])
 
     # Create masks for the two red ranges and combine
@@ -49,9 +51,10 @@ def get_joints_coord(red_mask_clean: np.ndarray) -> list[tuple[int, int]]:
     Returns:
         list[tuple[int, int]]: List of (x, y) coordinates of the red dots.
     """
-    
+
     # Find contours in the mask
-    contours, _ = cv2.findContours(red_mask_clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        red_mask_clean, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     dot_centers = []
     min_area = 10  # Minimum area to filter out noise
@@ -71,7 +74,7 @@ def get_joints_coord(red_mask_clean: np.ndarray) -> list[tuple[int, int]]:
     return dot_centers_sorted
 
 
-def segment_clothes(frame : np.ndarray) -> np.ndarray:
+def segment_clothes(frame: np.ndarray) -> np.ndarray:
     """
     Segment the green background from a frame and return a mask of the segmented area.
     Args:
@@ -81,7 +84,7 @@ def segment_clothes(frame : np.ndarray) -> np.ndarray:
     """
 
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    
+
     # Convert the image to HSV color space
     hsv = cv2.cvtColor(frame_rgb, cv2.COLOR_BGR2HSV)
 
@@ -89,7 +92,7 @@ def segment_clothes(frame : np.ndarray) -> np.ndarray:
     lower_green = np.array([40, 100, 100])
     upper_green = np.array([80, 255, 255])
     bg_mask = cv2.inRange(hsv, lower_green, upper_green)
-    
+
     # Invert background mask: 255 where not background
     fg_mask = cv2.bitwise_not(bg_mask)
 
@@ -105,7 +108,7 @@ def apply_mask_to_image(frame: np.ndarray, fg_mask: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: The masked image with transparency applied.
     """
-    
+
     # Read the original image using OpenCV
     img_rgb = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 

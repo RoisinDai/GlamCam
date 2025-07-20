@@ -149,7 +149,8 @@ def alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
     mask = out_alpha > 0
     out_rgb = np.zeros_like(fg[..., :3])
     out_rgb[mask] = (
-        fg[..., :3] * fg[..., 3:4] + bg[..., :3] * bg[..., 3:4] * (1 - fg[..., 3:4])
+        fg[..., :3] * fg[..., 3:4] + bg[..., :3] *
+        bg[..., 3:4] * (1 - fg[..., 3:4])
     )[mask] / out_alpha[mask, None]
     out = np.zeros_like(fg)
     out[..., :3] = out_rgb
