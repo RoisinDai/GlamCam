@@ -10,8 +10,10 @@ public class BodySourceView : MonoBehaviour
 {
   public Material BoneMaterial;
   public GameObject BodySourceManager;
+  public Material TransparentMaterial; // Material for joints skeleton to hide it
   private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
   private BodySourceManager _BodyManager;
+  private bool _ShowSkeleton = false; // Flag to toggle skeleton visibility
 
   // Maps joints to the joint they are connected to
   private Dictionary<Kinect.JointType, Kinect.JointType> _BoneMap = new Dictionary<Kinect.JointType, Kinect.JointType>()
@@ -131,15 +133,19 @@ public class BodySourceView : MonoBehaviour
     {
       GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-      // Apply the bone material to the object
-      jointObj.GetComponent<Renderer>().material = BoneMaterial;
-
-      // LineRenderer lr = jointObj.AddComponent<LineRenderer>();
-      // lr.positionCount = 2;
-      // lr.material = BoneMaterial;
-      // lr.startWidth = 0.05f;
-      // lr.endWidth = 0.05f;
-
+      if (_ShowSkeleton)
+      {
+        LineRenderer lr = jointObj.AddComponent<LineRenderer>();
+        lr.positionCount = 2;
+        lr.material = BoneMaterial;
+        lr.startWidth = 0.05f;
+        lr.endWidth = 0.05f;
+      }
+      else
+      {
+        // Apply a transparent material to the object
+        jointObj.GetComponent<Renderer>().material = TransparentMaterial;
+      }
 
       jointObj.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
       jointObj.name = jt.ToString();
