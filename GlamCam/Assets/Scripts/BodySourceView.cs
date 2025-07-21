@@ -131,11 +131,14 @@ public class BodySourceView : MonoBehaviour
     {
       GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-      LineRenderer lr = jointObj.AddComponent<LineRenderer>();
-      lr.positionCount = 2;
-      lr.material = BoneMaterial;
-      lr.startWidth = 0.05f;
-      lr.endWidth = 0.05f;
+      // Apply the transparent material to the object
+      jointObj.GetComponent<Renderer>().material = transparentMaterial;
+
+      // LineRenderer lr = jointObj.AddComponent<LineRenderer>();
+      // lr.positionCount = 2;
+      // lr.material = BoneMaterial;
+      // lr.startWidth = 0.05f;
+      // lr.endWidth = 0.05f;
 
 
       jointObj.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
