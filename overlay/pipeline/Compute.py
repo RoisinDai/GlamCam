@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial import cKDTree  # type: ignore
 from JointMapping import JointType
+from numba import njit
 
 
 def compute_rms_radius(points):
@@ -110,10 +111,42 @@ def icp_with_prescaling(src, dst, max_iter=50, tolerance=1e-6, verbose=False):
     return scale, R, t, src_aligned
 
 
+def procrustes_similarity(A, B):
+    """
+    Finds the best-fit similarity transform (s*R*A + t) to align A to B.
+    Returns scale s, rotation matrix R, translation vector t.
+    A, B: Nx2 arrays of corresponding points.
+    """
+    assert A.shape == B.shape
+
+    # Center the point clouds
+    centroid_A = np.mean(A, axis=0)
+    centroid_B = np.mean(B, axis=0)
+    AA = A - centroid_A
+    BB = B - centroid_B
+
+    # Compute scaling
+    var_A = np.sum(AA**2)
+    H = AA.T @ BB
+    U, S, Vt = np.linalg.svd(H)
+    R = Vt.T @ U.T
+
+    # Reflection correction
+    if np.linalg.det(R) < 0:
+        Vt[1, :] *= -1
+        R = Vt.T @ U.T
+
+    scale = np.trace(np.diag(S)) / var_A
+
+    # Translation
+    t = centroid_B - scale * R @ centroid_A
+
+    return scale, R, t
+
+
 def run_icp(
     unity_coords: dict[JointType, tuple[float, float]],
     kinect_coords: dict[JointType, tuple[float, float]],
-    common_joints: list[JointType],
 ) -> np.ndarray:
     """
     Run ICP to align Unity coordinates with Kinect coordinates.
@@ -123,13 +156,17 @@ def run_icp(
     Returns:
       np.ndarray: The 2x3 affine transformation matrix (scale * R | t).
     """
-    # Establish one-to-one correspondence, sorted by JointType value
+
+    # Establish one-to-one correspondence between joints
+    common_joints = sorted(set(unity_coords.keys()).intersection(kinect_coords.keys()))
+    assert len(common_joints) > 0, "No common joints found between Unity and Kinect"
+
     unity_points = np.array([unity_coords[jt] for jt in common_joints])
     kinect_points = np.array([kinect_coords[jt] for jt in common_joints])
     assert len(unity_points) == len(kinect_points), "Mismatched joint counts"
 
     # Perform ICP to align Kinect coordinates to Unity coordinates
-    scale, R, t, _ = icp_with_prescaling(unity_points, kinect_points)
+    scale, R, t = procrustes_similarity(unity_points, kinect_points)
 
     # Create the affine transformation matrix
     M = scale * R
@@ -138,7 +175,7 @@ def run_icp(
     return affine_matrix
 
 
-def alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
+def _alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
     """
     Perform alpha blending of two images.
     Args:
@@ -162,3 +199,21 @@ def alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
     out[..., 3] = out_alpha
 
     return (out * 255).astype(np.uint8)
+
+
+@njit
+def alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
+    out = np.empty_like(bg)
+    height, width, _ = bg.shape
+    for y in range(height):
+        for x in range(width):
+            af = fg[y, x, 3] / 255.0
+            ab = bg[y, x, 3] / 255.0
+            ao = af + ab * (1 - af)
+            if ao > 1e-6:
+                for c in range(3):
+                    out[y, x, c] = (fg[y, x, c] * af + bg[y, x, c] * ab * (1 - af)) / ao
+                out[y, x, 3] = ao * 255
+            else:
+                out[y, x] = 0
+    return out.astype(np.uint8)
