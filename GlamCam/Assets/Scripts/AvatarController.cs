@@ -111,7 +111,7 @@ public class AvatarController : MonoBehaviour
 
     // Move the avatar to the location of the skeleton
     Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
-    ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
+    ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y + 1.2f /*Align shoulders, prevent sagging knees*/, spineBasePos.z);
 
     // Get joints of interest
     Vector3 head = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.Head]);
@@ -132,7 +132,7 @@ public class AvatarController : MonoBehaviour
     {
       // Set uniform scaling factor once
       // UniformScaleFactor = _UserMeasurements.height / _AvatarMeasurements.height; // AvatarHeight * scaleFactor = UserHeight
-      UniformScaleFactor = 3f; // For testing purposes
+      UniformScaleFactor = 2.6f; // For testing purposes
       ClothedBaseAvatar.transform.localScale = new Vector3(UniformScaleFactor, UniformScaleFactor, UniformScaleFactor);
       // Update avatar's measurements after uniform scaling
       GetAvatarHeight(Armature);
