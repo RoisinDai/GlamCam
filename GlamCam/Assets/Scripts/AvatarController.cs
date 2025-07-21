@@ -36,7 +36,6 @@ public class AvatarController : MonoBehaviour
 
     // Inverse Kinematics Variables
     public bool enableInverseKinematics = true;
-    private bool armExtended = false; // Flag to check if the arm has been extended already
     private Vector3 initialLowerArmLocalPos;
     private Vector3 initialHandLocalPos;
     private readonly float IK_HANDS_WEIGHT = 1f;
