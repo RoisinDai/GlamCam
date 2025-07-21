@@ -28,12 +28,12 @@ public class AvatarController : MonoBehaviour
   // Unity Objects
     public Animator animator;
     public GameObject BodySourceManager;
-    private BodySourceManager _BodyManager;
+    private static BodySourceManager _BodyManager;
     public GameObject ClothedBaseAvatar;
     private GameObject Armature;
     private GameObject BaseAvatar; // The unclothed base avatar
     public static Kinect.Body trackedBody; // The body being tracked by the avatar
-    private bool _HideAvatar = true; // Flag to toggle BaseAvatar visibility (show only clothes)
+    private bool _HideAvatar = false; // Flag to toggle BaseAvatar visibility (show only clothes)
 
     // Inverse Kinematics Variables
     public bool enableInverseKinematics = true;
@@ -54,16 +54,17 @@ public class AvatarController : MonoBehaviour
 
   void Start()
   {
+    print("AvatarController Start called for " + ClothedBaseAvatar.name);
     animator = GetComponent<Animator>();
     if (animator == null)
     {
-      Debug.LogError("Animator component not found on AvatarController.");
+      Debug.LogError(ClothedBaseAvatar.name + " Animator component not found on AvatarController.");
     }
 
     _BodyManager = BodySourceManager.GetComponent<BodySourceManager>();
     if (_BodyManager == null)
     {
-      Debug.LogError("BodySourceManager component not found.");
+      Debug.LogError(ClothedBaseAvatar.name + " BodySourceManager component not found.");
     }
 
     // Get the measurements of the ClothedBaseAvatar
@@ -83,12 +84,12 @@ public class AvatarController : MonoBehaviour
       BaseAvatar = ClothedBaseAvatar.transform.GetChild(2).gameObject;
       if (BaseAvatar != null)
       {
-        Debug.Log("Hiding the base avatar (leaving clothes).");
+        Debug.Log(ClothedBaseAvatar.name + " Hiding the base avatar (leaving clothes).");
         BaseAvatar.SetActive(false); // Hide the BaseAvatar
       }
       else
       {
-        Debug.LogError("BaseAvatar not found in ClothedBaseAvatar hierarchy.");
+        Debug.LogError(ClothedBaseAvatar.name + " BaseAvatar not found in ClothedBaseAvatar hierarchy.");
       }
     }
   }
@@ -96,6 +97,7 @@ public class AvatarController : MonoBehaviour
   // Updates the body object currently being tracked
   void Update()
   {
+    Debug.Log(ClothedBaseAvatar.name + " Update called.");
     if (_BodyManager == null) return;
 
     // Get the bodies
@@ -160,16 +162,16 @@ public class AvatarController : MonoBehaviour
     _ExtensionFactors.upperLegExtensionFactor = (_UserMeasurements.upperLegLength - _AvatarMeasurements.upperLegLength);
     _ExtensionFactors.lowerLegExtensionFactor = (_UserMeasurements.lowerLegLength - _AvatarMeasurements.lowerLegLength);
     Debug.Log("_TESTING Upper Leg Ext Factor: " + _ExtensionFactors.upperLegExtensionFactor);
-    Debug.Log("_TESTING Lower Leg Ext Factor: " + _ExtensionFactors.lowerLegExtensionFactor);
+    Debug.Log(ClothedBaseAvatar.name + "_TESTING Lower Leg Ext Factor: " + _ExtensionFactors.lowerLegExtensionFactor);
   }
 
     // A callback function to calculate inverse kinematics
     private void OnAnimatorIK(int layerIndex)
     {
-        Debug.Log("OnAnimatorIK called with layer: " + layerIndex);
+        Debug.Log(ClothedBaseAvatar.name + "OnAnimatorIK called with layer: " + layerIndex);
         if (animator == null || trackedBody == null || !enableInverseKinematics)
         {
-            Debug.Log("  But no trackedBody or inverseKinematics disabled!");
+            Debug.Log(ClothedBaseAvatar.name + " But no trackedBody or inverseKinematics disabled!");
             return;
         }
 
