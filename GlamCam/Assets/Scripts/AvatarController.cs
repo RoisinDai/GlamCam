@@ -72,11 +72,11 @@ public class AvatarController : MonoBehaviour
     GetAvatarHeight(Armature);
     GetAvatarArmLengths(Armature);
     GetAvatarLegLength(Armature);
-    Debug.Log("_AvatarMeasurements - Height: " + _AvatarMeasurements.height);
-    Debug.Log("_AvatarMeasurements - Upper Arm Length: " + _AvatarMeasurements.upperArmLength);
-    Debug.Log("_AvatarMeasurements - Lower Arm Length: " + _AvatarMeasurements.lowerArmLength);
-    Debug.Log("_AvatarMeasurements - Upper Leg Length: " + _AvatarMeasurements.upperLegLength);
-    Debug.Log("_AvatarMeasurements - Lower Leg Length: " + _AvatarMeasurements.lowerLegLength);
+    // Debug.Log("_AvatarMeasurements - Height: " + _AvatarMeasurements.height);
+    // Debug.Log("_AvatarMeasurements - Upper Arm Length: " + _AvatarMeasurements.upperArmLength);
+    // Debug.Log("_AvatarMeasurements - Lower Arm Length: " + _AvatarMeasurements.lowerArmLength);
+    // Debug.Log("_AvatarMeasurements - Upper Leg Length: " + _AvatarMeasurements.upperLegLength);
+    // Debug.Log("_AvatarMeasurements - Lower Leg Length: " + _AvatarMeasurements.lowerLegLength);
 
     // Hide the BaseAvatar if desired
     if (_HideAvatar)
@@ -84,7 +84,7 @@ public class AvatarController : MonoBehaviour
       BaseAvatar = ClothedBaseAvatar.transform.GetChild(2).gameObject;
       if (BaseAvatar != null)
       {
-        Debug.Log(ClothedBaseAvatar.name + " Hiding the base avatar (leaving clothes).");
+        // Debug.Log(ClothedBaseAvatar.name + " Hiding the base avatar (leaving clothes).");
         BaseAvatar.SetActive(false); // Hide the BaseAvatar
       }
       else
@@ -97,7 +97,7 @@ public class AvatarController : MonoBehaviour
   // Updates the body object currently being tracked
   void Update()
   {
-    Debug.Log(ClothedBaseAvatar.name + " Update called.");
+    // Debug.Log(ClothedBaseAvatar.name + " Update called.");
     if (_BodyManager == null) return;
 
     // Get the bodies
@@ -145,33 +145,33 @@ public class AvatarController : MonoBehaviour
     // Scale arms
     _UserMeasurements.upperArmLength = Vector3.Distance(shoulderLeft, elbowLeft);
     _UserMeasurements.lowerArmLength = Vector3.Distance(elbowLeft, wristLeft);
-    Debug.Log("_TESTING: Uniform Scale Factor: " + UniformScaleFactor);
-    Debug.Log("_TESTING Height: Avatar:" + _AvatarMeasurements.height + "  User:" + _UserMeasurements.height);
-    Debug.Log("_TESTING Upper Arm Length: Avatar: " + _AvatarMeasurements.upperArmLength + "  User: " + _UserMeasurements.upperArmLength);
-    Debug.Log("_TESTING Lower Arm Length: Avatar: " + _AvatarMeasurements.lowerArmLength + "  User: " + _UserMeasurements.lowerArmLength);
+    // Debug.Log("_TESTING: Uniform Scale Factor: " + UniformScaleFactor);
+    // Debug.Log("_TESTING Height: Avatar:" + _AvatarMeasurements.height + "  User:" + _UserMeasurements.height);
+    // Debug.Log("_TESTING Upper Arm Length: Avatar: " + _AvatarMeasurements.upperArmLength + "  User: " + _UserMeasurements.upperArmLength);
+    // Debug.Log("_TESTING Lower Arm Length: Avatar: " + _AvatarMeasurements.lowerArmLength + "  User: " + _UserMeasurements.lowerArmLength);
     _ExtensionFactors.upperArmExtensionFactor = (_UserMeasurements.upperArmLength - _AvatarMeasurements.upperArmLength);
     _ExtensionFactors.lowerArmExtensionFactor = (_UserMeasurements.lowerArmLength - _AvatarMeasurements.lowerArmLength);
-    Debug.Log("_TESTING Upper Arm Ext Factor: " + _ExtensionFactors.upperArmExtensionFactor);
-    Debug.Log("_TESTING Lower Arm Ext Factor: " + _ExtensionFactors.lowerArmExtensionFactor);
+    // Debug.Log("_TESTING Upper Arm Ext Factor: " + _ExtensionFactors.upperArmExtensionFactor);
+    // Debug.Log("_TESTING Lower Arm Ext Factor: " + _ExtensionFactors.lowerArmExtensionFactor);
 
     // Scale legs
     _UserMeasurements.upperLegLength = Vector3.Distance(hipLeft, kneeLeft);
     _UserMeasurements.lowerLegLength = Vector3.Distance(kneeLeft, ankleLeft);
-    Debug.Log("_TESTING Upper Leg Length: Avatar: " + _AvatarMeasurements.upperLegLength + "  User: " + _UserMeasurements.upperLegLength);
-    Debug.Log("_TESTING Lower Leg Length: Avatar: " + _AvatarMeasurements.lowerLegLength + "  User: " + _UserMeasurements.lowerLegLength);
+    // Debug.Log("_TESTING Upper Leg Length: Avatar: " + _AvatarMeasurements.upperLegLength + "  User: " + _UserMeasurements.upperLegLength);
+    // Debug.Log("_TESTING Lower Leg Length: Avatar: " + _AvatarMeasurements.lowerLegLength + "  User: " + _UserMeasurements.lowerLegLength);
     _ExtensionFactors.upperLegExtensionFactor = (_UserMeasurements.upperLegLength - _AvatarMeasurements.upperLegLength);
     _ExtensionFactors.lowerLegExtensionFactor = (_UserMeasurements.lowerLegLength - _AvatarMeasurements.lowerLegLength);
-    Debug.Log("_TESTING Upper Leg Ext Factor: " + _ExtensionFactors.upperLegExtensionFactor);
-    Debug.Log(ClothedBaseAvatar.name + "_TESTING Lower Leg Ext Factor: " + _ExtensionFactors.lowerLegExtensionFactor);
+    // Debug.Log("_TESTING Upper Leg Ext Factor: " + _ExtensionFactors.upperLegExtensionFactor);
+    // Debug.Log(ClothedBaseAvatar.name + "_TESTING Lower Leg Ext Factor: " + _ExtensionFactors.lowerLegExtensionFactor);
   }
 
     // A callback function to calculate inverse kinematics
     private void OnAnimatorIK(int layerIndex)
     {
-        Debug.Log(ClothedBaseAvatar.name + "OnAnimatorIK called with layer: " + layerIndex);
+        // Debug.Log(ClothedBaseAvatar.name + "OnAnimatorIK called with layer: " + layerIndex);
         if (animator == null || trackedBody == null || !enableInverseKinematics)
         {
-            Debug.Log(ClothedBaseAvatar.name + " But no trackedBody or inverseKinematics disabled!");
+            // Debug.Log(ClothedBaseAvatar.name + " But no trackedBody or inverseKinematics disabled!");
             return;
         }
 
@@ -463,7 +463,7 @@ public class AvatarController : MonoBehaviour
         float footAvgY = (footLeft.position.y + footRight.position.y) / 2f;
         float height = headTop.position.y - footAvgY;
 
-        Debug.Log($"AvatarMeasurement: Height = {height:F3} Unity units");
+        // Debug.Log($"AvatarMeasurement: Height = {height:F3} Unity units");
         _AvatarMeasurements.height = height;
     }
 
@@ -482,7 +482,7 @@ public class AvatarController : MonoBehaviour
         float upperArmLength = Vector3.Distance(leftShoulder.position, leftElbow.position);
         float foreArmLength = Vector3.Distance(leftElbow.position, leftWrist.position);
 
-        Debug.Log($"AvatarMeasurement: Upper arm = {upperArmLength:F3}, Forearm = {foreArmLength:F3}");
+        // Debug.Log($"AvatarMeasurement: Upper arm = {upperArmLength:F3}, Forearm = {foreArmLength:F3}");
         _AvatarMeasurements.upperArmLength = upperArmLength;
         _AvatarMeasurements.lowerArmLength = foreArmLength;
     }
@@ -502,7 +502,7 @@ public class AvatarController : MonoBehaviour
         float upperLegLength = Vector3.Distance(hipLeft.position, kneeLeft.position);
         float lowerLegLength = Vector3.Distance(kneeLeft.position, ankleLeft.position);
 
-        Debug.Log($"AvatarMeasurement: Upper leg = {upperLegLength:F3}, Lower leg = {lowerLegLength:F3}");
+        // Debug.Log($"AvatarMeasurement: Upper leg = {upperLegLength:F3}, Lower leg = {lowerLegLength:F3}");
         _AvatarMeasurements.upperLegLength = upperLegLength;
         _AvatarMeasurements.lowerLegLength = lowerLegLength;
     }
