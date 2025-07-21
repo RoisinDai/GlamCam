@@ -110,6 +110,39 @@ def icp_with_prescaling(src, dst, max_iter=50, tolerance=1e-6, verbose=False):
     return scale, R, t, src_aligned
 
 
+def procrustes_similarity(A, B):
+    """
+    Finds the best-fit similarity transform (s*R*A + t) to align A to B.
+    Returns scale s, rotation matrix R, translation vector t.
+    A, B: Nx2 arrays of corresponding points.
+    """
+    assert A.shape == B.shape
+
+    # Center the point clouds
+    centroid_A = np.mean(A, axis=0)
+    centroid_B = np.mean(B, axis=0)
+    AA = A - centroid_A
+    BB = B - centroid_B
+
+    # Compute scaling
+    var_A = np.sum(AA**2)
+    H = AA.T @ BB
+    U, S, Vt = np.linalg.svd(H)
+    R = Vt.T @ U.T
+
+    # Reflection correction
+    if np.linalg.det(R) < 0:
+        Vt[1, :] *= -1
+        R = Vt.T @ U.T
+
+    scale = np.trace(np.diag(S)) / var_A
+
+    # Translation
+    t = centroid_B - scale * R @ centroid_A
+
+    return scale, R, t
+
+
 def run_icp(
     unity_coords: dict[JointType, tuple[float, float]],
     kinect_coords: dict[JointType, tuple[float, float]],
@@ -132,7 +165,7 @@ def run_icp(
     assert len(unity_points) == len(kinect_points), "Mismatched joint counts"
 
     # Perform ICP to align Kinect coordinates to Unity coordinates
-    scale, R, t, _ = icp_with_prescaling(unity_points, kinect_points)
+    scale, R, t = procrustes_similarity(unity_points, kinect_points)
 
     # Create the affine transformation matrix
     M = scale * R
