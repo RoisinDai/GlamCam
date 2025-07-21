@@ -32,7 +32,7 @@ public class AvatarController : MonoBehaviour
     public GameObject ClothedBaseAvatar;
     private GameObject Armature;
     private GameObject BaseAvatar; // The unclothed base avatar
-    private Kinect.Body trackedBody; // The body being tracked by the avatar
+    public static Kinect.Body trackedBody; // The body being tracked by the avatar
     private bool _HideAvatar = true; // Flag to toggle BaseAvatar visibility (show only clothes)
 
     // Inverse Kinematics Variables
