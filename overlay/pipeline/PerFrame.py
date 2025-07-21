@@ -26,8 +26,16 @@ def process_frame(
     """
 
     # Obtain the coordinates of the joints from Unity
-    unity_coords = UnityUtils.get_joints_coord(
-        segment_joints(unity_joints_frame))
+    unity_joints = UnityUtils.segment_joints(unity_joints_frame)
+    # Map the segmented joints to their corresponding JointType
+    unity_joint_types = UnityUtils.get_dots_mapping(unity_joints_frame, unity_joints)
+
+    # Now filter out the joints that have joint type of None
+    unity_coords = {
+        joint_type: (x, y)
+        for (joint_type, (x, y)) in zip(unity_joint_types, unity_joints)
+        if joint_type is not None
+    }
     if len(unity_coords) == 0:
         return None
 
@@ -36,21 +44,27 @@ def process_frame(
     if len(kinect_coords) == 0:
         return None
 
+    # Get the common joints between Unity and Kinect
+    common_joints = sorted(
+        set(unity_coords.keys()) & set(kinect_coords.keys()), key=lambda jt: jt.value
+    )
+    if len(common_joints) == 0:
+        return None
+
     # Segment the clothing from the Unity frame
     cloth_transparent = UnityUtils.apply_mask_to_image(
         unity_clothes_frame, segment_clothes(unity_clothes_frame)
     )
 
     # Run the ICP algorithm to align Kinect coordinates with Unity coordinates
-    affine_matrix = Compute.run_icp(unity_coords, kinect_coords)
+    affine_matrix = Compute.run_icp(unity_coords, kinect_coords, common_joints)
 
-    # Enture both images are RGBA for blending
+    # Ensure both images are RGBA for blending
     if live_human_frame.shape[2] == 3:
         live_human_rgba = np.concatenate(
             [
                 cv2.cvtColor(live_human_frame, cv2.COLOR_BGR2RGB),
-                np.full(live_human_frame.shape[:2] +
-                        (1,), 255, dtype=np.uint8),
+                np.full(live_human_frame.shape[:2] + (1,), 255, dtype=np.uint8),
             ],
             axis=2,
         )

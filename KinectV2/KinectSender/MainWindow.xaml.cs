@@ -26,7 +26,11 @@ namespace Microsoft.Samples.Kinect.ColorBasics
         private TcpClient client = null;
         private NetworkStream stream = null;
         private int port = 5006;
-        private String host = "127.0.0.1";
+        private string host = "127.0.0.1";
+        private int handPort = 5009;
+        private string handHost = "127.0.0.1";
+        private TcpClient handClient = null;
+        private NetworkStream handStream = null;
 
         // Body tracking
         private Body[] bodies = null;
@@ -140,6 +144,20 @@ namespace Microsoft.Samples.Kinect.ColorBasics
             if (this.client != null)
             {
                 this.stream = client.GetStream();
+            }
+
+            // Try to setup TCP connection to send hand data
+            try
+            {
+                this.handClient = new TcpClient(handHost, handPort);
+            }
+            catch (Exception)
+            {
+                this.handClient = null;
+            }
+            if (this.handClient != null)
+            {
+                this.handStream = handClient.GetStream();
             }
 
             this.DataContext = this;
@@ -282,6 +300,9 @@ namespace Microsoft.Samples.Kinect.ColorBasics
 
                 // Send color frame and pixel joint coordinates to Python
                 SendColorFrameAndPixelJointsToPython(colorFrame, colorFrameDescription);
+
+                // Send hand joints coordinates to website
+                SendHandJointsToHandClient();
             }
         }
 
@@ -370,6 +391,71 @@ namespace Microsoft.Samples.Kinect.ColorBasics
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine("Error sending frame and pixel joints: " + ex.ToString());
+                }
+            }
+        }
+
+        public void SendHandJointsToHandClient()
+        {
+            // Assume handClient and handStream are already connected and valid
+            if (this.handStream != null && this.handStream.CanWrite)
+            {
+                try
+                {
+                    List<object> handsList = new List<object>();
+                    if (this.latestBodiesForOverlay != null)
+                    {
+                        foreach (Body body in this.latestBodiesForOverlay)
+                        {
+                            if (body != null && body.IsTracked)
+                            {
+                                var handJointsDict = new Dictionary<string, object>();
+                                foreach (var kv in body.Joints)
+                                {
+                                    var jointType = kv.Key;
+                                    if (jointType == JointType.HandLeft ||
+                                        jointType == JointType.HandRight ||
+                                        jointType == JointType.HandTipLeft ||
+                                        jointType == JointType.HandTipRight)
+                                    {
+                                        // Get pixel coordinates
+                                        CameraSpacePoint position = kv.Value.Position;
+                                        if (position.Z < 0)
+                                            position.Z = InferredZPositionClamp;
+                                        ColorSpacePoint colorSpacePoint = this.coordinateMapper.MapCameraPointToColorSpace(position);
+
+                                        handJointsDict[jointType.ToString()] = new
+                                        {
+                                            X = colorSpacePoint.X,
+                                            Y = colorSpacePoint.Y,
+                                            State = kv.Value.TrackingState.ToString()
+                                        };
+                                    }
+                                }
+                                if (handJointsDict.Count > 0)
+                                    handsList.Add(handJointsDict);
+                            }
+                        }
+                    }
+                    string handsJson = JsonConvert.SerializeObject(handsList);
+                    byte[] handsBytes = Encoding.UTF8.GetBytes(handsJson);
+
+                    // Send [4] length + [data]
+                    int totalLen = 4 + handsBytes.Length;
+                    byte[] totalLenBytes = BitConverter.GetBytes(totalLen);
+                    byte[] dataLenBytes = BitConverter.GetBytes(handsBytes.Length);
+
+                    lock (this.handStream)
+                    {
+                        this.handStream.Write(totalLenBytes, 0, 4);
+                        this.handStream.Write(dataLenBytes, 0, 4);
+                        this.handStream.Write(handsBytes, 0, handsBytes.Length);
+                    }
+                    System.Diagnostics.Debug.WriteLine($"Hand joints sent: {handsBytes.Length} bytes");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine("Error sending hand joints: " + ex.ToString());
                 }
             }
         }
