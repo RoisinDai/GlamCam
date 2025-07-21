@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 from JointMapping import joint_color, JointType
 
+from typing import Any, Dict, List
+
 
 def _segment_joints(frame: np.ndarray) -> np.ndarray:
     """
@@ -124,10 +126,10 @@ def segment_joints(frame: np.ndarray) -> list[tuple[float, float]]:
     dots_mask_clean = cv2.morphologyEx(dots_mask, cv2.MORPH_OPEN, kernel)
     dots_mask_clean = cv2.morphologyEx(dots_mask_clean, cv2.MORPH_CLOSE, kernel)
 
-    return get_joints_coord(dots_mask_clean)
+    return _get_joints_coord(dots_mask_clean)
 
 
-def get_joints_coord(red_mask_clean: np.ndarray) -> list[tuple[int, int]]:
+def _get_joints_coord(red_mask_clean: np.ndarray) -> list[tuple[int, int]]:
     """
     Extract coordinates of red dots from the cleaned mask.
     Args:
@@ -157,6 +159,35 @@ def get_joints_coord(red_mask_clean: np.ndarray) -> list[tuple[int, int]]:
     dot_centers_sorted = sorted(dot_centers, key=lambda p: (p[1], p[0]))
 
     return dot_centers_sorted
+
+
+def get_joints_coord(
+    unity_joints_coords: dict[str, Any],
+) -> Dict[JointType, tuple[float, float]]:
+    """
+    Extract coordinates of joints from Unity data.
+    Args:
+        unity_joints_coords (dict): Dictionary containing joint coordinates for one body.
+    Returns:
+        Dict[JointType, tuple[float, float]]: Dictionary mapping JointType to (x, y) coordinates.
+    """
+
+    if not isinstance(unity_joints_coords, dict):
+        raise ValueError("unity_joints_coords must be a dictionary")
+
+    unity_coords = {}
+    for joint_name, joint in unity_joints_coords.items():
+        try:
+            x = float(joint["x"])
+            y = float(joint["y"])
+            if np.isfinite(x) and np.isfinite(y):
+                # Convert joint_name string to JointType enum
+                joint_type = JointType[joint_name]
+                unity_coords[joint_type] = (x, y)
+        except (KeyError, ValueError, TypeError):
+            continue
+
+    return unity_coords
 
 
 def segment_clothes(frame: np.ndarray) -> np.ndarray:

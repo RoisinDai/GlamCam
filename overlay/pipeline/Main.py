@@ -14,7 +14,7 @@ from PerFrame import process_frame
 
 
 def main() -> None:
-    # Start receiver threads
+
     kinect_receiver = StreamReceiver(
         KINECT_HOST, KINECT_PORT, parse_kinect_packet, name="KinectReceiver"
     )
@@ -33,10 +33,11 @@ def main() -> None:
 
         if kinect_latest is not None and unity_latest is not None:
             k_jpg_bytes, k_joints = kinect_latest
-            imgA_bytes, imgB_bytes = unity_latest
+            u_img_bytes, u_joints = unity_latest
 
             # Obtain the live video feed from Kinect
             kinect_video = decode_frame(k_jpg_bytes)
+
             # Obtain the joints coordinates from Kinect
             # TODO: Write now, only the first body is used. Need to handle multiple bodies in the future.
             kinect_joints = None
@@ -44,9 +45,10 @@ def main() -> None:
                 kinect_joints = k_joints[0]
 
             # Obtain clothing frame from Unity
-            unity_clothes = decode_frame(imgB_bytes)
-            # Obtain joints coordinates frame from Unity
-            unity_joints = decode_frame(imgA_bytes)
+            unity_clothes = decode_frame(u_img_bytes)
+
+            # Obtain the joints coordinates from Unity
+            unity_joints = u_joints
 
             # Process only if all inputs are available
             if (
