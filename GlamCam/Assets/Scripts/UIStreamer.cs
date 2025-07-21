@@ -53,7 +53,7 @@ public class ClothingSelectionListener : MonoBehaviour
 
     void Update()
     {
-        Debug.Log("[Debug] ClothingSelectionListener Update running.");
+        // Debug.Log("[Debug] ClothingSelectionListener Update running.");
         lock (mainThreadActions)
         {
             while (mainThreadActions.Count > 0)

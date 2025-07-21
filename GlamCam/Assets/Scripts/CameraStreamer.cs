@@ -1,18 +1,22 @@
 using UnityEngine;
 using System.Net.Sockets;
 using System.Collections;
+using Windows.Kinect;
+using System.Collections.Generic;
+using UnityEditor;
 
-// This script streams frames from two Unity cameras over TCP to a Python server.
-// It captures frames from both cameras, encodes them as JPEG, and sends them in a specific format:
-// [4 bytes: lengthA][bytesA][4 bytes: lengthB][bytesB]
-// The script runs in the background and streams at a specified frame rate.
-public class UnityCameraTcpMultiStreamer : MonoBehaviour
+// This script streams the camera view and mapped Kinect joint coordinates (in pixel space) over TCP.
+// Packet format: [4 bytes: image length][image bytes][4 bytes: joint data length][joint data as JSON string bytes]
+public class UnityCameraTcpStreamer : MonoBehaviour
 {
-    public Camera cameraA; // Assign in inspector
-    public Camera cameraB; // Assign in inspector
-    public string host = "127.0.0.1";
-    public int port = 5005;
-    public int frameRate = 15; // Frames per second
+    public Camera avartarCamera;
+    public BodySourceManager bodySourceManager;
+
+    public string unity2overlay_host = "127.0.0.1";
+    public int unity2overlay_port = 5005;
+
+    // Frames per second
+    public int frameRate = 30;
     public int jpgQuality = 80;
 
     private TcpClient client;
@@ -22,9 +26,12 @@ public class UnityCameraTcpMultiStreamer : MonoBehaviour
     void Start()
     {
         Connect();
-        streaming = true;
-        Application.runInBackground = true;
-        StartCoroutine(StreamFrames());
+        if (client != null)
+        {
+            streaming = true;
+            Application.runInBackground = true;
+            StartCoroutine(StreamFrames());
+        }
     }
 
     void OnApplicationQuit()
@@ -36,8 +43,16 @@ public class UnityCameraTcpMultiStreamer : MonoBehaviour
 
     void Connect()
     {
-        client = new TcpClient(host, port);
-        stream = client.GetStream();
+        try
+        {
+            client = new TcpClient(unity2overlay_host, unity2overlay_port);
+            stream = client.GetStream();
+        }
+        catch
+        {
+            client = null;
+            stream = null;
+        }
     }
 
     IEnumerator StreamFrames()
@@ -45,30 +60,32 @@ public class UnityCameraTcpMultiStreamer : MonoBehaviour
         WaitForSeconds wait = new WaitForSeconds(1f / frameRate);
         while (streaming)
         {
-            SendBothCameraFrames();
+            SendCameraFrameAndJoints();
             yield return wait;
         }
     }
 
-    void SendBothCameraFrames()
+    void SendCameraFrameAndJoints()
     {
-        // Capture both cameras
-        byte[] imgA = CaptureCameraFrame(cameraA);
-        byte[] imgB = CaptureCameraFrame(cameraB);
+        // 1. Capture camera image
+        byte[] img = CaptureCameraFrame(avartarCamera);
 
-        // Prepare the packet:
-        // [4 bytes: lengthA][bytesA][4 bytes: lengthB][bytesB]
+        // 2. Get joint data, map to pixel coordinates
+        string jointJson = GetJointPixelCoordinatesAsJson(avartarCamera, bodySourceManager);
+
+        // 3. Send packet: [4 bytes: img length][img bytes][4 bytes: json length][json bytes]
         try
         {
-            // Send length and bytes for cameraA
-            byte[] lenA = System.BitConverter.GetBytes(imgA.Length);
-            stream.Write(lenA, 0, 4);
-            stream.Write(imgA, 0, imgA.Length);
+            // Send image
+            byte[] lenImg = System.BitConverter.GetBytes(img.Length);
+            stream.Write(lenImg, 0, 4);
+            stream.Write(img, 0, img.Length);
 
-            // Send length and bytes for cameraB
-            byte[] lenB = System.BitConverter.GetBytes(imgB.Length);
-            stream.Write(lenB, 0, 4);
-            stream.Write(imgB, 0, imgB.Length);
+            // Send joint data
+            byte[] jointBytes = System.Text.Encoding.UTF8.GetBytes(jointJson);
+            byte[] lenJoint = System.BitConverter.GetBytes(jointBytes.Length);
+            stream.Write(lenJoint, 0, 4);
+            stream.Write(jointBytes, 0, jointBytes.Length);
 
             stream.Flush();
         }
@@ -98,5 +115,44 @@ public class UnityCameraTcpMultiStreamer : MonoBehaviour
         Destroy(tex);
 
         return imgBytes;
+    }
+
+    string GetJointPixelCoordinatesAsJson(Camera cam, BodySourceManager bsm)
+    {
+        Body[] bodies = bsm.GetData();
+        if (bodies == null)
+        {
+            return "{}";
+        }
+
+        int screenHeight = Screen.height;
+
+        // Use first tracked body only
+        foreach (var body in bodies)
+        {
+            if (body != null && body.IsTracked)
+            {
+                var jointDict = new Dictionary<string, object>();
+
+                foreach (Windows.Kinect.JointType jt in System.Enum.GetValues(typeof(Windows.Kinect.JointType)))
+                {
+                    var joint = body.Joints[jt];
+                    // Kinect coordinates are in meters; convert to Unity world, then to pixel
+                    Vector3 unityWorld = BodySourceView.GetVector3FromJoint(joint);
+                    Vector3 screenPt = cam.WorldToScreenPoint(unityWorld);
+
+                    // y = 0 is at the bottom of the screen in Unity
+                    jointDict[jt.ToString()] = new Dictionary<string, float>
+                    {
+                        { "x", screenPt.x },
+                        { "y", screenHeight - screenPt.y }
+                    };
+                }
+                return Json.Serialize(jointDict);
+            }
+        }
+
+        // No tracked body
+        return "{}";
     }
 }
