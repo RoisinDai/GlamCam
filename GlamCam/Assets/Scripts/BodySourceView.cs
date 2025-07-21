@@ -152,7 +152,7 @@ public class BodySourceView : MonoBehaviour
       jointObj.transform.parent = body.transform;
     }
 
-    return body;
+    return body; // TODO: The body object itself (parent of joints) has a cube for some reason.
   }
 
   // Update the position of each joint. Called for each frame.

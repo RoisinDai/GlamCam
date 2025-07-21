@@ -25,19 +25,18 @@ class ExtensionFactors
 // Responsible for controlling the clothed base avatar, making it track the user's body
 public class AvatarController : MonoBehaviour
 {
-    // Unity Objects
+  // Unity Objects
     public Animator animator;
     public GameObject BodySourceManager;
     private BodySourceManager _BodyManager;
     public GameObject ClothedBaseAvatar;
     private GameObject Armature;
-    private const string ARMATURE = "Armature";
+    private GameObject BaseAvatar; // The unclothed base avatar
     private Kinect.Body trackedBody; // The body being tracked by the avatar
+    private bool _HideAvatar = true; // Flag to toggle BaseAvatar visibility (show only clothes)
 
     // Inverse Kinematics Variables
     public bool enableInverseKinematics = true;
-    private Vector3 initialLowerArmLocalPos;
-    private Vector3 initialHandLocalPos;
     private readonly float IK_HANDS_WEIGHT = 1f;
     private readonly float IK_FEET_WEIGHT = 1f;
     private readonly float IK_HEAD_DIRECTION_WEIGHT = 1f;
@@ -53,35 +52,46 @@ public class AvatarController : MonoBehaviour
     private float UniformScaleFactor = -1f;
     private ExtensionFactors _ExtensionFactors = new();
 
-    void Start()
+  void Start()
+  {
+    animator = GetComponent<Animator>();
+    if (animator == null)
     {
-        animator = GetComponent<Animator>();
-        if (animator == null)
-        {
-            Debug.LogError("Animator component not found on AvatarController.");
-        }
-
-        _BodyManager = BodySourceManager.GetComponent<BodySourceManager>();
-        if (_BodyManager == null)
-        {
-            Debug.LogError("BodySourceManager component not found.");
-        }
-
-        // Get the measurements of the ClothedBaseAvatar
-        Armature = ClothedBaseAvatar.transform.Find(ARMATURE)?.gameObject;
-        GetAvatarHeight(Armature);
-        GetAvatarArmLengths(Armature);
-        GetAvatarLegLength(Armature);
-        Debug.Log("_AvatarMeasurements - Height: " + _AvatarMeasurements.height);
-        Debug.Log("_AvatarMeasurements - Upper Arm Length: " + _AvatarMeasurements.upperArmLength);
-        Debug.Log("_AvatarMeasurements - Lower Arm Length: " + _AvatarMeasurements.lowerArmLength);
-        Debug.Log("_AvatarMeasurements - Upper Leg Length: " + _AvatarMeasurements.upperLegLength);
-        Debug.Log("_AvatarMeasurements - Lower Leg Length: " + _AvatarMeasurements.lowerLegLength);
-
-        // Cache original local positions
-        initialLowerArmLocalPos = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm)?.localPosition ?? Vector3.zero;
-        initialHandLocalPos = animator.GetBoneTransform(HumanBodyBones.LeftHand)?.localPosition ?? Vector3.zero;
+      Debug.LogError("Animator component not found on AvatarController.");
     }
+
+    _BodyManager = BodySourceManager.GetComponent<BodySourceManager>();
+    if (_BodyManager == null)
+    {
+      Debug.LogError("BodySourceManager component not found.");
+    }
+
+    // Get the measurements of the ClothedBaseAvatar
+    Armature = ClothedBaseAvatar.transform.GetChild(0).gameObject;
+    GetAvatarHeight(Armature);
+    GetAvatarArmLengths(Armature);
+    GetAvatarLegLength(Armature);
+    Debug.Log("_AvatarMeasurements - Height: " + _AvatarMeasurements.height);
+    Debug.Log("_AvatarMeasurements - Upper Arm Length: " + _AvatarMeasurements.upperArmLength);
+    Debug.Log("_AvatarMeasurements - Lower Arm Length: " + _AvatarMeasurements.lowerArmLength);
+    Debug.Log("_AvatarMeasurements - Upper Leg Length: " + _AvatarMeasurements.upperLegLength);
+    Debug.Log("_AvatarMeasurements - Lower Leg Length: " + _AvatarMeasurements.lowerLegLength);
+
+    // Hide the BaseAvatar if desired
+    if (_HideAvatar)
+    {
+      BaseAvatar = ClothedBaseAvatar.transform.GetChild(2).gameObject;
+      if (BaseAvatar != null)
+      {
+        Debug.Log("Hiding the base avatar (leaving clothes).");
+        BaseAvatar.SetActive(false); // Hide the BaseAvatar
+      }
+      else
+      {
+        Debug.LogError("BaseAvatar not found in ClothedBaseAvatar hierarchy.");
+      }
+    }
+  }
 
   // Updates the body object currently being tracked
   void Update()
@@ -159,7 +169,7 @@ public class AvatarController : MonoBehaviour
         Debug.Log("OnAnimatorIK called with layer: " + layerIndex);
         if (animator == null || trackedBody == null || !enableInverseKinematics)
         {
-            Debug.Log("  But no trackedBody!");
+            Debug.Log("  But no trackedBody or inverseKinematics disabled!");
             return;
         }
 
