@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.spatial import cKDTree  # type: ignore
 from JointMapping import JointType
+from numba import njit
 
 
 def compute_rms_radius(points):
@@ -174,7 +175,7 @@ def run_icp(
     return affine_matrix
 
 
-def alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
+def _alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
     """
     Perform alpha blending of two images.
     Args:
@@ -198,3 +199,21 @@ def alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
     out[..., 3] = out_alpha
 
     return (out * 255).astype(np.uint8)
+
+
+@njit
+def alpha_blend(bg: np.ndarray, fg: np.ndarray) -> np.ndarray:
+    out = np.empty_like(bg)
+    height, width, _ = bg.shape
+    for y in range(height):
+        for x in range(width):
+            af = fg[y, x, 3] / 255.0
+            ab = bg[y, x, 3] / 255.0
+            ao = af + ab * (1 - af)
+            if ao > 1e-6:
+                for c in range(3):
+                    out[y, x, c] = (fg[y, x, c] * af + bg[y, x, c] * ab * (1 - af)) / ao
+                out[y, x, 3] = ao * 255
+            else:
+                out[y, x] = 0
+    return out.astype(np.uint8)
