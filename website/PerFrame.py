@@ -8,16 +8,17 @@ import cv2
 import Compute
 import KinectUtils
 import UnityUtils
-from UnityUtils import segment_joints, segment_clothes
+from UnityUtils import segment_clothes, get_joints_coord
+from JointMapping import JointType
 
 
 def process_frame(
-    unity_joints_frame, unity_clothes_frame, kinect_joints_coords, live_human_frame
+    unity_joints_coords, unity_clothes_frame, kinect_joints_coords, live_human_frame
 ) -> np.ndarray | None:
     """
     Process four input frames and output a single frame.
     Args:
-        unity_joints_frame: Unity joint coordinates as red dots on a green background (numpy.ndarray, BGR or RGB).
+        unity_joints_coords: Coordinates of joints from Unity (dictionary or similar structure).
         unity_clothes_frame: Unity clothing image with green background (numpy.ndarray, BGR or RGB).
         kinect_joints_coords: Coordinates of joints from Kinect (dictionary or similar structure).
         live_human_frame: Live video feed of a real human (numpy.ndarray, BGR or RGB).
@@ -26,30 +27,21 @@ def process_frame(
     """
 
     # Obtain the coordinates of the joints from Unity
-    unity_joints = UnityUtils.segment_joints(unity_joints_frame)
-    # Map the segmented joints to their corresponding JointType
-    unity_joint_types = UnityUtils.get_dots_mapping(unity_joints_frame, unity_joints)
-
-    # Now filter out the joints that have joint type of None
-    unity_coords = {
-        joint_type: (x, y)
-        for (joint_type, (x, y)) in zip(unity_joint_types, unity_joints)
-        if joint_type is not None
-    }
-    if len(unity_coords) == 0:
-        return None
+    unity_coords = UnityUtils.get_joints_coord(unity_joints_coords)
 
     # Obtain the coordinates of the joints from Kinect
     kinect_coords = KinectUtils.get_joints_coord(kinect_joints_coords)
-    if len(kinect_coords) == 0:
-        return None
 
-    # Get the common joints between Unity and Kinect
-    common_joints = sorted(
-        set(unity_coords.keys()) & set(kinect_coords.keys()), key=lambda jt: jt.value
-    )
-    if len(common_joints) == 0:
+    # Check if both Unity and Kinect have valid joint coordinates
+    if len(unity_coords) == 0 or len(kinect_coords) == 0:
         return None
+    # Check if the number of joints is the same
+    if len(unity_coords) != len(kinect_coords):
+        print(
+            f"Warning: Mismatched joint counts"
+            f" (Unity: {len(unity_coords)}, Kinect: {len(kinect_coords)})"
+            f"\nThis should rarely happen"
+        )
 
     # Segment the clothing from the Unity frame
     cloth_transparent = UnityUtils.apply_mask_to_image(
@@ -57,7 +49,7 @@ def process_frame(
     )
 
     # Run the ICP algorithm to align Kinect coordinates with Unity coordinates
-    affine_matrix = Compute.run_icp(unity_coords, kinect_coords, common_joints)
+    affine_matrix = Compute.run_icp(unity_coords, kinect_coords)
 
     # Ensure both images are RGBA for blending
     if live_human_frame.shape[2] == 3:
