@@ -593,7 +593,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: f0e97ea21ab6e624b965f926c9b45f25, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2682187754082633858, guid: f0e97ea21ab6e624b965f926c9b45f25, type: 3}
       propertyPath: m_Name
@@ -1390,6 +1390,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2682187754082633858, guid: bc6c5470a5e1d8b44b090b02b60081a5, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4558717347300192683, guid: bc6c5470a5e1d8b44b090b02b60081a5, type: 3}
       propertyPath: 'm_Bones.Array.data[7]'
       value: 
@@ -1834,6 +1838,10 @@ PrefabInstance:
       propertyPath: m_Controller
       value: 
       objectReference: {fileID: 9100000, guid: 3d7a103c4a33eca40af3cdc13e099315, type: 2}
+    - target: {fileID: 6835863023108409359, guid: a0314d4a0320e9e40b0a473001fa52ff, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
