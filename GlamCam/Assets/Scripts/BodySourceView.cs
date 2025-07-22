@@ -129,7 +129,7 @@ public class BodySourceView : MonoBehaviour
     GameObject body = new GameObject("Body:" + id);
 
     // Create a cube for each of the 20 joints
-    for (Kinect.JointType jt = Kinect.JointType.SpineBase; jt <= Kinect.JointType.ThumbRight; jt++)
+    foreach (Windows.Kinect.JointType jt in System.Enum.GetValues(typeof(Windows.Kinect.JointType)))
     {
       GameObject jointObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
@@ -145,6 +145,8 @@ public class BodySourceView : MonoBehaviour
       {
         // Apply a transparent material to the object
         jointObj.GetComponent<Renderer>().material = TransparentMaterial;
+        LineRenderer lr = jointObj.AddComponent<LineRenderer>();
+        lr.material = TransparentMaterial;
       }
 
       jointObj.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
