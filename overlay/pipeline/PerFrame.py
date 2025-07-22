@@ -35,13 +35,6 @@ def process_frame(
     # Check if both Unity and Kinect have valid joint coordinates
     if len(unity_coords) == 0 or len(kinect_coords) == 0:
         return None
-    # Check if the number of joints is the same
-    if len(unity_coords) != len(kinect_coords):
-        print(
-            f"Warning: Mismatched joint counts"
-            f" (Unity: {len(unity_coords)}, Kinect: {len(kinect_coords)})"
-            f"\nThis should rarely happen"
-        )
 
     # Segment the clothing from the Unity frame
     cloth_transparent = UnityUtils.apply_mask_to_image(

@@ -98,23 +98,29 @@ def parse_kinect_packet(conn):
 
 
 def parse_unity_packet(conn):
-    # 1. Receive Camera A
-    raw_lenA = receive_exact(conn, 4)
-    if not raw_lenA:
-        print("No data received for Camera A.")
+    # 1. Receive Image
+    raw_len_img = receive_exact(conn, 4)
+    if not raw_len_img:
+        print("No data received for Unity Camera frame.")
         return None
-    lenA = struct.unpack("<I", raw_lenA)[0]
-    imgA_bytes = receive_exact(conn, lenA)
+    len_img = struct.unpack("<I", raw_len_img)[0]
+    img_bytes = receive_exact(conn, len_img)
 
-    # 2. Receive Camera B
-    raw_lenB = receive_exact(conn, 4)
-    if not raw_lenB:
-        print("No data received for Camera B.")
+    # 2. Receive Joints JSON
+    raw_len_joints = receive_exact(conn, 4)
+    if not raw_len_joints:
+        print("No data received for Unity Joints JSON.")
         return None
-    lenB = struct.unpack("<I", raw_lenB)[0]
-    imgB_bytes = receive_exact(conn, lenB)
+    len_joints = struct.unpack("<I", raw_len_joints)[0]
+    joints_bytes = receive_exact(conn, len_joints)
+    try:
+        joints_json = joints_bytes.decode("utf-8")
+        joints_data = json.loads(joints_json)
+    except Exception as ex:
+        print("Failed to decode joint JSON:", ex)
+        joints_data = None
 
-    return (imgA_bytes, imgB_bytes)
+    return (img_bytes, joints_data)
 
 
 def decode_frame(frame_bytes):
@@ -157,12 +163,12 @@ if __name__ == "__main__":
 
         if kinect_latest is not None and unity_latest is not None:
             k_jpg_bytes, k_joints = kinect_latest
-            imgA_bytes, imgB_bytes = unity_latest
+            u_img_bytes, u_joints = unity_latest
 
             img_kinect = decode_frame(k_jpg_bytes)
-            imgA = decode_frame(imgA_bytes)
-            imgB = decode_frame(imgB_bytes)
+            img_unity = decode_frame(u_img_bytes)
 
+            # Draw Kinect joints on the image
             if img_kinect is not None:
                 if k_joints is not None:
                     for body in k_joints:
@@ -182,16 +188,27 @@ if __name__ == "__main__":
                                 and 0 <= y < img_kinect.shape[0]
                             ):
                                 color = (
-                                    (0, 255, 0) if state == "Tracked"
-                                    else (0, 255, 255)
+                                    (0, 255, 0) if state == "Tracked" else (0, 255, 255)
                                 )
-                                cv2.circle(
-                                    img_kinect, (int(x), int(y)), 7, color, 2)
+                                cv2.circle(img_kinect, (int(x), int(y)), 7, color, 2)
                     cv2.imshow("Kinect Stream", img_kinect)
-            if imgA is not None:
-                cv2.imshow("Unity Camera A", imgA)
-            if imgB is not None:
-                cv2.imshow("Unity Camera B", imgB)
+
+            # Draw Unity joints on the image
+            if img_unity is not None:
+                if u_joints is not None:
+                    for joint_name, joint_info in u_joints.items():
+                        x_raw, y_raw = joint_info.get("x", None), joint_info.get(
+                            "y", None
+                        )
+                        try:
+                            x = float(x_raw)
+                            y = float(y_raw)
+                        except (TypeError, ValueError):
+                            continue  # skip invalid numbers
+                        # Only draw if valid and within image bounds
+                        if 0 <= x < img_unity.shape[1] and 0 <= y < img_unity.shape[0]:
+                            cv2.circle(img_unity, (int(x), int(y)), 4, (0, 0, 255), 2)
+                    cv2.imshow("Unity Stream", img_unity)
 
         if cv2.waitKey(1) == 27:
             break

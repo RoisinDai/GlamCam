@@ -78,6 +78,11 @@ public class AvatarController : MonoBehaviour
     // Debug.Log("_AvatarMeasurements - Upper Leg Length: " + _AvatarMeasurements.upperLegLength);
     // Debug.Log("_AvatarMeasurements - Lower Leg Length: " + _AvatarMeasurements.lowerLegLength);
 
+    // Scale up the shirt a bit (hardcoded for now)
+    GameObject shirt = ClothedBaseAvatar.transform.GetChild(1).gameObject;
+    var ShirtUniformScaleFactor = 1.2f; // Scale factor for the shirt
+    shirt.transform.localScale = new Vector3(ShirtUniformScaleFactor, ShirtUniformScaleFactor, ShirtUniformScaleFactor);
+
     // Hide the BaseAvatar if desired
     if (_HideAvatar)
     {
@@ -113,7 +118,7 @@ public class AvatarController : MonoBehaviour
 
     // Move the avatar to the location of the skeleton
     Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
-    ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y + 1.2f /*Align shoulders, prevent sagging knees*/, spineBasePos.z);
+    ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y + 1.7f /*Align shoulders, prevent sagging knees*/, spineBasePos.z);
 
     // Get joints of interest
     Vector3 head = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.Head]);
@@ -133,8 +138,8 @@ public class AvatarController : MonoBehaviour
     if (UniformScaleFactor == -1f)
     {
       // Set uniform scaling factor once
-      // UniformScaleFactor = _UserMeasurements.height / _AvatarMeasurements.height; // AvatarHeight * scaleFactor = UserHeight
-      UniformScaleFactor = 2.6f; // For testing purposes
+      UniformScaleFactor = (_UserMeasurements.height / _AvatarMeasurements.height) + 0.5f; // AvatarHeight * scaleFactor = UserHeight
+      // UniformScaleFactor = 2.6f; // For testing purposes
       ClothedBaseAvatar.transform.localScale = new Vector3(UniformScaleFactor, UniformScaleFactor, UniformScaleFactor);
       // Update avatar's measurements after uniform scaling
       GetAvatarHeight(Armature);
