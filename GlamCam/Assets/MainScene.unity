@@ -583,6 +583,10 @@ PrefabInstance:
       propertyPath: 'm_Bones.Array.data[7]'
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: -4392937148574197387, guid: f0e97ea21ab6e624b965f926c9b45f25, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 83dc835d7b1960a4286d39cf3ab61069, type: 2}
     - target: {fileID: -3063536442118702726, guid: f0e97ea21ab6e624b965f926c9b45f25, type: 3}
       propertyPath: m_Name
       value: Shirt
@@ -1834,13 +1838,25 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2289623631020786492, guid: a0314d4a0320e9e40b0a473001fa52ff, type: 3}
+      propertyPath: m_CastShadows
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2289623631020786492, guid: a0314d4a0320e9e40b0a473001fa52ff, type: 3}
+      propertyPath: m_ReceiveShadows
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2289623631020786492, guid: a0314d4a0320e9e40b0a473001fa52ff, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 83dc835d7b1960a4286d39cf3ab61069, type: 2}
     - target: {fileID: 5866666021909216657, guid: a0314d4a0320e9e40b0a473001fa52ff, type: 3}
       propertyPath: m_Controller
       value: 
       objectReference: {fileID: 9100000, guid: 3d7a103c4a33eca40af3cdc13e099315, type: 2}
     - target: {fileID: 6835863023108409359, guid: a0314d4a0320e9e40b0a473001fa52ff, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
