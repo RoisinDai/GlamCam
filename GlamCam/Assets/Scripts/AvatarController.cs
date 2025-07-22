@@ -134,7 +134,7 @@ public class AvatarController : MonoBehaviour
     {
       // Set uniform scaling factor once
       // UniformScaleFactor = _UserMeasurements.height / _AvatarMeasurements.height; // AvatarHeight * scaleFactor = UserHeight
-      UniformScaleFactor = 2.6f; // For testing purposes
+      UniformScaleFactor = 3f; // For testing purposes
       ClothedBaseAvatar.transform.localScale = new Vector3(UniformScaleFactor, UniformScaleFactor, UniformScaleFactor);
       // Update avatar's measurements after uniform scaling
       GetAvatarHeight(Armature);
