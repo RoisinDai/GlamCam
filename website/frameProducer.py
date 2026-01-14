@@ -99,9 +99,15 @@ def main() -> None:
                     length = len(data)
                     try:
                         conn.sendall(length.to_bytes(4, "big") + data)
-                    except Exception as e:
-                        print("Connection closed.")
-                        break
+                    except Exception:
+                        print("Consumer disconnected; waiting for reconnect...")
+                        try:
+                            conn.close()
+                        except:
+                            pass
+                        conn, addr = server.accept()
+                        print(f"Consumer reconnected from {addr}.")
+                        continue
 
                     # Display the processed frame individually
                     cv2.imshow("Processed Frame", processed_frame)
