@@ -13,7 +13,7 @@ import sys
 import webbrowser
 
 # Repo root
-PROJECT_ROOT = Path(__file__).parent.parent.resolve()   # GLAMCAM/
+PROJECT_ROOT = Path(__file__).parent.resolve()   # GLAMCAM/
 
 UNITY_PROJECT_ROOT = PROJECT_ROOT / "GlamCam"
 WEBSITE_ROOT = PROJECT_ROOT / "website"
