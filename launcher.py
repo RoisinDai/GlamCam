@@ -42,9 +42,10 @@ KINECT_EXE = (
     / "ColorBasics-WPF.exe"
 )
 
+OPENED_FLAG = PROJECT_ROOT / ".opened_browser.flag"
 
 def run_py(script: Path) -> subprocess.Popen:
-    return subprocess.Popen([str(PYTHON_EXE), str(script)], cwd=str(script.parent))
+    return subprocess.Popen([str(PYTHON_EXE), str(script)], cwd=str(PROJECT_ROOT))
 
 
 def assert_started(p: subprocess.Popen, name: str):
@@ -103,8 +104,10 @@ def main():
     # 4) Wait for website, then open it, then force /video_feed once
     print("Waiting for website then opening it")
     if wait_http(BASE_URL, timeout_s=45):
-        webbrowser.open(BASE_URL)
-        touch_video_feed(VIDEO_FEED_URL)
+        if not OPENED_FLAG.exists():
+            webbrowser.open(BASE_URL, new=0)
+            OPENED_FLAG.write_text("opened", encoding="utf-8")
+            touch_video_feed(VIDEO_FEED_URL)
     else:
         print(f"[WARN] Website not responding at {BASE_URL}")
 

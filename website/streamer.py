@@ -6,6 +6,7 @@ import threading
 import asyncio
 import websockets
 import struct
+import uuid
 from Config import frame_height, frame_width
 from Config import (
     UI_UNITY_HOST as UNITY_HOST,
@@ -18,16 +19,14 @@ from Config import (
     WS_PORT as WS_PORT,
 )
 
-
 app = Flask(__name__)
 
+RUN_ID = str(uuid.uuid4())
 
 latest_right_hand = {"x": -1, "y": -1}  # start centered
 hand_joints = ["HandRight", "HandLeft", "HandTipRight", "HandTipLeft"]
 
 # ---- FLASK HTTP ENDPOINTS ----
-
-
 def socket_frame_generator():
     """Yield JPEG bytes from socket streaming producer."""
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -56,6 +55,10 @@ def socket_frame_generator():
     finally:
         client.close()
 
+# runid changes each time we restart streamer.py
+@app.route("/run_id")
+def run_id():
+    return RUN_ID, 200
 
 @app.route("/video_feed")
 def video_feed():
