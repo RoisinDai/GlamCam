@@ -50,10 +50,13 @@ def process_frame(
     else:
         # Fallback: if somehow we get RGB, make it fully opaque
         cloth_transparent = cv2.cvtColor(unity_clothes_frame, cv2.COLOR_BGR2RGB)
-        cloth_transparent = np.concatenate([
-            cloth_transparent,
-            np.full(unity_clothes_frame.shape[:2] + (1,), 255, dtype=np.uint8)
-        ], axis=2)
+        cloth_transparent = np.concatenate(
+            [
+                cloth_transparent,
+                np.full(unity_clothes_frame.shape[:2] + (1,), 255, dtype=np.uint8),
+            ],
+            axis=2,
+        )
 
     # Run the ICP algorithm to align Kinect coordinates with Unity coordinates
     affine_matrix = Compute.run_icp(unity_coords, kinect_coords)
