@@ -17,7 +17,6 @@ public class UnityCameraTcpStreamer : MonoBehaviour
 
     // Frames per second
     public int frameRate = 30;
-    public int jpgQuality = 80;
 
     private TcpClient client;
     private NetworkStream stream;
@@ -98,12 +97,14 @@ public class UnityCameraTcpStreamer : MonoBehaviour
 
     byte[] CaptureCameraFrame(Camera cam)
     {
-        RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24);
+        // Force alpha-capable render texture
+        RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
+        rt.antiAliasing = 1;
         cam.targetTexture = rt;
         cam.Render();
 
         RenderTexture.active = rt;
-        Texture2D tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
+        Texture2D tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGBA32, false);
         tex.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
         tex.Apply();
 
@@ -111,7 +112,7 @@ public class UnityCameraTcpStreamer : MonoBehaviour
         RenderTexture.active = null;
         Destroy(rt);
 
-        byte[] imgBytes = tex.EncodeToJPG(jpgQuality);
+        byte[] imgBytes = tex.EncodeToPNG();
         Destroy(tex);
 
         return imgBytes;

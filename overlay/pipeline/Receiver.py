@@ -126,14 +126,14 @@ def parse_unity_packet(conn):
 def decode_frame(frame_bytes):
     """
     Decode the received frame bytes into an OpenCV image.
-    :param frame_bytes: The raw frame bytes received from the Kinect C# server.
+    :param frame_bytes: The raw frame bytes received from the Unity server.
     :return: Decoded OpenCV image or None if decoding fails.
     """
     if frame_bytes is None or len(frame_bytes) == 0:
         print("No frame data received.")
         return None
     arr = np.frombuffer(frame_bytes, dtype=np.uint8)
-    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    img = cv2.imdecode(arr, cv2.IMREAD_UNCHANGED)  # Preserve alpha channel from PNG
     return img
 
 
