@@ -348,5 +348,26 @@
 
       requestAnimationFrame(checkHover);
     </script>
+
+    <script>
+      (async function () {
+        let last = null;
+
+        async function tick() {
+          try {
+            const r = await fetch("/run_id", { cache: "no-store" });
+            const id = await r.text();
+
+            if (last === null) last = id;
+            else if (id !== last) location.reload();
+          } catch (e) {
+            // server down; keep retrying
+          }
+          setTimeout(tick, 500);
+        }
+
+        tick();
+      })();
+    </script>
   </body>
 </html>
