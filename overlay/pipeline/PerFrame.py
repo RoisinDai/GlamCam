@@ -36,10 +36,17 @@ def process_frame(
     if len(unity_coords) == 0 or len(kinect_coords) == 0:
         return None
 
-    # Segment the clothing from the Unity frame
-    cloth_transparent = UnityUtils.apply_mask_to_image(
-        unity_clothes_frame, segment_clothes(unity_clothes_frame)
-    )
+    # Unity frame already comes with alpha channel from PNG
+    # No segmentation needed - convert BGRA to RGBA
+    if unity_clothes_frame.shape[2] == 4:
+        cloth_transparent = cv2.cvtColor(unity_clothes_frame, cv2.COLOR_BGRA2RGBA)
+    else:
+        # Fallback: if somehow we get RGB, make it fully opaque
+        cloth_transparent = cv2.cvtColor(unity_clothes_frame, cv2.COLOR_BGR2RGB)
+        cloth_transparent = np.concatenate([
+            cloth_transparent,
+            np.full(unity_clothes_frame.shape[:2] + (1,), 255, dtype=np.uint8)
+        ], axis=2)
 
     # Run the ICP algorithm to align Kinect coordinates with Unity coordinates
     affine_matrix = Compute.run_icp(unity_coords, kinect_coords)

@@ -13,7 +13,7 @@ import sys
 import webbrowser
 
 # Repo root
-PROJECT_ROOT = Path(__file__).parent.resolve()   # GLAMCAM/
+PROJECT_ROOT = Path(__file__).parent.resolve()  # GLAMCAM/
 
 UNITY_PROJECT_ROOT = PROJECT_ROOT / "GlamCam"
 WEBSITE_ROOT = PROJECT_ROOT / "website"
@@ -43,6 +43,7 @@ KINECT_EXE = (
 )
 
 OPENED_FLAG = PROJECT_ROOT / ".opened_browser.flag"
+
 
 def run_py(script: Path) -> subprocess.Popen:
     return subprocess.Popen([str(PYTHON_EXE), str(script)], cwd=str(PROJECT_ROOT))

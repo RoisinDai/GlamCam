@@ -805,7 +805,6 @@ MonoBehaviour:
   unity2overlay_host: 127.0.0.1
   unity2overlay_port: 5005
   frameRate: 30
-  jpgQuality: 80
 --- !u!4 &483988793
 Transform:
   m_ObjectHideFlags: 0
@@ -1168,7 +1167,7 @@ PrefabInstance:
     - target: {fileID: 8291808769583291884, guid: 40ace8ca30a6c0043a44347dd61b03e2, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 83dc835d7b1960a4286d39cf3ab61069, type: 2}
+      objectReference: {fileID: 2100000, guid: 13c96712e7c0e84489e83bc81ee1d869, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
