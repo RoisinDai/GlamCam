@@ -22,8 +22,30 @@ public class UnityCameraTcpStreamer : MonoBehaviour
     private NetworkStream stream;
     private bool streaming = false;
 
+    // Reusable rendering objects for performance
+    private RenderTexture rt;
+    private Texture2D tex;
+    private Rect readRect;
+    private int w, h;
+
     void Start()
     {
+        w = Screen.width;
+        h = Screen.height;
+
+        rt = new RenderTexture(w, h, 24, RenderTextureFormat.ARGB32);
+        rt.antiAliasing = 1; // keep simple; can increase later
+
+        tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        readRect = new Rect(0, 0, w, h);
+
+        // Configure camera for transparent background
+        if (avartarCamera != null)
+        {
+            avartarCamera.clearFlags = CameraClearFlags.SolidColor;
+            avartarCamera.backgroundColor = new Color(0, 0, 0, 0); // Transparent background
+        }
+
         Connect();
         if (client != null)
         {
@@ -38,6 +60,9 @@ public class UnityCameraTcpStreamer : MonoBehaviour
         streaming = false;
         if (stream != null) stream.Close();
         if (client != null) client.Close();
+
+        if (tex != null) Destroy(tex);
+        if (rt != null) Destroy(rt);
     }
 
     void Connect()
@@ -97,25 +122,25 @@ public class UnityCameraTcpStreamer : MonoBehaviour
 
     byte[] CaptureCameraFrame(Camera cam)
     {
-        // Force alpha-capable render texture
-        RenderTexture rt = new RenderTexture(Screen.width, Screen.height, 24, RenderTextureFormat.ARGB32);
-        rt.antiAliasing = 1;
+        // Render into the persistent RT
+        var prevTarget = cam.targetTexture;
+        var prevActive = RenderTexture.active;
+
         cam.targetTexture = rt;
         cam.Render();
 
         RenderTexture.active = rt;
-        Texture2D tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGBA32, false);
-        tex.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
-        tex.Apply();
 
-        cam.targetTexture = null;
-        RenderTexture.active = null;
-        Destroy(rt);
+        // Read into the persistent Texture2D
+        tex.ReadPixels(readRect, 0, 0, false);
+        tex.Apply(false, false);
 
-        byte[] imgBytes = tex.EncodeToPNG();
-        Destroy(tex);
+        // Restore state
+        cam.targetTexture = prevTarget;
+        RenderTexture.active = prevActive;
 
-        return imgBytes;
+        // Encode PNG (keeps alpha)
+        return tex.EncodeToPNG();
     }
 
     string GetJointPixelCoordinatesAsJson(Camera cam, BodySourceManager bsm)
