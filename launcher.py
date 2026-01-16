@@ -140,6 +140,11 @@ def main():
         except Exception:
             pass
 
+        try:
+            OPENED_FLAG.unlink(missing_ok=True)
+        except Exception:
+            pass
+
         # terminate in reverse order (dependents first)
         for p in reversed(procs):
             try:
