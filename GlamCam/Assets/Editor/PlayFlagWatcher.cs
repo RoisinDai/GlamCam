@@ -5,13 +5,16 @@ using UnityEngine;
 [InitializeOnLoad]
 public static class PlayFlagWatcher
 {
-    // This is a file OUTSIDE Assets/, at the project root
-    // Unity will only enter play mode when our launcher creates this file
-    private static readonly string FlagPath =
-        Path.Combine(Directory.GetParent(Application.dataPath).FullName, "PLAY.flag");
+    // Note: Project root is parent of Assets/
+    private static readonly string ProjectRoot =
+        Directory.GetParent(Application.dataPath).FullName;
 
+    private static readonly string PlayFlagPath =
+        Path.Combine(ProjectRoot, "PLAY.flag");
 
-    // Register to editor update event
+    private static readonly string StopFlagPath =
+        Path.Combine(ProjectRoot, "STOP.flag");
+
     static PlayFlagWatcher()
     {
         // Runs every editor update tick
@@ -20,10 +23,21 @@ public static class PlayFlagWatcher
 
     private static void Update()
     {
-        // If Unity is NOT playing and the flag exists, start Play
-        if (!EditorApplication.isPlaying && File.Exists(FlagPath))
+        // STOP: if flag exists, stop play mode (and delete flag)
+        if (File.Exists(StopFlagPath))
         {
-            File.Delete(FlagPath); // prevent looping. must explicitly create the file again to re-trigger play
+            File.Delete(StopFlagPath);
+            if (EditorApplication.isPlaying)
+            {
+                EditorApplication.isPlaying = false;
+            }
+            return; // don't also process PLAY in same tick
+        }
+
+        // PLAY: if not playing and play flag exists, start play mode
+        if (!EditorApplication.isPlaying && File.Exists(PlayFlagPath))
+        {
+            File.Delete(PlayFlagPath);
             EditorApplication.isPlaying = true;
         }
     }

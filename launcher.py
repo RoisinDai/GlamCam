@@ -44,7 +44,6 @@ KINECT_EXE = (
 
 OPENED_FLAG = PROJECT_ROOT / ".opened_browser.flag"
 
-
 def run_py(script: Path) -> subprocess.Popen:
     return subprocess.Popen([str(PYTHON_EXE), str(script)], cwd=str(PROJECT_ROOT))
 
@@ -136,6 +135,11 @@ def main():
         print("\nCtrl+C detected. Shutting down...")
 
     finally:
+        try:
+            (UNITY_PROJECT_ROOT / "STOP.flag").write_text("stop", encoding="utf-8")
+        except Exception:
+            pass
+
         # terminate in reverse order (dependents first)
         for p in reversed(procs):
             try:
