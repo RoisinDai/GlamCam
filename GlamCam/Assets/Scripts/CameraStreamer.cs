@@ -30,12 +30,11 @@ public class UnityCameraTcpStreamer : MonoBehaviour
 
     void Awake()
     {
-        // Configure camera for transparent background as early as possible
+        // Configure camera for transparent background once at startup
         if (avartarCamera != null)
         {
             avartarCamera.clearFlags = CameraClearFlags.SolidColor;
             avartarCamera.backgroundColor = new Color(0, 0, 0, 0); // Fully transparent
-            Debug.Log("Camera configured for transparency: clearFlags=" + avartarCamera.clearFlags + ", backgroundColor=" + avartarCamera.backgroundColor);
         }
     }
 
@@ -49,14 +48,6 @@ public class UnityCameraTcpStreamer : MonoBehaviour
 
         tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
         readRect = new Rect(0, 0, w, h);
-
-        // Double-check camera settings in Start() in case they were overridden
-        if (avartarCamera != null)
-        {
-            avartarCamera.clearFlags = CameraClearFlags.SolidColor;
-            avartarCamera.backgroundColor = new Color(0, 0, 0, 0); // Transparent background
-            Debug.Log("Camera settings confirmed: clearFlags=" + avartarCamera.clearFlags + ", backgroundColor=" + avartarCamera.backgroundColor);
-        }
 
         Connect();
         if (client != null)
@@ -134,14 +125,6 @@ public class UnityCameraTcpStreamer : MonoBehaviour
 
     byte[] CaptureCameraFrame(Camera cam)
     {
-        // Ensure camera is configured for transparency before rendering
-        if (cam.clearFlags != CameraClearFlags.SolidColor || cam.backgroundColor.a != 0)
-        {
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0, 0, 0, 0);
-            Debug.LogWarning("Camera settings were incorrect, corrected to transparent background");
-        }
-
         // Render into the persistent RT
         var prevTarget = cam.targetTexture;
         var prevActive = RenderTexture.active;
