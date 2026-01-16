@@ -13,7 +13,7 @@ public class BodySourceView : MonoBehaviour
   public Material TransparentMaterial; // Material for joints skeleton to hide it
   private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
   private BodySourceManager _BodyManager;
-  private bool _ShowSkeleton = false; // Flag to toggle skeleton visibility
+  private bool _ShowSkeleton = true; // Flag to toggle skeleton visibility
 
   // Maps joints to the joint they are connected to
   private Dictionary<Kinect.JointType, Kinect.JointType> _BoneMap = new Dictionary<Kinect.JointType, Kinect.JointType>()
