@@ -31,3 +31,4 @@ packages/*.nupkg
 
 # OpenCV library files
 opencv/
+.opened_browser.flag
