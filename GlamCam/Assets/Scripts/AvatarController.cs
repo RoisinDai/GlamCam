@@ -33,6 +33,7 @@ public class AvatarController : MonoBehaviour
     public Animator animator;
     public GameObject BodySourceManager;
     private static BodySourceManager _BodyManager;
+    public MultiSourceManager _MultiSourceManager; // For BodyIndex/Depth data
     public GameObject ClothedBaseAvatar;
     private GameObject BaseAvatar; // The unclothed base avatar
     public static Kinect.Body trackedBody; // The body being tracked by the avatar
@@ -307,9 +308,9 @@ public class AvatarController : MonoBehaviour
     /// </summary>
     public void CaptureBodyWidthMeasurements()
     {
-        if (MultiSourceManager == null)
+        if (_MultiSourceManager == null)
         {
-            Debug.LogError("CaptureBodyWidthMeasurements: MultiSourceManager not assigned!");
+            Debug.LogError("CaptureBodyWidthMeasurements: _MultiSourceManager not assigned!");
             return;
         }
         
@@ -319,13 +320,13 @@ public class AvatarController : MonoBehaviour
             return;
         }
         
-        var mapper = MultiSourceManager.GetCoordinateMapper();
-        var bodyIndexData = MultiSourceManager.GetBodyIndexData();
-        var depthData = MultiSourceManager.GetDepthData();
+        var mapper = _MultiSourceManager.GetCoordinateMapper();
+        var bodyIndexData = _MultiSourceManager.GetBodyIndexData();
+        var depthData = _MultiSourceManager.GetDepthData();
         
         if (mapper == null || bodyIndexData == null || depthData == null)
         {
-            Debug.LogError("CaptureBodyWidthMeasurements: Required data not available from MultiSourceManager!");
+            Debug.LogError("CaptureBodyWidthMeasurements: Required data not available from _MultiSourceManager!");
             return;
         }
         
