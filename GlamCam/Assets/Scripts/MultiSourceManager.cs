@@ -230,6 +230,24 @@ public class MultiSourceManager : MonoBehaviour {
         
         Debug.Log($"CaptureBodyMask: Processed image - {bodyPixelCount} body pixels found");
         
+        // Debug: Check sample color values
+        int sampleCount = 0;
+        for (int i = 0; i < colors.Length && sampleCount < 5; i++)
+        {
+            if (colors[i].r > 0 || colors[i].g > 0 || colors[i].b > 0)
+            {
+                Debug.Log($"Sample body pixel {sampleCount}: R={colors[i].r} G={colors[i].g} B={colors[i].b}");
+                sampleCount++;
+            }
+        }
+        if (sampleCount == 0)
+        {
+            // Check raw color data
+            Debug.Log($"No colored pixels found! Checking raw _ColorData...");
+            Debug.Log($"_ColorData length: {_ColorData.Length}");
+            Debug.Log($"Sample raw bytes [0-11]: {_ColorData[0]}, {_ColorData[1]}, {_ColorData[2]}, {_ColorData[3]}, {_ColorData[4]}, {_ColorData[5]}, {_ColorData[6]}, {_ColorData[7]}, {_ColorData[8]}, {_ColorData[9]}, {_ColorData[10]}, {_ColorData[11]}");
+        }
+        
         // Checkpoint 3: Save to Desktop
         try
         {
