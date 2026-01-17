@@ -117,11 +117,11 @@ public class MultiSourceManager : MonoBehaviour {
         }
         
         // Press M to capture Body Mask (color with background removed)
-        if (Input.GetKeyDown(KeyCode.M))
-        {
-            Debug.Log("M key pressed - capturing body mask...");
-            CaptureBodyMask();
-        }
+        // if (Input.GetKeyDown(KeyCode.M))
+        // {
+        //     Debug.Log("M key pressed - capturing body mask...");
+        //     CaptureBodyMask();
+        // }
     }
     
     // GUI button as fallback for key press

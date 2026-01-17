@@ -172,6 +172,13 @@ public class AvatarController : MonoBehaviour
     _ExtensionFactors.lowerLegExtensionFactor = (_UserMeasurements.lowerLegLength - _AvatarMeasurements.lowerLegLength);
     // Debug.Log("_TESTING Upper Leg Ext Factor: " + _ExtensionFactors.upperLegExtensionFactor);
     // Debug.Log(ClothedBaseAvatar.name + "_TESTING Lower Leg Ext Factor: " + _ExtensionFactors.lowerLegExtensionFactor);
+    
+    // Press T to capture body width measurements (for testing)
+    if (Input.GetKeyDown(KeyCode.T))
+    {
+        Debug.Log("T key pressed - capturing body measurements...");
+        CaptureBodyWidthMeasurements();
+    }
   }
 
     // A callback function to calculate inverse kinematics
