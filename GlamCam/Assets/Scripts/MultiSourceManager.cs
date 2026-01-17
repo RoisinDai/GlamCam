@@ -68,13 +68,13 @@ public class MultiSourceManager : MonoBehaviour {
             {
                 _Sensor.Open();
             }
+            
+            Debug.Log("MultiSourceManager: Started successfully. Press M or click button to capture.");
         }
-        
-        Debug.Log("MultiSourceManager: Started successfully. Press M or click button to capture.");
-    }
-    else
-    {
-        Debug.LogError("MultiSourceManager: Kinect sensor not found!");
+        else
+        {
+            Debug.LogError("MultiSourceManager: Kinect sensor not found!");
+        }
     }
     
     void Update () 
