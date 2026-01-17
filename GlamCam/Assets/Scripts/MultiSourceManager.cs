@@ -166,7 +166,7 @@ public class MultiSourceManager : MonoBehaviour {
     /// <summary>
     /// Converts a Kinect joint to Unity Vector3 (in meters).
     /// </summary>
-    private Vector3 GetVector3FromJoint(Joint joint)
+    private Vector3 GetVector3FromJoint(Windows.Kinect.Joint joint)
     {
         return new Vector3(joint.Position.X, joint.Position.Y, joint.Position.Z);
     }
@@ -402,7 +402,7 @@ public class MultiSourceManager : MonoBehaviour {
     /// <summary>
     /// Measures the body width at a specific joint by scanning the silhouette horizontally.
     /// </summary>
-    public float MeasureWidthAtJoint(Joint joint)
+    public float MeasureWidthAtJoint(Windows.Kinect.Joint joint)
     {
         if (joint.TrackingState == TrackingState.NotTracked)
         {
