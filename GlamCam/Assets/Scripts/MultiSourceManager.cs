@@ -6,9 +6,6 @@ public class MultiSourceManager : MonoBehaviour {
     public int ColorWidth { get; private set; }
     public int ColorHeight { get; private set; }
     
-    // For silhouette capture - assign in Inspector
-    public GameObject BodySourceManagerObject;
-    
     private KinectSensor _Sensor;
     private MultiSourceFrameReader _Reader;
     private CoordinateMapper _Mapper;
@@ -16,6 +13,9 @@ public class MultiSourceManager : MonoBehaviour {
     private ushort[] _DepthData;
     private byte[] _ColorData;
     private byte[] _BodyIndexData;
+    
+    // For color-to-depth mapping (Body Mask)
+    private DepthSpacePoint[] _ColorMappedToDepthPoints;
     
     private const int DEPTH_WIDTH = 512;
     private const int DEPTH_HEIGHT = 424;
@@ -33,6 +33,11 @@ public class MultiSourceManager : MonoBehaviour {
     public byte[] GetBodyIndexData()
     {
         return _BodyIndexData;
+    }
+    
+    public CoordinateMapper GetCoordinateMapper()
+    {
+        return _Mapper;
     }
 
     void Start () 
@@ -56,13 +61,20 @@ public class MultiSourceManager : MonoBehaviour {
             
             _Mapper = _Sensor.CoordinateMapper;
             
+            // For Body Mask - mapping color pixels to depth space
+            _ColorMappedToDepthPoints = new DepthSpacePoint[colorFrameDesc.Width * colorFrameDesc.Height];
+            
             if (!_Sensor.IsOpen)
             {
                 _Sensor.Open();
             }
         }
         
-        Debug.Log("MultiSourceManager: Press B to capture BodyIndex silhouette + skeleton");
+        Debug.Log("MultiSourceManager: Started successfully. Press M or click button to capture.");
+    }
+    else
+    {
+        Debug.LogError("MultiSourceManager: Kinect sensor not found!");
     }
     
     void Update () 
@@ -104,97 +116,135 @@ public class MultiSourceManager : MonoBehaviour {
             }
         }
         
-        // Press B to capture silhouette + skeleton
-        if (Input.GetKeyDown(KeyCode.B))
+        // Press M to capture Body Mask (color with background removed)
+        if (Input.GetKeyDown(KeyCode.M))
         {
-            CaptureBodyIndexWithSkeleton();
+            Debug.Log("M key pressed - capturing body mask...");
+            CaptureBodyMask();
+        }
+    }
+    
+    // GUI button as fallback for key press
+    void OnGUI()
+    {
+        if (GUI.Button(new Rect(10, 10, 200, 50), "Capture Body Mask (M)"))
+        {
+            Debug.Log("Button clicked - capturing body mask...");
+            CaptureBodyMask();
         }
     }
     
     /// <summary>
-    /// Captures silhouette + skeleton and saves to Desktop.
+    /// Captures Body Mask - color image with background removed (Lab 05 approach).
+    /// Maps color pixels to depth space and checks BodyIndex to keep only body pixels.
     /// </summary>
-    private void CaptureBodyIndexWithSkeleton()
+    private void CaptureBodyMask()
     {
-        if (_BodyIndexData == null)
+        Debug.Log("CaptureBodyMask: Starting capture...");
+        
+        // Checkpoint 1: Check frame data
+        if (_ColorData == null)
         {
-            Debug.LogError("No BodyIndex data available");
+            Debug.LogError("CaptureBodyMask: _ColorData is null - no color frame received");
             return;
         }
+        if (_DepthData == null)
+        {
+            Debug.LogError("CaptureBodyMask: _DepthData is null - no depth frame received");
+            return;
+        }
+        if (_BodyIndexData == null)
+        {
+            Debug.LogError("CaptureBodyMask: _BodyIndexData is null - no body index frame received");
+            return;
+        }
+        Debug.Log("CaptureBodyMask: All frame data available");
         
-        Texture2D texture = new Texture2D(DEPTH_WIDTH, DEPTH_HEIGHT, TextureFormat.RGBA32, false);
-        Color32[] colors = new Color32[DEPTH_WIDTH * DEPTH_HEIGHT];
+        // Checkpoint 2: Check mapper
+        if (_Mapper == null)
+        {
+            Debug.LogError("CaptureBodyMask: CoordinateMapper not available");
+            return;
+        }
+        Debug.Log("CaptureBodyMask: CoordinateMapper ready");
+        
+        // Map color frame to depth space
+        _Mapper.MapColorFrameToDepthSpace(_DepthData, _ColorMappedToDepthPoints);
+        
+        // Create output texture at color resolution
+        Texture2D texture = new Texture2D(ColorWidth, ColorHeight, TextureFormat.RGBA32, false);
+        Color32[] colors = new Color32[ColorWidth * ColorHeight];
         
         int bodyPixelCount = 0;
         
-        // Draw silhouette (green = body, black = background)
-        for (int i = 0; i < _BodyIndexData.Length; i++)
+        // For each color pixel, check if it corresponds to a body
+        for (int colorIndex = 0; colorIndex < _ColorMappedToDepthPoints.Length; colorIndex++)
         {
-            if (_BodyIndexData[i] != 255)
+            float colorMappedToDepthX = _ColorMappedToDepthPoints[colorIndex].X;
+            float colorMappedToDepthY = _ColorMappedToDepthPoints[colorIndex].Y;
+            
+            bool isBody = false;
+            
+            // Check if this color pixel maps to a valid depth point
+            if (!float.IsNegativeInfinity(colorMappedToDepthX) && 
+                !float.IsNegativeInfinity(colorMappedToDepthY))
             {
-                colors[i] = new Color32(0, 150, 0, 255);
-                bodyPixelCount++;
+                int depthX = (int)(colorMappedToDepthX + 0.5f);
+                int depthY = (int)(colorMappedToDepthY + 0.5f);
+                
+                // Check bounds
+                if (depthX >= 0 && depthX < DEPTH_WIDTH && 
+                    depthY >= 0 && depthY < DEPTH_HEIGHT)
+                {
+                    int depthIndex = (depthY * DEPTH_WIDTH) + depthX;
+                    
+                    // Check if this pixel is a body (not 0xff/255)
+                    if (_BodyIndexData[depthIndex] != 255)
+                    {
+                        isBody = true;
+                        bodyPixelCount++;
+                    }
+                }
+            }
+            
+            if (isBody)
+            {
+                // Keep the original color (RGBA format: R, G, B, A)
+                int byteIndex = colorIndex * 4;
+                colors[colorIndex] = new Color32(
+                    _ColorData[byteIndex],     // R
+                    _ColorData[byteIndex + 1], // G
+                    _ColorData[byteIndex + 2], // B
+                    255                         // A (fully opaque)
+                );
             }
             else
             {
-                colors[i] = new Color32(0, 0, 0, 255);
-            }
-        }
-        
-        // Draw skeleton joints (red dots)
-        if (BodySourceManagerObject != null && _Mapper != null)
-        {
-            var bodyManager = BodySourceManagerObject.GetComponent<BodySourceManager>();
-            if (bodyManager != null)
-            {
-                Body[] bodies = bodyManager.GetData();
-                if (bodies != null)
-                {
-                    foreach (Body body in bodies)
-                    {
-                        if (body != null && body.IsTracked)
-                        {
-                            foreach (JointType jt in System.Enum.GetValues(typeof(JointType)))
-                            {
-                                Joint joint = body.Joints[jt];
-                                if (joint.TrackingState == TrackingState.NotTracked) continue;
-                                
-                                DepthSpacePoint pt = _Mapper.MapCameraPointToDepthSpace(joint.Position);
-                                DrawDot(colors, (int)pt.X, (int)pt.Y, 4, new Color32(255, 0, 0, 255));
-                            }
-                        }
-                    }
-                }
+                // Background - make black/transparent
+                colors[colorIndex] = new Color32(0, 0, 0, 255);
             }
         }
         
         texture.SetPixels32(colors);
         texture.Apply();
         
-        // Save to Desktop
-        byte[] pngData = texture.EncodeToPNG();
-        string path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Desktop) + "/BodyIndex_Capture.png";
-        System.IO.File.WriteAllBytes(path, pngData);
+        Debug.Log($"CaptureBodyMask: Processed image - {bodyPixelCount} body pixels found");
         
-        Debug.Log($"Saved to {path} - {bodyPixelCount} body pixels ({(bodyPixelCount * 100f / _BodyIndexData.Length):F1}%)");
+        // Checkpoint 3: Save to Desktop
+        try
+        {
+            byte[] pngData = texture.EncodeToPNG();
+            string path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Desktop) + "/BodyMask_Capture.png";
+            Debug.Log($"CaptureBodyMask: Saving to {path}");
+            System.IO.File.WriteAllBytes(path, pngData);
+            Debug.Log($"CaptureBodyMask: SUCCESS! File saved to {path}");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"CaptureBodyMask: Failed to save file - {e.Message}");
+        }
         
         Destroy(texture);
-    }
-    
-    private void DrawDot(Color32[] colors, int cx, int cy, int r, Color32 color)
-    {
-        for (int dy = -r; dy <= r; dy++)
-        {
-            for (int dx = -r; dx <= r; dx++)
-            {
-                int x = cx + dx;
-                int y = cy + dy;
-                if (x >= 0 && x < DEPTH_WIDTH && y >= 0 && y < DEPTH_HEIGHT && dx*dx + dy*dy <= r*r)
-                {
-                    colors[y * DEPTH_WIDTH + x] = color;
-                }
-            }
-        }
     }
     
     void OnApplicationQuit()
