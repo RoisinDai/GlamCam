@@ -18,6 +18,7 @@ public class MultiSourceManager : MonoBehaviour {
     // Body tracking
     private Body[] _BodyData;
     private Body _TrackedBody;
+    private bool _HasCapturedSilhouette = false;
     
     // For color-to-depth mapping (Body Mask)
     private DepthSpacePoint[] _ColorMappedToDepthPoints;
@@ -138,9 +139,16 @@ public class MultiSourceManager : MonoBehaviour {
             }
         }
         
-        // Test: Measure height and width every frame if we have a tracked body
+        // Test: Measure height and width when we have a tracked body
         if (_TrackedBody != null && _TrackedBody.IsTracked)
         {
+            // Capture silhouette only once (first time body is detected)
+            if (!_HasCapturedSilhouette)
+            {
+                _HasCapturedSilhouette = true;
+                CaptureSilhouette();
+            }
+            
             // Height measurement (from skeleton)
             var joints = _TrackedBody.Joints;
             Vector3 head = GetVector3FromJoint(joints[JointType.Head]);
@@ -163,14 +171,74 @@ public class MultiSourceManager : MonoBehaviour {
         return new Vector3(joint.Position.X, joint.Position.Y, joint.Position.Z);
     }
     
-    // GUI button as fallback for key press
+    // GUI buttons for visualization
     void OnGUI()
     {
-        if (GUI.Button(new Rect(10, 10, 200, 50), "Capture Body Mask (M)"))
+        if (GUI.Button(new Rect(10, 10, 200, 50), "Capture Body Mask"))
         {
             Debug.Log("Button clicked - capturing body mask...");
             CaptureBodyMask();
         }
+        
+        if (GUI.Button(new Rect(10, 70, 200, 50), "Capture Silhouette"))
+        {
+            Debug.Log("Button clicked - capturing silhouette...");
+            CaptureSilhouette();
+        }
+    }
+    
+    /// <summary>
+    /// Captures raw BodyIndexFrame as a simple silhouette image.
+    /// White = body, Black = background. Resolution: 512×424.
+    /// </summary>
+    private void CaptureSilhouette()
+    {
+        if (_BodyIndexData == null)
+        {
+            Debug.LogError("CaptureSilhouette: _BodyIndexData is null");
+            return;
+        }
+        
+        // Create texture at depth resolution
+        Texture2D texture = new Texture2D(DEPTH_WIDTH, DEPTH_HEIGHT, TextureFormat.RGBA32, false);
+        Color32[] pixels = new Color32[DEPTH_WIDTH * DEPTH_HEIGHT];
+        
+        int bodyPixelCount = 0;
+        
+        for (int i = 0; i < _BodyIndexData.Length; i++)
+        {
+            if (_BodyIndexData[i] != 255)
+            {
+                // Body pixel - WHITE
+                pixels[i] = new Color32(255, 255, 255, 255);
+                bodyPixelCount++;
+            }
+            else
+            {
+                // Background - BLACK
+                pixels[i] = new Color32(0, 0, 0, 255);
+            }
+        }
+        
+        texture.SetPixels32(pixels);
+        texture.Apply();
+        
+        Debug.Log($"CaptureSilhouette: Found {bodyPixelCount} body pixels");
+        
+        // Save to Desktop
+        try
+        {
+            byte[] pngData = texture.EncodeToPNG();
+            string path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Desktop) + "/Silhouette.png";
+            System.IO.File.WriteAllBytes(path, pngData);
+            Debug.Log($"CaptureSilhouette: Saved to {path}");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"CaptureSilhouette: Failed - {e.Message}");
+        }
+        
+        Destroy(texture);
     }
     
     /// <summary>
