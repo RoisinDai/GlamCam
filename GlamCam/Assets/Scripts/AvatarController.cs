@@ -11,6 +11,9 @@ class HumanoidMeasurements
     public float lowerArmLength; // Elbow to wrist
     public float upperLegLength; // Hip to knee
     public float lowerLegLength; // Knee to foot
+    
+    // Silhouette-based width measurement (from BodyIndex)
+    public float spineMidWidth;  // Body width at SpineMid (belly)
 }
 
 // Used for non-uniform scaling of legs/arms
@@ -29,6 +32,7 @@ public class AvatarController : MonoBehaviour
     public Animator animator;
     public GameObject BodySourceManager;
     private static BodySourceManager _BodyManager;
+    public MultiSourceManager MultiSourceManager; // For BodyIndex data
     public GameObject ClothedBaseAvatar;
     private GameObject Armature;
     private GameObject BaseAvatar; // The unclothed base avatar
@@ -510,5 +514,142 @@ public class AvatarController : MonoBehaviour
         // Debug.Log($"AvatarMeasurement: Upper leg = {upperLegLength:F3}, Lower leg = {lowerLegLength:F3}");
         _AvatarMeasurements.upperLegLength = upperLegLength;
         _AvatarMeasurements.lowerLegLength = lowerLegLength;
+    }
+
+    // =====================================================
+    // Width Measurement Methods (using silhouette)
+    // =====================================================
+    
+    private const int DEPTH_WIDTH = 512;
+    private const int DEPTH_HEIGHT = 424;
+    private const float DEPTH_HORIZONTAL_FOV = 70.6f; // Kinect v2 depth camera horizontal FOV in degrees
+    
+    /// <summary>
+    /// Captures body width measurement at SpineMid.
+    /// Call this when T-pose is detected.
+    /// </summary>
+    public void CaptureBodyWidthMeasurements()
+    {
+        if (MultiSourceManager == null)
+        {
+            Debug.LogError("CaptureBodyWidthMeasurements: MultiSourceManager not assigned!");
+            return;
+        }
+        
+        if (trackedBody == null || !trackedBody.IsTracked)
+        {
+            Debug.LogError("CaptureBodyWidthMeasurements: No tracked body available!");
+            return;
+        }
+        
+        var mapper = MultiSourceManager.GetCoordinateMapper();
+        var bodyIndexData = MultiSourceManager.GetBodyIndexData();
+        var depthData = MultiSourceManager.GetDepthData();
+        
+        if (mapper == null || bodyIndexData == null || depthData == null)
+        {
+            Debug.LogError("CaptureBodyWidthMeasurements: Required data not available from MultiSourceManager!");
+            return;
+        }
+        
+        var joints = trackedBody.Joints;
+        
+        // Measure width at SpineMid (belly)
+        _UserMeasurements.spineMidWidth = MeasureWidthAtJoint(
+            joints[Kinect.JointType.SpineMid], mapper, bodyIndexData, depthData);
+        
+        Debug.Log($"=== Body Measurements (all in meters) ===");
+        Debug.Log($"  Height: {_UserMeasurements.height:F3} m");
+        Debug.Log($"  SpineMid width: {_UserMeasurements.spineMidWidth:F3} m");
+    }
+    
+    /// <summary>
+    /// Measures the body width at a specific joint by scanning the silhouette horizontally.
+    /// </summary>
+    private float MeasureWidthAtJoint(Kinect.Joint joint, Kinect.CoordinateMapper mapper, 
+                                       byte[] bodyIndexData, ushort[] depthData)
+    {
+        if (joint.TrackingState == Kinect.TrackingState.NotTracked)
+        {
+            Debug.LogWarning($"MeasureWidthAtJoint: Joint not tracked");
+            return 0f;
+        }
+        
+        // Convert joint position (3D camera space) to depth space (2D pixels)
+        Kinect.DepthSpacePoint depthPoint = mapper.MapCameraPointToDepthSpace(joint.Position);
+        
+        int centerX = (int)(depthPoint.X + 0.5f);
+        int centerY = (int)(depthPoint.Y + 0.5f);
+        
+        // Check bounds
+        if (centerX < 0 || centerX >= DEPTH_WIDTH || centerY < 0 || centerY >= DEPTH_HEIGHT)
+        {
+            Debug.LogWarning($"MeasureWidthAtJoint: Joint position out of depth frame bounds");
+            return 0f;
+        }
+        
+        // Scan LEFT from center to find left edge
+        int leftEdge = centerX;
+        for (int x = centerX; x >= 0; x--)
+        {
+            int index = centerY * DEPTH_WIDTH + x;
+            if (bodyIndexData[index] == 255) // Not a body pixel
+            {
+                leftEdge = x + 1; // Last body pixel was x+1
+                break;
+            }
+            if (x == 0) leftEdge = 0; // Reached edge of frame
+        }
+        
+        // Scan RIGHT from center to find right edge
+        int rightEdge = centerX;
+        for (int x = centerX; x < DEPTH_WIDTH; x++)
+        {
+            int index = centerY * DEPTH_WIDTH + x;
+            if (bodyIndexData[index] == 255) // Not a body pixel
+            {
+                rightEdge = x - 1; // Last body pixel was x-1
+                break;
+            }
+            if (x == DEPTH_WIDTH - 1) rightEdge = DEPTH_WIDTH - 1; // Reached edge of frame
+        }
+        
+        int widthInPixels = rightEdge - leftEdge + 1;
+        
+        // Get depth at the center point (in millimeters)
+        int centerIndex = centerY * DEPTH_WIDTH + centerX;
+        float depthMm = depthData[centerIndex];
+        
+        if (depthMm <= 0)
+        {
+            Debug.LogWarning($"MeasureWidthAtJoint: Invalid depth value at joint");
+            return 0f;
+        }
+        
+        // Convert pixels to meters
+        float widthInMeters = PixelsToMeters(widthInPixels, depthMm);
+        
+        Debug.Log($"MeasureWidthAtJoint: center=({centerX},{centerY}), left={leftEdge}, right={rightEdge}, " +
+                  $"pixels={widthInPixels}, depth={depthMm}mm, width={widthInMeters:F3}m");
+        
+        return widthInMeters;
+    }
+    
+    /// <summary>
+    /// Converts a horizontal pixel distance to real-world meters at a given depth.
+    /// Uses the Kinect depth camera's horizontal FOV.
+    /// </summary>
+    private float PixelsToMeters(int pixels, float depthMm)
+    {
+        // Calculate the real-world width of the entire depth frame at this depth
+        // Using: width = 2 * depth * tan(FOV/2)
+        float depthM = depthMm / 1000f;
+        float halfFovRad = (DEPTH_HORIZONTAL_FOV / 2f) * Mathf.Deg2Rad;
+        float frameWidthAtDepth = 2f * depthM * Mathf.Tan(halfFovRad);
+        
+        // Each pixel represents frameWidth / DEPTH_WIDTH meters
+        float metersPerPixel = frameWidthAtDepth / DEPTH_WIDTH;
+        
+        return pixels * metersPerPixel;
     }
 }
