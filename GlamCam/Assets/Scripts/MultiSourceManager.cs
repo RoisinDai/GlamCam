@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Linq;
 using Windows.Kinect;
 
 public class MultiSourceManager : MonoBehaviour {
@@ -14,11 +15,16 @@ public class MultiSourceManager : MonoBehaviour {
     private byte[] _ColorData;
     private byte[] _BodyIndexData;
     
+    // Body tracking
+    private Body[] _BodyData;
+    private Body _TrackedBody;
+    
     // For color-to-depth mapping (Body Mask)
     private DepthSpacePoint[] _ColorMappedToDepthPoints;
     
     private const int DEPTH_WIDTH = 512;
     private const int DEPTH_HEIGHT = 424;
+    private const float DEPTH_HORIZONTAL_FOV = 70.6f; // Kinect v2 depth camera horizontal FOV
 
     public Texture2D GetColorTexture()
     {
@@ -46,7 +52,9 @@ public class MultiSourceManager : MonoBehaviour {
         
         if (_Sensor != null) 
         {
-            _Reader = _Sensor.OpenMultiSourceFrameReader(FrameSourceTypes.Color | FrameSourceTypes.Depth | FrameSourceTypes.BodyIndex);
+            // Include Body in the frame reader
+            _Reader = _Sensor.OpenMultiSourceFrameReader(
+                FrameSourceTypes.Color | FrameSourceTypes.Depth | FrameSourceTypes.BodyIndex | FrameSourceTypes.Body);
             
             var colorFrameDesc = _Sensor.ColorFrameSource.CreateFrameDescription(ColorImageFormat.Rgba);
             ColorWidth = colorFrameDesc.Width;
@@ -58,6 +66,9 @@ public class MultiSourceManager : MonoBehaviour {
             var depthFrameDesc = _Sensor.DepthFrameSource.FrameDescription;
             _DepthData = new ushort[depthFrameDesc.LengthInPixels];
             _BodyIndexData = new byte[depthFrameDesc.LengthInPixels]; // 512 x 424
+            
+            // Initialize body array
+            _BodyData = new Body[_Sensor.BodyFrameSource.BodyCount];
             
             _Mapper = _Sensor.CoordinateMapper;
             
@@ -93,12 +104,23 @@ public class MultiSourceManager : MonoBehaviour {
                         var bodyIndexFrame = frame.BodyIndexFrameReference.AcquireFrame();
                         if (bodyIndexFrame != null)
                         {
-                            colorFrame.CopyConvertedFrameDataToArray(_ColorData, ColorImageFormat.Rgba);
-                            _ColorTexture.LoadRawTextureData(_ColorData);
-                            _ColorTexture.Apply();
-                            
-                            depthFrame.CopyFrameDataToArray(_DepthData);
-                            bodyIndexFrame.CopyFrameDataToArray(_BodyIndexData);
+                            var bodyFrame = frame.BodyFrameReference.AcquireFrame();
+                            if (bodyFrame != null)
+                            {
+                                colorFrame.CopyConvertedFrameDataToArray(_ColorData, ColorImageFormat.Rgba);
+                                _ColorTexture.LoadRawTextureData(_ColorData);
+                                _ColorTexture.Apply();
+                                
+                                depthFrame.CopyFrameDataToArray(_DepthData);
+                                bodyIndexFrame.CopyFrameDataToArray(_BodyIndexData);
+                                bodyFrame.GetAndRefreshBodyData(_BodyData);
+                                
+                                // Get first tracked body
+                                _TrackedBody = _BodyData.FirstOrDefault(b => b != null && b.IsTracked);
+                                
+                                bodyFrame.Dispose();
+                                bodyFrame = null;
+                            }
                             
                             bodyIndexFrame.Dispose();
                             bodyIndexFrame = null;
@@ -116,12 +138,29 @@ public class MultiSourceManager : MonoBehaviour {
             }
         }
         
-        // Press M to capture Body Mask (color with background removed)
-        // if (Input.GetKeyDown(KeyCode.M))
-        // {
-        //     Debug.Log("M key pressed - capturing body mask...");
-        //     CaptureBodyMask();
-        // }
+        // Test: Measure height and width every frame if we have a tracked body
+        if (_TrackedBody != null && _TrackedBody.IsTracked)
+        {
+            // Height measurement (from skeleton)
+            var joints = _TrackedBody.Joints;
+            Vector3 head = GetVector3FromJoint(joints[JointType.Head]);
+            Vector3 footL = GetVector3FromJoint(joints[JointType.FootLeft]);
+            Vector3 footR = GetVector3FromJoint(joints[JointType.FootRight]);
+            float height = head.y - ((footL.y + footR.y) * 0.5f);
+            
+            // Width measurement (from silhouette)
+            float width = MeasureSpineMidWidth();
+            
+            Debug.Log($"=== Body Measurements (meters) === Height: {height:F3} m | SpineMid Width: {width:F3} m");
+        }
+    }
+    
+    /// <summary>
+    /// Converts a Kinect joint to Unity Vector3 (in meters).
+    /// </summary>
+    private Vector3 GetVector3FromJoint(Joint joint)
+    {
+        return new Vector3(joint.Position.X, joint.Position.Y, joint.Position.Z);
     }
     
     // GUI button as fallback for key press
@@ -263,6 +302,121 @@ public class MultiSourceManager : MonoBehaviour {
         }
         
         Destroy(texture);
+    }
+    
+    // =====================================================
+    // Body Width Measurement Methods
+    // =====================================================
+    
+    /// <summary>
+    /// Gets the current tracked body (if any).
+    /// </summary>
+    public Body GetTrackedBody()
+    {
+        return _TrackedBody;
+    }
+    
+    /// <summary>
+    /// Measures body width at SpineMid joint.
+    /// Returns width in meters, or 0 if measurement failed.
+    /// </summary>
+    public float MeasureSpineMidWidth()
+    {
+        if (_TrackedBody == null || !_TrackedBody.IsTracked)
+        {
+            return 0f;
+        }
+        
+        var joint = _TrackedBody.Joints[JointType.SpineMid];
+        return MeasureWidthAtJoint(joint);
+    }
+    
+    /// <summary>
+    /// Measures the body width at a specific joint by scanning the silhouette horizontally.
+    /// </summary>
+    public float MeasureWidthAtJoint(Joint joint)
+    {
+        if (joint.TrackingState == TrackingState.NotTracked)
+        {
+            Debug.LogWarning("MeasureWidthAtJoint: Joint not tracked");
+            return 0f;
+        }
+        
+        if (_BodyIndexData == null || _DepthData == null || _Mapper == null)
+        {
+            Debug.LogWarning("MeasureWidthAtJoint: Required data not available");
+            return 0f;
+        }
+        
+        // Convert joint position (3D camera space) to depth space (2D pixels)
+        DepthSpacePoint depthPoint = _Mapper.MapCameraPointToDepthSpace(joint.Position);
+        
+        int centerX = (int)(depthPoint.X + 0.5f);
+        int centerY = (int)(depthPoint.Y + 0.5f);
+        
+        // Check bounds
+        if (centerX < 0 || centerX >= DEPTH_WIDTH || centerY < 0 || centerY >= DEPTH_HEIGHT)
+        {
+            Debug.LogWarning("MeasureWidthAtJoint: Joint position out of depth frame bounds");
+            return 0f;
+        }
+        
+        // Scan LEFT from center to find left edge
+        int leftEdge = centerX;
+        for (int x = centerX; x >= 0; x--)
+        {
+            int index = centerY * DEPTH_WIDTH + x;
+            if (_BodyIndexData[index] == 255) // Not a body pixel
+            {
+                leftEdge = x + 1;
+                break;
+            }
+            if (x == 0) leftEdge = 0;
+        }
+        
+        // Scan RIGHT from center to find right edge
+        int rightEdge = centerX;
+        for (int x = centerX; x < DEPTH_WIDTH; x++)
+        {
+            int index = centerY * DEPTH_WIDTH + x;
+            if (_BodyIndexData[index] == 255) // Not a body pixel
+            {
+                rightEdge = x - 1;
+                break;
+            }
+            if (x == DEPTH_WIDTH - 1) rightEdge = DEPTH_WIDTH - 1;
+        }
+        
+        int widthInPixels = rightEdge - leftEdge + 1;
+        
+        // Get depth at the center point (in millimeters)
+        int centerIndex = centerY * DEPTH_WIDTH + centerX;
+        float depthMm = _DepthData[centerIndex];
+        
+        if (depthMm <= 0)
+        {
+            Debug.LogWarning("MeasureWidthAtJoint: Invalid depth value");
+            return 0f;
+        }
+        
+        // Convert pixels to meters
+        float widthInMeters = PixelsToMeters(widthInPixels, depthMm);
+        
+        Debug.Log($"MeasureWidthAtJoint: center=({centerX},{centerY}), pixels={widthInPixels}, depth={depthMm}mm, width={widthInMeters:F3}m");
+        
+        return widthInMeters;
+    }
+    
+    /// <summary>
+    /// Converts a horizontal pixel distance to real-world meters at a given depth.
+    /// </summary>
+    private float PixelsToMeters(int pixels, float depthMm)
+    {
+        float depthM = depthMm / 1000f;
+        float halfFovRad = (DEPTH_HORIZONTAL_FOV / 2f) * Mathf.Deg2Rad;
+        float frameWidthAtDepth = 2f * depthM * Mathf.Tan(halfFovRad);
+        float metersPerPixel = frameWidthAtDepth / DEPTH_WIDTH;
+        return pixels * metersPerPixel;
     }
     
     void OnApplicationQuit()
