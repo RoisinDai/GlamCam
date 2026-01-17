@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.Animations;
 using System.IO;
 
 /*
@@ -23,6 +24,7 @@ public class FbxImportHandler : AssetPostprocessor
     // Cast to ModelImporter to access model-specific properties
     ModelImporter ModelImporter => (ModelImporter)assetImporter;
 
+    // Runs to import the model fully and setup the model's properties.
     void OnPreprocessModel()
     {
         if (!ShouldProcess()) return;
@@ -69,5 +71,51 @@ public class FbxImportHandler : AssetPostprocessor
         ModelImporter.importLights = false;
         ModelImporter.globalScale = 1.0f;
         ModelImporter.useFileScale = true;
+    }
+
+    // Called after the model has been fully imported.
+    void OnPostprocessModel(GameObject model)
+    {
+        if (!ShouldProcess()) return;
+
+        // Create animator controller for the model
+        CreateAnimatorController(model);
+    }
+
+    // Creates an AnimatorController asset for the imported model
+    void CreateAnimatorController(GameObject model)
+    {
+        // Derive the controller path from the FBX path
+        string directory = Path.GetDirectoryName(assetPath);
+        string modelName = Path.GetFileNameWithoutExtension(assetPath);
+        // Use forward slashes for Unity asset paths
+        string controllerPath = $"{directory}/{modelName}.controller".Replace("\\", "/");
+        
+        // Check if a controller already exists at this path
+        if (AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath) != null)
+        {
+            Debug.Log($"[FbxImportHandler] AnimatorController already exists at: {controllerPath}");
+            return;
+        }
+
+        // Create a new AnimatorController
+        AnimatorController controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
+
+        // Add a base layer (created by default, but we can configure it)
+        if (controller.layers.Length > 0)
+        {
+            AnimatorControllerLayer baseLayer = controller.layers[0];
+            baseLayer.name = "Base Layer";
+            controller.layers[0] = baseLayer;
+        }
+
+        // Create an empty default state (Idle)
+        AnimatorStateMachine stateMachine = controller.layers[0].stateMachine;
+        AnimatorState idleState = stateMachine.AddState("Idle");
+        stateMachine.defaultState = idleState;
+
+        // Save the controller asset
+        AssetDatabase.SaveAssets();
+        Debug.Log($"[FbxImportHandler] Created AnimatorController at: {controllerPath}");
     }
 }
