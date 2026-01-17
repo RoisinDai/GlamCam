@@ -68,15 +68,17 @@ def wait_http(url: str, timeout_s: int = 30) -> bool:
             time.sleep(0.5)
     return False
 
-
-def touch_video_feed(url: str):
-    # This forces streamer -> frameProducer socket connect, unblocking frameProducer.accept()
-    try:
-        with urllib.request.urlopen(url, timeout=3) as r:
-            r.read(128)
-    except Exception:
-        pass
-
+def touch_video_feed(url: str, timeout_s: int = 10) -> bool:
+    start = time.time()
+    while time.time() - start < timeout_s:
+        try:
+            with urllib.request.urlopen(url, timeout=3) as r:
+                chunk = r.read(1024)
+                if chunk:
+                    return True
+        except Exception:
+            time.sleep(0.3)
+    return False
 
 def run_kinect_if_windows():
     if KINECT_EXE.exists():
