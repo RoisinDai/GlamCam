@@ -45,6 +45,27 @@ KINECT_EXE = (
 OPENED_FLAG = PROJECT_ROOT / ".opened_browser.flag"
 
 
+def focus_chrome_and_f11(url: str):
+    # Open (or reuse) the URL
+    subprocess.run(["cmd", "/c", "start", "", url], check=False)
+
+    # Bring Chrome to front and press F11 (fullscreen)
+    ps = r"""
+$ws = New-Object -ComObject WScript.Shell
+$deadline = (Get-Date).AddSeconds(6)
+
+# Try to activate Chrome for a few seconds (Chrome may take a moment to come up)
+while ((Get-Date) -lt $deadline) {
+  if ($ws.AppActivate('Chrome')) { break }
+  Start-Sleep -Milliseconds 200
+}
+
+Start-Sleep -Milliseconds 200
+$ws.SendKeys('{F11}')
+"""
+    subprocess.run(["powershell", "-NoProfile", "-Command", ps], check=False)
+
+
 def run_py(script: Path) -> subprocess.Popen:
     return subprocess.Popen([str(PYTHON_EXE), str(script)], cwd=str(PROJECT_ROOT))
 
@@ -114,7 +135,7 @@ def main():
         print("Waiting for website then opening it")
         if wait_http(BASE_URL, timeout_s=45):
             if not OPENED_FLAG.exists():
-                webbrowser.open(BASE_URL, new=0)
+                focus_chrome_and_f11(BASE_URL)
                 OPENED_FLAG.write_text("opened", encoding="utf-8")
 
             # Always touch video feed to unblock frameProducer each run
@@ -138,11 +159,6 @@ def main():
     finally:
         try:
             (UNITY_PROJECT_ROOT / "STOP.flag").write_text("stop", encoding="utf-8")
-        except Exception:
-            pass
-
-        try:
-            OPENED_FLAG.unlink(missing_ok=True)
         except Exception:
             pass
 
