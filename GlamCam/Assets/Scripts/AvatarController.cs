@@ -327,20 +327,24 @@ public class AvatarController : MonoBehaviour
     /// </summary>
     private void ApplyLimbBoneRotations(Kinect.Body body)
     {
-        var limbBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone)>
+        ApplyArmBoneRotations(body);
+        ApplyLegBoneRotations(body);
+    }
+
+    /// <summary>
+    /// Applies rotations to arm bones using forward kinematics.
+    /// </summary>
+    private void ApplyArmBoneRotations(Kinect.Body body)
+    {
+        var armBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone)>
         {
             (Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft, HumanBodyBones.RightLowerArm),
             (Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft, HumanBodyBones.RightUpperArm),
-            (Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg),
-            (Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg),
-
             (Kinect.JointType.ElbowRight, Kinect.JointType.WristRight, HumanBodyBones.LeftLowerArm),
             (Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight, HumanBodyBones.LeftUpperArm),
-            (Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg),
-            (Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg),
         };
 
-        foreach (var (Start, End, UnityBone) in limbBoneMapping)
+        foreach (var (Start, End, UnityBone) in armBoneMapping)
         {
             Transform boneTransform = animator.GetBoneTransform(UnityBone);
             if (boneTransform == null) continue;
@@ -350,9 +354,55 @@ public class AvatarController : MonoBehaviour
             Vector3 endPos = GetJointPosition(body.Joints[End]);
             Vector3 boneDirection = (startPos - endPos).normalized;
 
-            // Apply T-pose offset for limbs
+            // Apply T-pose offset for arms
             Quaternion tPoseOffset = Quaternion.Euler(-90, 0, 0);
             Quaternion worldRotation = Quaternion.LookRotation(boneDirection, Vector3.up) * tPoseOffset;
+
+            // Convert to local rotation
+            ApplyLocalRotation(boneTransform, worldRotation);
+        }
+    }
+
+    /// <summary>
+    /// Applies rotations to leg bones using forward kinematics.
+    /// Legs face outward based on hip line (left thigh faces left, right thigh faces right).
+    /// </summary>
+    private void ApplyLegBoneRotations(Kinect.Body body)
+    {
+        // Calculate hip line direction
+        Vector3 hipLeft = GetJointPosition(body.Joints[Kinect.JointType.HipLeft]);
+        Vector3 hipRight = GetJointPosition(body.Joints[Kinect.JointType.HipRight]);
+        Vector3 hipDirection = (hipRight - hipLeft).normalized;
+
+        var legBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone, bool IsLeft)>
+        {
+            (Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg, true),
+            (Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg, true),
+            (Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg, false),
+            (Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg, false),
+        };
+
+        foreach (var (Start, End, UnityBone, IsLeft) in legBoneMapping)
+        {
+            Transform boneTransform = animator.GetBoneTransform(UnityBone);
+            if (boneTransform == null) continue;
+
+            // Get joint positions in Unity space
+            Vector3 startPos = GetJointPosition(body.Joints[Start]);
+            Vector3 endPos = GetJointPosition(body.Joints[End]);
+            Vector3 boneDirection = (startPos - endPos).normalized;
+
+            // Determine outward direction based on which leg
+            Vector3 outward = IsLeft ? hipDirection : -hipDirection;
+            
+            // Calculate right vector perpendicular to bone direction and outward direction
+            Vector3 rightVector = Vector3.Cross(boneDirection, outward).normalized;
+            
+            // Recalculate forward to ensure orthogonality
+            Vector3 forward = Vector3.Cross(rightVector, boneDirection).normalized;
+
+            // Create rotation: bone points down, forward aligns with outward direction
+            Quaternion worldRotation = Quaternion.LookRotation(forward, -boneDirection);
 
             // Convert to local rotation
             ApplyLocalRotation(boneTransform, worldRotation);
