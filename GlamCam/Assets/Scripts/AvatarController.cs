@@ -337,6 +337,12 @@ public class AvatarController : MonoBehaviour
             (Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg),
         };
 
+        var headBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone)>
+        {
+            // Add neck-to-head for head rotation
+            (Kinect.JointType.Neck, Kinect.JointType.Head, HumanBodyBones.Head)
+        };
+
         foreach (var (Start, End, UnityBone) in boneMapping)
         {
             // Joint data from Kinect
@@ -364,6 +370,53 @@ public class AvatarController : MonoBehaviour
 
             // Compute world rotation with pose offset
             Quaternion worldRotation = Quaternion.LookRotation(boneDirection, Vector3.up) * tPoseOffset;
+
+            // Transform world rotation to local rotation for the bone
+            if (unityBoneTransform.parent != null)
+            {
+                unityBoneTransform.localRotation = Quaternion.Inverse(unityBoneTransform.parent.rotation) * worldRotation;
+            }
+            else
+            {
+                unityBoneTransform.localRotation = worldRotation;
+            }
+        }
+
+        foreach (var (Start, End, UnityBone) in headBoneMapping)
+        {
+            // Joint data from Kinect
+            Kinect.Joint startJoint = body.Joints[Start];
+            Kinect.Joint endJoint = body.Joints[End];
+
+            // Get Unity bone
+            Transform unityBoneTransform = animator.GetBoneTransform(UnityBone);
+            if (unityBoneTransform == null) continue;
+
+            // Convert Kinect positions to Unity space
+            Vector3 startPos = BodySourceView.GetVector3FromKinectCoord(
+                startJoint.Position.X, startJoint.Position.Y, startJoint.Position.Z
+            );
+            Vector3 endPos = BodySourceView.GetVector3FromKinectCoord(
+                endJoint.Position.X, endJoint.Position.Y, endJoint.Position.Z
+            );
+
+            // Compute head direction (neck to head)
+            Vector3 headUp = (endPos - startPos).normalized;
+            // Compute shoulder-to-shoulder vector
+            Vector3 shoulderLeftPos = BodySourceView.GetVector3FromKinectCoord(
+                body.Joints[Kinect.JointType.ShoulderLeft].Position.X,
+                body.Joints[Kinect.JointType.ShoulderLeft].Position.Y,
+                body.Joints[Kinect.JointType.ShoulderLeft].Position.Z
+            );
+            Vector3 shoulderRightPos = BodySourceView.GetVector3FromKinectCoord(
+                body.Joints[Kinect.JointType.ShoulderRight].Position.X,
+                body.Joints[Kinect.JointType.ShoulderRight].Position.Y,
+                body.Joints[Kinect.JointType.ShoulderRight].Position.Z
+            );
+            Vector3 shoulderDir = (shoulderRightPos - shoulderLeftPos).normalized;
+            // The head's forward direction is the normal to the shoulder line and head up
+            Vector3 headForward = -Vector3.Cross(shoulderDir, headUp).normalized;
+            Quaternion worldRotation = Quaternion.LookRotation(headForward, headUp);
 
             // Transform world rotation to local rotation for the bone
             if (unityBoneTransform.parent != null)
