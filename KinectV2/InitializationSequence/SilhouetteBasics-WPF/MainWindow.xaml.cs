@@ -27,6 +27,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         private const int DEPTH_WIDTH = 512;
         private const int DEPTH_HEIGHT = 424;
         private const float DEPTH_HORIZONTAL_FOV = 70.6f; // Kinect v2 depth camera horizontal FOV in degrees
+        private const int MORPHOLOGICAL_RADIUS = 2; // Radius for morphological cleanup operations
 
         /// <summary>
         /// Active Kinect sensor
@@ -72,6 +73,11 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         /// Intermediate storage for body index frame data
         /// </summary>
         private byte[] bodyIndexData = null;
+
+        /// <summary>
+        /// Intermediate storage for cleaned body index data (after morphological operations)
+        /// </summary>
+        private byte[] cleanedBodyIndexData = null;
 
         /// <summary>
         /// Intermediate storage for depth frame data
@@ -127,6 +133,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
                 // Allocate storage arrays
                 this.bodyIndexData = new byte[this.bodyIndexFrameDescription.Width * this.bodyIndexFrameDescription.Height];
+                this.cleanedBodyIndexData = new byte[this.bodyIndexFrameDescription.Width * this.bodyIndexFrameDescription.Height];
                 this.depthData = new ushort[this.depthFrameDescription.Width * this.depthFrameDescription.Height];
                 this.bodies = new Body[this.kinectSensor.BodyFrameSource.BodyCount];
                 this.silhouettePixels = new byte[this.bodyIndexFrameDescription.Width * this.bodyIndexFrameDescription.Height * 4]; // RGBA
@@ -355,6 +362,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         /// <summary>
         /// Processes body index data and converts it to a displayable bitmap
         /// BodyIndexData values: 0-5 = body pixels (different body IDs), 255 = background
+        /// Applies morphological cleanup to remove noise
         /// </summary>
         private void ProcessBodyIndexData()
         {
@@ -363,13 +371,17 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 return;
             }
 
-            // Convert body index data to RGBA pixels
+            // Apply morphological cleanup (opening: erosion followed by dilation)
+            // This removes small noise spots and smooths the silhouette
+            this.ApplyMorphologicalCleanup(this.bodyIndexData, this.cleanedBodyIndexData, MORPHOLOGICAL_RADIUS);
+
+            // Convert cleaned body index data to RGBA pixels
             // White = body (255, 255, 255, 255), Black = background (0, 0, 0, 255)
-            for (int i = 0; i < this.bodyIndexData.Length; i++)
+            for (int i = 0; i < this.cleanedBodyIndexData.Length; i++)
             {
                 int pixelIndex = i * 4; // RGBA = 4 bytes per pixel
 
-                if (this.bodyIndexData[i] != 255)
+                if (this.cleanedBodyIndexData[i] != 255)
                 {
                     // Body pixel - WHITE
                     this.silhouettePixels[pixelIndex] = 255;     // B
@@ -392,6 +404,139 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         }
 
         /// <summary>
+        /// Applies morphological opening (erosion followed by dilation) to clean up noise
+        /// Erosion removes small isolated pixels, dilation restores body shape
+        /// </summary>
+        /// <param name="input">Input body index data</param>
+        /// <param name="output">Output cleaned body index data</param>
+        /// <param name="radius">Morphological operation radius</param>
+        private void ApplyMorphologicalCleanup(byte[] input, byte[] output, int radius)
+        {
+            if (input == null || output == null || input.Length != output.Length)
+            {
+                return;
+            }
+
+            byte[] tempBuffer = new byte[input.Length];
+
+            // Step 1: Erosion - removes small noise spots
+            this.MorphologicalErosion(input, tempBuffer, radius);
+
+            // Step 2: Dilation - restores body shape after erosion
+            this.MorphologicalDilation(tempBuffer, output, radius);
+        }
+
+        /// <summary>
+        /// Performs morphological erosion operation
+        /// A pixel is kept (body) only if all pixels in its neighborhood are body pixels
+        /// This removes small isolated noise spots
+        /// </summary>
+        /// <param name="input">Input body index data</param>
+        /// <param name="output">Output eroded data</param>
+        /// <param name="radius">Erosion radius</param>
+        private void MorphologicalErosion(byte[] input, byte[] output, int radius)
+        {
+            for (int y = 0; y < DEPTH_HEIGHT; y++)
+            {
+                for (int x = 0; x < DEPTH_WIDTH; x++)
+                {
+                    int index = y * DEPTH_WIDTH + x;
+                    bool isBody = input[index] != 255; // true if body pixel
+
+                    // Check if all pixels in the neighborhood are body pixels
+                    if (isBody)
+                    {
+                        bool allNeighborsAreBody = true;
+
+                        for (int dy = -radius; dy <= radius && allNeighborsAreBody; dy++)
+                        {
+                            for (int dx = -radius; dx <= radius; dx++)
+                            {
+                                int nx = x + dx;
+                                int ny = y + dy;
+
+                                // Check bounds
+                                if (nx >= 0 && nx < DEPTH_WIDTH && ny >= 0 && ny < DEPTH_HEIGHT)
+                                {
+                                    int neighborIndex = ny * DEPTH_WIDTH + nx;
+                                    if (input[neighborIndex] == 255) // Background pixel found
+                                    {
+                                        allNeighborsAreBody = false;
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    // Outside bounds - treat as background
+                                    allNeighborsAreBody = false;
+                                    break;
+                                }
+                            }
+                        }
+
+                        output[index] = allNeighborsAreBody ? input[index] : (byte)255; // Keep body or set to background
+                    }
+                    else
+                    {
+                        output[index] = 255; // Background stays background
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Performs morphological dilation operation
+        /// A pixel becomes body if any pixel in its neighborhood is a body pixel
+        /// This restores body shape after erosion
+        /// </summary>
+        /// <param name="input">Input body index data</param>
+        /// <param name="output">Output dilated data</param>
+        /// <param name="radius">Dilation radius</param>
+        private void MorphologicalDilation(byte[] input, byte[] output, int radius)
+        {
+            for (int y = 0; y < DEPTH_HEIGHT; y++)
+            {
+                for (int x = 0; x < DEPTH_WIDTH; x++)
+                {
+                    int index = y * DEPTH_WIDTH + x;
+                    bool isBody = input[index] != 255; // true if body pixel
+
+                    // Check if any pixel in the neighborhood is a body pixel
+                    if (isBody)
+                    {
+                        output[index] = input[index]; // Body pixel stays body
+                    }
+                    else
+                    {
+                        bool hasBodyNeighbor = false;
+
+                        for (int dy = -radius; dy <= radius && !hasBodyNeighbor; dy++)
+                        {
+                            for (int dx = -radius; dx <= radius; dx++)
+                            {
+                                int nx = x + dx;
+                                int ny = y + dy;
+
+                                // Check bounds
+                                if (nx >= 0 && nx < DEPTH_WIDTH && ny >= 0 && ny < DEPTH_HEIGHT)
+                                {
+                                    int neighborIndex = ny * DEPTH_WIDTH + nx;
+                                    if (input[neighborIndex] != 255) // Body pixel found
+                                    {
+                                        hasBodyNeighbor = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        output[index] = hasBodyNeighbor ? (byte)0 : (byte)255; // Become body if neighbor is body, else stay background
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Renders silhouette pixels into the writeableBitmap
         /// </summary>
         private void RenderSilhouettePixels()
@@ -408,6 +553,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
         /// <summary>
         /// Updates body width measurements using skeleton joints and coordinate mapping
+        /// Uses cleaned body index data for more accurate measurements
         /// </summary>
         private void UpdateMeasurements()
         {
@@ -417,7 +563,10 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 return;
             }
 
-            if (this.bodyIndexData == null || this.depthData == null || this.coordinateMapper == null)
+            // Use cleaned body index data for measurements (after morphological cleanup)
+            byte[] measurementData = this.cleanedBodyIndexData != null ? this.cleanedBodyIndexData : this.bodyIndexData;
+
+            if (measurementData == null || this.depthData == null || this.coordinateMapper == null)
             {
                 return;
             }
@@ -452,6 +601,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         /// <summary>
         /// Measures the body width at a specific joint by scanning the silhouette horizontally.
         /// Uses CoordinateMapper to convert 3D joint position to 2D depth space coordinates.
+        /// Uses cleaned body index data for more accurate measurements.
         /// </summary>
         /// <param name="joint">The joint at which to measure width</param>
         /// <returns>Width in meters, or 0 if measurement failed</returns>
@@ -462,7 +612,10 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 return 0;
             }
 
-            if (this.bodyIndexData == null || this.depthData == null || this.coordinateMapper == null)
+            // Use cleaned body index data for measurements (after morphological cleanup)
+            byte[] measurementData = this.cleanedBodyIndexData != null ? this.cleanedBodyIndexData : this.bodyIndexData;
+
+            if (measurementData == null || this.depthData == null || this.coordinateMapper == null)
             {
                 return 0;
             }
@@ -484,7 +637,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             for (int x = centerX; x >= 0; x--)
             {
                 int index = centerY * DEPTH_WIDTH + x;
-                if (this.bodyIndexData[index] == 255) // Not a body pixel
+                if (measurementData[index] == 255) // Not a body pixel
                 {
                     leftEdge = x + 1;
                     break;
@@ -497,7 +650,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             for (int x = centerX; x < DEPTH_WIDTH; x++)
             {
                 int index = centerY * DEPTH_WIDTH + x;
-                if (this.bodyIndexData[index] == 255) // Not a body pixel
+                if (measurementData[index] == 255) // Not a body pixel
                 {
                     rightEdge = x - 1;
                     break;
