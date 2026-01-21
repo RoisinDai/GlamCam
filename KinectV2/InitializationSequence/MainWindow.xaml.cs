@@ -7,6 +7,7 @@
 namespace Microsoft.Samples.Kinect.SilhouetteBasics
 {
     using System;
+    using System.Collections.Generic;
     using System.ComponentModel;
     using System.Globalization;
     using System.IO;
@@ -619,6 +620,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
         /// <summary>
         /// Draws skeleton (joints and bones) on top of the silhouette bitmap
+        /// Also displays measurements next to each skeleton part
         /// </summary>
         private void DrawSkeletonOnBitmap()
         {
@@ -647,6 +649,9 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 }
             }
 
+            // Calculate body measurements for display
+            HumanoidMeasurements measurements = this.MeasureKinectUserBodyParts(this.trackedBody);
+
             // Draw bones first
             foreach (var bone in this.bones)
             {
@@ -664,12 +669,265 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 }
             }
 
+            // Draw measurements next to skeleton parts
+            this.DrawMeasurementsOnBitmap(jointPoints, measurements);
+
             // Update the bitmap with skeleton overlay
             this.silhouetteBitmap.WritePixels(
                 new Int32Rect(0, 0, this.silhouetteBitmap.PixelWidth, this.silhouetteBitmap.PixelHeight),
                 this.silhouettePixels,
                 this.silhouetteBitmap.PixelWidth * 4,
                 0);
+        }
+
+        /// <summary>
+        /// Draws measurement labels next to corresponding skeleton parts
+        /// </summary>
+        private void DrawMeasurementsOnBitmap(Dictionary<JointType, System.Windows.Point> jointPoints, HumanoidMeasurements measurements)
+        {
+            // Upper Arm measurements (draw near elbow joints)
+            if (jointPoints.ContainsKey(JointType.ElbowLeft) && measurements.upperArmLength > 0)
+            {
+                System.Windows.Point pos = jointPoints[JointType.ElbowLeft];
+                this.DrawTextOnBitmap((int)pos.X - 40, (int)pos.Y - 10, 
+                    string.Format(CultureInfo.CurrentCulture, "UA:{0:F2}m", measurements.upperArmLength));
+            }
+
+            // Lower Arm measurements (draw near wrist joints)
+            if (jointPoints.ContainsKey(JointType.WristLeft) && measurements.lowerArmLength > 0)
+            {
+                System.Windows.Point pos = jointPoints[JointType.WristLeft];
+                this.DrawTextOnBitmap((int)pos.X - 40, (int)pos.Y - 10,
+                    string.Format(CultureInfo.CurrentCulture, "LA:{0:F2}m", measurements.lowerArmLength));
+            }
+
+            // Upper Leg measurements (draw near knee joints)
+            if (jointPoints.ContainsKey(JointType.KneeLeft) && measurements.upperLegLength > 0)
+            {
+                System.Windows.Point pos = jointPoints[JointType.KneeLeft];
+                this.DrawTextOnBitmap((int)pos.X - 40, (int)pos.Y - 10,
+                    string.Format(CultureInfo.CurrentCulture, "UL:{0:F2}m", measurements.upperLegLength));
+            }
+
+            // Lower Leg measurements (draw near ankle joints)
+            if (jointPoints.ContainsKey(JointType.AnkleLeft) && measurements.lowerLegLength > 0)
+            {
+                System.Windows.Point pos = jointPoints[JointType.AnkleLeft];
+                this.DrawTextOnBitmap((int)pos.X - 40, (int)pos.Y - 10,
+                    string.Format(CultureInfo.CurrentCulture, "LL:{0:F2}m", measurements.lowerLegLength));
+            }
+
+            // Nape to Waist (draw near SpineShoulder)
+            if (jointPoints.ContainsKey(JointType.SpineShoulder) && measurements.napeToWaist > 0)
+            {
+                System.Windows.Point pos = jointPoints[JointType.SpineShoulder];
+                this.DrawTextOnBitmap((int)pos.X + 10, (int)pos.Y - 15,
+                    string.Format(CultureInfo.CurrentCulture, "NTW:{0:F2}m", measurements.napeToWaist));
+            }
+
+            // Shoulder Distance (draw near SpineShoulder, offset)
+            if (jointPoints.ContainsKey(JointType.SpineShoulder) && measurements.shoulderDist > 0)
+            {
+                System.Windows.Point pos = jointPoints[JointType.SpineShoulder];
+                this.DrawTextOnBitmap((int)pos.X + 10, (int)pos.Y + 5,
+                    string.Format(CultureInfo.CurrentCulture, "SD:{0:F2}m", measurements.shoulderDist));
+            }
+
+            // Waist to Hip (draw near SpineMid)
+            if (jointPoints.ContainsKey(JointType.SpineMid) && measurements.waistToHip > 0)
+            {
+                System.Windows.Point pos = jointPoints[JointType.SpineMid];
+                this.DrawTextOnBitmap((int)pos.X + 10, (int)pos.Y - 15,
+                    string.Format(CultureInfo.CurrentCulture, "WTH:{0:F2}m", measurements.waistToHip));
+            }
+
+            // Neck Height (draw near Neck joint)
+            if (jointPoints.ContainsKey(JointType.Neck) && measurements.neckHeight > 0)
+            {
+                System.Windows.Point pos = jointPoints[JointType.Neck];
+                this.DrawTextOnBitmap((int)pos.X + 10, (int)pos.Y - 10,
+                    string.Format(CultureInfo.CurrentCulture, "NH:{0:F2}m", measurements.neckHeight));
+            }
+
+            // Height (draw near Head)
+            if (jointPoints.ContainsKey(JointType.Head) && measurements.height > 0)
+            {
+                System.Windows.Point pos = jointPoints[JointType.Head];
+                this.DrawTextOnBitmap((int)pos.X - 30, (int)pos.Y - 20,
+                    string.Format(CultureInfo.CurrentCulture, "H:{0:F2}m", measurements.height));
+            }
+        }
+
+        /// <summary>
+        /// Draws text on the bitmap at the specified position
+        /// Uses a simple bitmap font rendering
+        /// </summary>
+        private void DrawTextOnBitmap(int x, int y, string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            // Draw background rectangle for text readability
+            int textWidth = text.Length * 6 + 4; // Approximate width
+            int textHeight = 10;
+            this.DrawFilledRectangle(x - 2, y - 2, textWidth, textHeight);
+
+            // Draw each character
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+                int charX = x + (i * 6);
+                this.DrawCharOnBitmap(charX, y, c);
+            }
+        }
+
+        /// <summary>
+        /// Draws a filled rectangle on the bitmap (for text background)
+        /// </summary>
+        private void DrawFilledRectangle(int x, int y, int width, int height)
+        {
+            // Semi-transparent dark background for text
+            byte r = 0;
+            byte g = 0;
+            byte b = 0;
+            byte a = 200; // Semi-transparent
+
+            for (int py = y; py < y + height && py < DEPTH_HEIGHT; py++)
+            {
+                if (py < 0) continue;
+                for (int px = x; px < x + width && px < DEPTH_WIDTH; px++)
+                {
+                    if (px < 0) continue;
+                    int index = (py * DEPTH_WIDTH + px) * 4;
+                    if (index >= 0 && index + 3 < this.silhouettePixels.Length)
+                    {
+                        this.silhouettePixels[index] = b;         // B
+                        this.silhouettePixels[index + 1] = g;     // G
+                        this.silhouettePixels[index + 2] = r;     // R
+                        this.silhouettePixels[index + 3] = a;     // A
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Draws a single character on the bitmap using simple pattern
+        /// This is a simplified implementation - you may want to use a proper font rendering
+        /// </summary>
+        private void DrawCharOnBitmap(int x, int y, char c)
+        {
+            // Simple 5x8 pixel font patterns for common characters
+            // For simplicity, we'll draw a basic representation
+            // White text color
+            byte r = 255;
+            byte g = 255;
+            byte b = 255;
+
+            // Draw character as a simple pattern (basic implementation)
+            // This draws a simplified representation - for better quality, use a proper font bitmap
+            switch (c)
+            {
+                case '0': case 'O': DrawPattern(x, y, "01110,10001,10001,10001,10001,10001,01110"); break;
+                case '1': DrawPattern(x, y, "00100,01100,00100,00100,00100,00100,01110"); break;
+                case '2': DrawPattern(x, y, "01110,10001,00001,00110,01000,10000,11111"); break;
+                case '3': DrawPattern(x, y, "01110,10001,00001,01110,00001,10001,01110"); break;
+                case '4': DrawPattern(x, y, "00010,00110,01010,10010,11111,00010,00010"); break;
+                case '5': DrawPattern(x, y, "11111,10000,10000,11110,00001,10001,01110"); break;
+                case '6': DrawPattern(x, y, "01110,10001,10000,11110,10001,10001,01110"); break;
+                case '7': DrawPattern(x, y, "11111,00001,00010,00100,01000,01000,01000"); break;
+                case '8': DrawPattern(x, y, "01110,10001,10001,01110,10001,10001,01110"); break;
+                case '9': DrawPattern(x, y, "01110,10001,10001,01111,00001,10001,01110"); break;
+                case '.': DrawPattern(x, y, "00000,00000,00000,00000,00000,00000,00010"); break;
+                case '-': DrawPattern(x, y, "00000,00000,00000,11111,00000,00000,00000"); break;
+                case ':': DrawPattern(x, y, "00000,00100,00000,00000,00000,00100,00000"); break;
+                case 'A': case 'a': DrawPattern(x, y, "00100,01010,10001,11111,10001,10001,10001"); break;
+                case 'B': case 'b': DrawPattern(x, y, "11110,10001,10001,11110,10001,10001,11110"); break;
+                case 'C': case 'c': DrawPattern(x, y, "01110,10001,10000,10000,10000,10001,01110"); break;
+                case 'D': case 'd': DrawPattern(x, y, "11110,10001,10001,10001,10001,10001,11110"); break;
+                case 'E': case 'e': DrawPattern(x, y, "11111,10000,10000,11110,10000,10000,11111"); break;
+                case 'F': case 'f': DrawPattern(x, y, "11111,10000,10000,11110,10000,10000,10000"); break;
+                case 'G': case 'g': DrawPattern(x, y, "01110,10001,10000,10111,10001,10001,01110"); break;
+                case 'H': case 'h': DrawPattern(x, y, "10001,10001,10001,11111,10001,10001,10001"); break;
+                case 'I': case 'i': DrawPattern(x, y, "01110,00100,00100,00100,00100,00100,01110"); break;
+                case 'J': case 'j': DrawPattern(x, y, "00111,00010,00010,00010,00010,10010,01100"); break;
+                case 'K': case 'k': DrawPattern(x, y, "10001,10010,10100,11000,10100,10010,10001"); break;
+                case 'L': case 'l': DrawPattern(x, y, "10000,10000,10000,10000,10000,10000,11111"); break;
+                case 'M': case 'm': DrawPattern(x, y, "10001,11011,10101,10001,10001,10001,10001"); break;
+                case 'N': case 'n': DrawPattern(x, y, "10001,11001,10101,10011,10001,10001,10001"); break;
+                case 'O': case 'o': DrawPattern(x, y, "01110,10001,10001,10001,10001,10001,01110"); break;
+                case 'P': case 'p': DrawPattern(x, y, "11110,10001,10001,11110,10000,10000,10000"); break;
+                case 'Q': case 'q': DrawPattern(x, y, "01110,10001,10001,10001,10101,10010,01101"); break;
+                case 'R': case 'r': DrawPattern(x, y, "11110,10001,10001,11110,10100,10010,10001"); break;
+                case 'S': case 's': DrawPattern(x, y, "01111,10000,10000,01110,00001,00001,11110"); break;
+                case 'T': case 't': DrawPattern(x, y, "11111,00100,00100,00100,00100,00100,00100"); break;
+                case 'U': case 'u': DrawPattern(x, y, "10001,10001,10001,10001,10001,10001,01110"); break;
+                case 'V': case 'v': DrawPattern(x, y, "10001,10001,10001,10001,01010,01010,00100"); break;
+                case 'W': case 'w': DrawPattern(x, y, "10001,10001,10001,10001,10101,11011,10001"); break;
+                case 'X': case 'x': DrawPattern(x, y, "10001,01010,00100,00100,00100,01010,10001"); break;
+                case 'Y': case 'y': DrawPattern(x, y, "10001,10001,01010,00100,00100,00100,00100"); break;
+                case 'Z': case 'z': DrawPattern(x, y, "11111,00001,00010,00100,01000,10000,11111"); break;
+                default:
+                    // Draw a simple rectangle for unknown characters
+                    for (int py = y; py < y + 7 && py < DEPTH_HEIGHT; py++)
+                    {
+                        if (py >= 0)
+                        {
+                            for (int px = x; px < x + 5 && px < DEPTH_WIDTH; px++)
+                            {
+                                if (px >= 0 && ((px - x) == 0 || (px - x) == 4 || (py - y) == 0 || (py - y) == 6))
+                                {
+                                    int index = (py * DEPTH_WIDTH + px) * 4;
+                                    if (index >= 0 && index + 3 < this.silhouettePixels.Length)
+                                    {
+                                        this.silhouettePixels[index] = b;
+                                        this.silhouettePixels[index + 1] = g;
+                                        this.silhouettePixels[index + 2] = r;
+                                        this.silhouettePixels[index + 3] = 255;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Draws a character pattern on the bitmap
+        /// Pattern format: "11111,10001,..." where 1 = pixel on, 0 = pixel off, comma = new row
+        /// </summary>
+        private void DrawPattern(int x, int y, string pattern)
+        {
+            byte r = 255;
+            byte g = 255;
+            byte b = 255;
+
+            string[] rows = pattern.Split(',');
+            for (int row = 0; row < rows.Length; row++)
+            {
+                string rowData = rows[row];
+                for (int col = 0; col < rowData.Length && col < 5; col++)
+                {
+                    if (rowData[col] == '1')
+                    {
+                        int px = x + col;
+                        int py = y + row;
+                        if (px >= 0 && px < DEPTH_WIDTH && py >= 0 && py < DEPTH_HEIGHT)
+                        {
+                            int index = (py * DEPTH_WIDTH + px) * 4;
+                            if (index >= 0 && index + 3 < this.silhouettePixels.Length)
+                            {
+                                this.silhouettePixels[index] = b;
+                                this.silhouettePixels[index + 1] = g;
+                                this.silhouettePixels[index + 2] = r;
+                                this.silhouettePixels[index + 3] = 255;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         /// <summary>
