@@ -59,7 +59,19 @@ public class AvatarSpawner : MonoBehaviour
         // For now, move the model to the origin but we can look to change this if needed
         modelInstance.transform.position = Vector3.zero;
 
-        Debug.Log($"[AvatarSpawner] Spawned model instance: {modelInstance.name}");
+        // Disable all child meshes
+        var meshRenderers = modelInstance.GetComponentsInChildren<MeshRenderer>(true);
+        foreach (var meshRenderer in meshRenderers)
+        {
+            meshRenderer.gameObject.SetActive(false);
+        }
+        var skinnedMeshRenderers = modelInstance.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
+        {
+            skinnedMeshRenderer.gameObject.SetActive(false);
+        }
+
+        Debug.Log($"[AvatarSpawner] Spawned model instance: {modelInstance.name} (all child meshes set inactive)");
         return modelInstance;
     }
 
