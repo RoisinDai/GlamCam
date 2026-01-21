@@ -318,8 +318,47 @@ public class AvatarController : MonoBehaviour
     {
         if (body == null) return;
 
+        ApplySpineBoneRotations(body);
         ApplyLimbBoneRotations(body);
         ApplyHeadBoneRotation(body);
+    }
+
+    /// <summary>
+    /// Applies rotations to spine bones (Hips, Spine, Chest) to enable bending.
+    /// </summary>
+    private void ApplySpineBoneRotations(Kinect.Body body)
+    {
+        // Calculate shoulder orientation for forward direction
+        Vector3 shoulderLeft = GetJointPosition(body.Joints[Kinect.JointType.ShoulderLeft]);
+        Vector3 shoulderRight = GetJointPosition(body.Joints[Kinect.JointType.ShoulderRight]);
+        Vector3 shoulderDir = (shoulderRight - shoulderLeft).normalized;
+
+        var spineBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone)>
+        {
+            (Kinect.JointType.SpineBase, Kinect.JointType.SpineMid, HumanBodyBones.Hips),
+            (Kinect.JointType.SpineMid, Kinect.JointType.SpineShoulder, HumanBodyBones.Spine),
+            (Kinect.JointType.SpineShoulder, Kinect.JointType.Neck, HumanBodyBones.Chest),
+        };
+
+        foreach (var (Start, End, UnityBone) in spineBoneMapping)
+        {
+            Transform boneTransform = animator.GetBoneTransform(UnityBone);
+            if (boneTransform == null) continue;
+
+            // Get joint positions in Unity space
+            Vector3 startPos = GetJointPosition(body.Joints[Start]);
+            Vector3 endPos = GetJointPosition(body.Joints[End]);
+            Vector3 boneDirection = (endPos - startPos).normalized;
+
+            // Forward direction is perpendicular to shoulder line
+            Vector3 forward = -Vector3.Cross(shoulderDir, Vector3.up).normalized;
+
+            // Create rotation: bone points up, forward direction based on shoulders
+            Quaternion worldRotation = Quaternion.LookRotation(forward, boneDirection);
+
+            // Convert to local rotation
+            ApplyLocalRotation(boneTransform, worldRotation);
+        }
     }
 
     /// <summary>
