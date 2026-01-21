@@ -117,6 +117,21 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         private byte[] silhouettePixels = null;
 
         /// <summary>
+        /// Bone connections defining the skeleton structure
+        /// </summary>
+        private List<Tuple<JointType, JointType>> bones = null;
+
+        /// <summary>
+        /// Joint radius for drawing (in pixels)
+        /// </summary>
+        private const int JOINT_RADIUS = 4;
+
+        /// <summary>
+        /// Bone line thickness (in pixels)
+        /// </summary>
+        private const int BONE_THICKNESS = 3;
+
+        /// <summary>
         /// Current status text to display
         /// </summary>
         private string statusText = null;
@@ -154,6 +169,34 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 this.depthData = new ushort[this.depthFrameDescription.Width * this.depthFrameDescription.Height];
                 this.bodies = new Body[this.kinectSensor.BodyFrameSource.BodyCount];
                 this.silhouettePixels = new byte[this.bodyIndexFrameDescription.Width * this.bodyIndexFrameDescription.Height * 4]; // RGBA
+
+                // Define bone connections (skeleton structure)
+                this.bones = new List<Tuple<JointType, JointType>>();
+                // Torso
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.Head, JointType.Neck));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.Neck, JointType.SpineShoulder));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineShoulder, JointType.SpineMid));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineMid, JointType.SpineBase));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineShoulder, JointType.ShoulderRight));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineShoulder, JointType.ShoulderLeft));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineBase, JointType.HipRight));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineBase, JointType.HipLeft));
+                // Right Arm
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.ShoulderRight, JointType.ElbowRight));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.ElbowRight, JointType.WristRight));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.WristRight, JointType.HandRight));
+                // Left Arm
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.ElbowLeft));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.ElbowLeft, JointType.WristLeft));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.WristLeft, JointType.HandLeft));
+                // Right Leg
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.HipRight, JointType.KneeRight));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.KneeRight, JointType.AnkleRight));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.AnkleRight, JointType.FootRight));
+                // Left Leg
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.HipLeft, JointType.KneeLeft));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.KneeLeft, JointType.AnkleLeft));
+                this.bones.Add(new Tuple<JointType, JointType>(JointType.AnkleLeft, JointType.FootLeft));
 
                 // Create bitmap for silhouette display (RGBA format)
                 this.silhouetteBitmap = new WriteableBitmap(
@@ -418,6 +461,12 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
             // Render pixels to bitmap
             this.RenderSilhouettePixels();
+
+            // Draw skeleton overlay on top of silhouette
+            if (this.trackedBody != null && this.trackedBody.IsTracked)
+            {
+                this.DrawSkeletonOnBitmap();
+            }
         }
 
         /// <summary>
@@ -565,6 +614,180 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                     this.silhouettePixels,
                     this.silhouetteBitmap.PixelWidth * 4, // stride (4 bytes per pixel for BGRA32)
                     0);
+            }
+        }
+
+        /// <summary>
+        /// Draws skeleton (joints and bones) on top of the silhouette bitmap
+        /// </summary>
+        private void DrawSkeletonOnBitmap()
+        {
+            if (this.trackedBody == null || !this.trackedBody.IsTracked || this.coordinateMapper == null)
+            {
+                return;
+            }
+
+            var joints = this.trackedBody.Joints;
+            Dictionary<JointType, System.Windows.Point> jointPoints = new Dictionary<JointType, System.Windows.Point>();
+
+            // Map all joints from 3D camera space to 2D depth space
+            foreach (JointType jointType in joints.Keys)
+            {
+                var joint = joints[jointType];
+                if (joint.TrackingState != TrackingState.NotTracked)
+                {
+                    DepthSpacePoint depthPoint = this.coordinateMapper.MapCameraPointToDepthSpace(joint.Position);
+                    
+                    // Only store if within bounds
+                    if (depthPoint.X >= 0 && depthPoint.X < DEPTH_WIDTH &&
+                        depthPoint.Y >= 0 && depthPoint.Y < DEPTH_HEIGHT)
+                    {
+                        jointPoints[jointType] = new System.Windows.Point(depthPoint.X, depthPoint.Y);
+                    }
+                }
+            }
+
+            // Draw bones first
+            foreach (var bone in this.bones)
+            {
+                this.DrawBoneOnBitmap(joints, jointPoints, bone.Item1, bone.Item2);
+            }
+
+            // Draw joints on top
+            foreach (JointType jointType in joints.Keys)
+            {
+                if (jointPoints.ContainsKey(jointType))
+                {
+                    var joint = joints[jointType];
+                    bool isTracked = joint.TrackingState == TrackingState.Tracked;
+                    this.DrawJointOnBitmap(jointPoints[jointType], isTracked);
+                }
+            }
+
+            // Update the bitmap with skeleton overlay
+            this.silhouetteBitmap.WritePixels(
+                new Int32Rect(0, 0, this.silhouetteBitmap.PixelWidth, this.silhouetteBitmap.PixelHeight),
+                this.silhouettePixels,
+                this.silhouetteBitmap.PixelWidth * 4,
+                0);
+        }
+
+        /// <summary>
+        /// Draws a bone (line) between two joints on the bitmap
+        /// </summary>
+        private void DrawBoneOnBitmap(IReadOnlyDictionary<JointType, Joint> joints, Dictionary<JointType, System.Windows.Point> jointPoints, JointType jointType0, JointType jointType1)
+        {
+            if (!jointPoints.ContainsKey(jointType0) || !jointPoints.ContainsKey(jointType1))
+            {
+                return;
+            }
+
+            var joint0 = joints[jointType0];
+            var joint1 = joints[jointType1];
+
+            // Only draw if at least one joint is tracked
+            if (joint0.TrackingState == TrackingState.NotTracked && joint1.TrackingState == TrackingState.NotTracked)
+            {
+                return;
+            }
+
+            System.Windows.Point pt0 = jointPoints[jointType0];
+            System.Windows.Point pt1 = jointPoints[jointType1];
+
+            // Draw line using Bresenham's line algorithm
+            this.DrawLineOnBitmap((int)pt0.X, (int)pt0.Y, (int)pt1.X, (int)pt1.Y, BONE_THICKNESS);
+        }
+
+        /// <summary>
+        /// Draws a joint (circle) on the bitmap
+        /// Green = Tracked, Yellow = Inferred
+        /// </summary>
+        private void DrawJointOnBitmap(System.Windows.Point point, bool isTracked)
+        {
+            int x = (int)point.X;
+            int y = (int)point.Y;
+
+            // Color: Green for tracked, Yellow for inferred
+            byte r = isTracked ? (byte)0 : (byte)255;      // Red component
+            byte g = isTracked ? (byte)255 : (byte)255;    // Green component
+            byte b = isTracked ? (byte)0 : (byte)0;        // Blue component
+
+            // Draw filled circle
+            for (int dy = -JOINT_RADIUS; dy <= JOINT_RADIUS; dy++)
+            {
+                for (int dx = -JOINT_RADIUS; dx <= JOINT_RADIUS; dx++)
+                {
+                    if (dx * dx + dy * dy <= JOINT_RADIUS * JOINT_RADIUS)
+                    {
+                        int px = x + dx;
+                        int py = y + dy;
+
+                        if (px >= 0 && px < DEPTH_WIDTH && py >= 0 && py < DEPTH_HEIGHT)
+                        {
+                            int index = (py * DEPTH_WIDTH + px) * 4;
+                            this.silhouettePixels[index] = b;         // B
+                            this.silhouettePixels[index + 1] = g;     // G
+                            this.silhouettePixels[index + 2] = r;     // R
+                            this.silhouettePixels[index + 3] = 255;   // A
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Draws a line on the bitmap using Bresenham's line algorithm
+        /// </summary>
+        private void DrawLineOnBitmap(int x0, int y0, int x1, int y1, int thickness)
+        {
+            // Color: Cyan for bones
+            byte r = 0;
+            byte g = 255;
+            byte b = 255;
+
+            int dx = Math.Abs(x1 - x0);
+            int dy = Math.Abs(y1 - y0);
+            int sx = x0 < x1 ? 1 : -1;
+            int sy = y0 < y1 ? 1 : -1;
+            int err = dx - dy;
+
+            int x = x0;
+            int y = y0;
+
+            while (true)
+            {
+                // Draw pixel with thickness (draw surrounding pixels)
+                for (int tx = -thickness / 2; tx <= thickness / 2; tx++)
+                {
+                    for (int ty = -thickness / 2; ty <= thickness / 2; ty++)
+                    {
+                        int px = x + tx;
+                        int py = y + ty;
+
+                        if (px >= 0 && px < DEPTH_WIDTH && py >= 0 && py < DEPTH_HEIGHT)
+                        {
+                            int index = (py * DEPTH_WIDTH + px) * 4;
+                            this.silhouettePixels[index] = b;         // B
+                            this.silhouettePixels[index + 1] = g;     // G
+                            this.silhouettePixels[index + 2] = r;     // R
+                            this.silhouettePixels[index + 3] = 255;   // A
+                        }
+                    }
+                }
+
+                if (x == x1 && y == y1) break;
+
+                int e2 = 2 * err;
+                if (e2 > -dy)
+                {
+                    err -= dy;
+                    x += sx;
+                }
+                if (e2 < dx)
+                {
+                    err += dx;
+                    y += sy;
+                }
             }
         }
 
