@@ -11,10 +11,27 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
     using System.Globalization;
     using System.IO;
     using System.Linq;
+    using System.Text;
     using System.Windows;
     using System.Windows.Media;
     using System.Windows.Media.Imaging;
     using Microsoft.Kinect;
+
+    /// <summary>
+    /// Container class for body measurements from skeleton joints
+    /// </summary>
+    class HumanoidMeasurements
+    {
+        public double height;
+        public double upperArmLength; // Shoulder to elbow
+        public double lowerArmLength; // Elbow to wrist
+        public double upperLegLength; // Hip to knee
+        public double lowerLegLength; // Knee to foot (ankle)
+        public double napeToWaist;    // SpineShoulder to SpineMid
+        public double shoulderDist;   // Avg(SpineShoulder to ShoulderLeft/Right)
+        public double waistToHip;     // SpineBase to SpineMid
+        public double neckHeight;     // Head to Neck
+    }
 
     /// <summary>
     /// Interaction logic for MainWindow
@@ -554,6 +571,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         /// <summary>
         /// Updates body width measurements using skeleton joints and coordinate mapping
         /// Uses cleaned body index data for more accurate measurements
+        /// Also calculates all body part measurements from skeleton
         /// </summary>
         private void UpdateMeasurements()
         {
@@ -563,39 +581,177 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 return;
             }
 
-            // Use cleaned body index data for measurements (after morphological cleanup)
+            // Calculate all body part measurements from skeleton
+            HumanoidMeasurements measurements = this.MeasureKinectUserBodyParts(this.trackedBody);
+
+            // Use cleaned body index data for width measurement (after morphological cleanup)
             byte[] measurementData = this.cleanedBodyIndexData != null ? this.cleanedBodyIndexData : this.bodyIndexData;
 
-            if (measurementData == null || this.depthData == null || this.coordinateMapper == null)
+            double widthInMeters = 0;
+            if (measurementData != null && this.depthData != null && this.coordinateMapper != null)
             {
-                return;
+                // Get SpineMid joint for width measurement
+                var spineMidJoint = this.trackedBody.Joints[JointType.SpineMid];
+
+                if (spineMidJoint.TrackingState != TrackingState.NotTracked)
+                {
+                    // Measure width at SpineMid using silhouette
+                    widthInMeters = this.MeasureWidthAtJoint(spineMidJoint);
+                }
             }
 
-            // Get SpineMid joint for width measurement
-            var spineMidJoint = this.trackedBody.Joints[JointType.SpineMid];
-
-            if (spineMidJoint.TrackingState == TrackingState.NotTracked)
-            {
-                this.MeasurementText.Text = "Joint not tracked";
-                return;
-            }
-
-            // Measure width at SpineMid
-            double widthInMeters = this.MeasureWidthAtJoint(spineMidJoint);
-
+            // Display all measurements
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Height: {0:F3} m ({1:F1} cm)", measurements.height, measurements.height * 100));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", measurements.upperArmLength, measurements.lowerArmLength));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", measurements.upperLegLength, measurements.lowerLegLength));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Nape to Waist: {0:F3} m | Shoulder Dist: {1:F3} m", measurements.napeToWaist, measurements.shoulderDist));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Waist to Hip: {0:F3} m | Neck Height: {1:F3} m", measurements.waistToHip, measurements.neckHeight));
+            
             if (widthInMeters > 0)
             {
-                // Display measurement
-                this.MeasurementText.Text = string.Format(
-                    CultureInfo.CurrentCulture,
-                    "Body Width at SpineMid: {0:F3} meters ({1:F1} cm)",
-                    widthInMeters,
-                    widthInMeters * 100);
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "SpineMid Width (from silhouette): {0:F3} m ({1:F1} cm)", widthInMeters, widthInMeters * 100));
             }
-            else
+
+            this.MeasurementText.Text = sb.ToString();
+        }
+
+        /// <summary>
+        /// Measures all body parts from skeleton joints (similar to Unity AvatarController)
+        /// </summary>
+        /// <param name="body">The tracked body</param>
+        /// <returns>HumanoidMeasurements object with all measurements in meters</returns>
+        private HumanoidMeasurements MeasureKinectUserBodyParts(Body body)
+        {
+            HumanoidMeasurements measurements = new HumanoidMeasurements();
+            var joints = body.Joints;
+
+            // Height: Head to average of feet
+            var headJoint = joints[JointType.Head];
+            var footLeftJoint = joints[JointType.FootLeft];
+            var footRightJoint = joints[JointType.FootRight];
+
+            if (headJoint.TrackingState != TrackingState.NotTracked &&
+                footLeftJoint.TrackingState != TrackingState.NotTracked &&
+                footRightJoint.TrackingState != TrackingState.NotTracked)
             {
-                this.MeasurementText.Text = "Measurement unavailable";
+                double headY = headJoint.Position.Y;
+                double avgFootY = (footLeftJoint.Position.Y + footRightJoint.Position.Y) * 0.5;
+                measurements.height = headY - avgFootY;
             }
+
+            // Nape to Waist: SpineShoulder to SpineMid
+            var spineShoulderJoint = joints[JointType.SpineShoulder];
+            var spineMidJoint = joints[JointType.SpineMid];
+            if (spineShoulderJoint.TrackingState != TrackingState.NotTracked &&
+                spineMidJoint.TrackingState != TrackingState.NotTracked)
+            {
+                measurements.napeToWaist = Distance3D(
+                    spineShoulderJoint.Position,
+                    spineMidJoint.Position);
+            }
+
+            // Shoulder Distance: Average of distances from SpineShoulder to ShoulderLeft/Right
+            var shoulderLeftJoint = joints[JointType.ShoulderLeft];
+            var shoulderRightJoint = joints[JointType.ShoulderRight];
+            if (spineShoulderJoint.TrackingState != TrackingState.NotTracked &&
+                shoulderLeftJoint.TrackingState != TrackingState.NotTracked &&
+                shoulderRightJoint.TrackingState != TrackingState.NotTracked)
+            {
+                double distLeft = Distance3D(spineShoulderJoint.Position, shoulderLeftJoint.Position);
+                double distRight = Distance3D(spineShoulderJoint.Position, shoulderRightJoint.Position);
+                measurements.shoulderDist = (distLeft + distRight) * 0.5;
+            }
+
+            // Waist to Hip: SpineBase to SpineMid
+            var spineBaseJoint = joints[JointType.SpineBase];
+            if (spineBaseJoint.TrackingState != TrackingState.NotTracked &&
+                spineMidJoint.TrackingState != TrackingState.NotTracked)
+            {
+                measurements.waistToHip = Distance3D(
+                    spineBaseJoint.Position,
+                    spineMidJoint.Position);
+            }
+
+            // Neck Height: Head to Neck
+            var neckJoint = joints[JointType.Neck];
+            if (headJoint.TrackingState != TrackingState.NotTracked &&
+                neckJoint.TrackingState != TrackingState.NotTracked)
+            {
+                measurements.neckHeight = Distance3D(
+                    headJoint.Position,
+                    neckJoint.Position);
+            }
+
+            // Upper Arm Length: Shoulder to Elbow (average of left and right)
+            var elbowLeftJoint = joints[JointType.ElbowLeft];
+            var elbowRightJoint = joints[JointType.ElbowRight];
+            if (shoulderLeftJoint.TrackingState != TrackingState.NotTracked &&
+                elbowLeftJoint.TrackingState != TrackingState.NotTracked &&
+                shoulderRightJoint.TrackingState != TrackingState.NotTracked &&
+                elbowRightJoint.TrackingState != TrackingState.NotTracked)
+            {
+                double upperArmLeft = Distance3D(shoulderLeftJoint.Position, elbowLeftJoint.Position);
+                double upperArmRight = Distance3D(shoulderRightJoint.Position, elbowRightJoint.Position);
+                measurements.upperArmLength = (upperArmLeft + upperArmRight) * 0.5;
+            }
+
+            // Lower Arm Length: Elbow to Wrist (average of left and right)
+            var wristLeftJoint = joints[JointType.WristLeft];
+            var wristRightJoint = joints[JointType.WristRight];
+            if (elbowLeftJoint.TrackingState != TrackingState.NotTracked &&
+                wristLeftJoint.TrackingState != TrackingState.NotTracked &&
+                elbowRightJoint.TrackingState != TrackingState.NotTracked &&
+                wristRightJoint.TrackingState != TrackingState.NotTracked)
+            {
+                double lowerArmLeft = Distance3D(elbowLeftJoint.Position, wristLeftJoint.Position);
+                double lowerArmRight = Distance3D(elbowRightJoint.Position, wristRightJoint.Position);
+                measurements.lowerArmLength = (lowerArmLeft + lowerArmRight) * 0.5;
+            }
+
+            // Upper Leg Length: Hip to Knee (average of left and right)
+            var hipLeftJoint = joints[JointType.HipLeft];
+            var hipRightJoint = joints[JointType.HipRight];
+            var kneeLeftJoint = joints[JointType.KneeLeft];
+            var kneeRightJoint = joints[JointType.KneeRight];
+            if (hipLeftJoint.TrackingState != TrackingState.NotTracked &&
+                kneeLeftJoint.TrackingState != TrackingState.NotTracked &&
+                hipRightJoint.TrackingState != TrackingState.NotTracked &&
+                kneeRightJoint.TrackingState != TrackingState.NotTracked)
+            {
+                double upperLegLeft = Distance3D(hipLeftJoint.Position, kneeLeftJoint.Position);
+                double upperLegRight = Distance3D(hipRightJoint.Position, kneeRightJoint.Position);
+                measurements.upperLegLength = (upperLegLeft + upperLegRight) * 0.5;
+            }
+
+            // Lower Leg Length: Knee to Ankle (average of left and right)
+            var ankleLeftJoint = joints[JointType.AnkleLeft];
+            var ankleRightJoint = joints[JointType.AnkleRight];
+            if (kneeLeftJoint.TrackingState != TrackingState.NotTracked &&
+                ankleLeftJoint.TrackingState != TrackingState.NotTracked &&
+                kneeRightJoint.TrackingState != TrackingState.NotTracked &&
+                ankleRightJoint.TrackingState != TrackingState.NotTracked)
+            {
+                double lowerLegLeft = Distance3D(kneeLeftJoint.Position, ankleLeftJoint.Position);
+                double lowerLegRight = Distance3D(kneeRightJoint.Position, ankleRightJoint.Position);
+                measurements.lowerLegLength = (lowerLegLeft + lowerLegRight) * 0.5;
+            }
+
+            return measurements;
+        }
+
+        /// <summary>
+        /// Calculates 3D Euclidean distance between two CameraSpacePoints
+        /// </summary>
+        /// <param name="p1">First point</param>
+        /// <param name="p2">Second point</param>
+        /// <returns>Distance in meters</returns>
+        private double Distance3D(CameraSpacePoint p1, CameraSpacePoint p2)
+        {
+            double dx = p1.X - p2.X;
+            double dy = p1.Y - p2.Y;
+            double dz = p1.Z - p2.Z;
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
         }
 
         /// <summary>
