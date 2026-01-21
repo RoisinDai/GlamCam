@@ -119,8 +119,7 @@ public class AvatarController : MonoBehaviour
         Vector3 footL = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootLeft]);
         Vector3 footR = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootRight]);
 
-        _KinectUserMeasurements.height =
-            head.y - ((footL.y + footR.y) * 0.5f);
+        _KinectUserMeasurements.height = head.y - ((footL.y + footR.y) * 0.5f);
 
         // MeasureKinectUserBodyParts(trackedBody);
         // Print all measurements (in meters)
@@ -177,70 +176,64 @@ public class AvatarController : MonoBehaviour
     {
         var joints = body.Joints;
 
-        // Nape to Waist: SpineShoulder to SpineMid
-        Vector3 spineShoulder = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineShoulder]);
-        Vector3 spineMid = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineMid]);
-        _KinectUserMeasurements.napeToWaist = Vector3.Distance(spineShoulder, spineMid);
+        // Torso measurements
+        _KinectUserMeasurements.napeToWaist = MeasureDistance(joints, Kinect.JointType.SpineShoulder, Kinect.JointType.SpineMid);
+        _KinectUserMeasurements.waistToHip = MeasureDistance(joints, Kinect.JointType.SpineBase, Kinect.JointType.SpineMid);
+        _KinectUserMeasurements.neckHeight = MeasureDistance(joints, Kinect.JointType.Head, Kinect.JointType.Neck);
+        _KinectUserMeasurements.shoulderDist = MeasureAverageShoulderDistance(joints);
 
-        // Shoulder Distance: Avg(SpineShoulder to ShoulderLeft/Right)
+        // Limb measurements
+        _KinectUserMeasurements.upperArmLength = MeasureAverageBilateralDistance(joints, 
+            Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft,
+            Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight);
+        
+        _KinectUserMeasurements.lowerArmLength = MeasureAverageBilateralDistance(joints,
+            Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft,
+            Kinect.JointType.ElbowRight, Kinect.JointType.WristRight);
+        
+        _KinectUserMeasurements.upperLegLength = MeasureAverageBilateralDistance(joints,
+            Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft,
+            Kinect.JointType.HipRight, Kinect.JointType.KneeRight);
+        
+        _KinectUserMeasurements.lowerLegLength = MeasureAverageBilateralDistance(joints,
+            Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft,
+            Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight);
+    }
+
+    /// <summary>
+    /// Measures the distance between two joints.
+    /// </summary>
+    private float MeasureDistance(Windows.Kinect.JointDictionary joints, Kinect.JointType jointA, Kinect.JointType jointB)
+    {
+        Vector3 posA = BodySourceView.GetVector3FromJoint(joints[jointA]);
+        Vector3 posB = BodySourceView.GetVector3FromJoint(joints[jointB]);
+        return Vector3.Distance(posA, posB);
+    }
+
+    /// <summary>
+    /// Measures the average distance between bilateral (left/right) joint pairs.
+    /// </summary>
+    private float MeasureAverageBilateralDistance(Windows.Kinect.JointDictionary joints,
+        Kinect.JointType leftStart, Kinect.JointType leftEnd,
+        Kinect.JointType rightStart, Kinect.JointType rightEnd)
+    {
+        float leftDistance = MeasureDistance(joints, leftStart, leftEnd);
+        float rightDistance = MeasureDistance(joints, rightStart, rightEnd);
+        return (leftDistance + rightDistance) * 0.5f;
+    }
+
+    /// <summary>
+    /// Measures the average distance from SpineShoulder to both shoulders.
+    /// </summary>
+    private float MeasureAverageShoulderDistance(Windows.Kinect.JointDictionary joints)
+    {
+        Vector3 spineShoulder = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineShoulder]);
         Vector3 shoulderLeft = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ShoulderLeft]);
         Vector3 shoulderRight = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ShoulderRight]);
+        
         float distLeft = Vector3.Distance(spineShoulder, shoulderLeft);
         float distRight = Vector3.Distance(spineShoulder, shoulderRight);
-        _KinectUserMeasurements.shoulderDist = (distLeft + distRight) * 0.5f;
-
-        // Waist to Hip: SpineBase to SpineMid
-        Vector3 spineBase = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
-        _KinectUserMeasurements.waistToHip = Vector3.Distance(spineBase, spineMid);
-
-        // Neck Height: Head to Neck
-        Vector3 head = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.Head]);
-        Vector3 neck = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.Neck]);
-        _KinectUserMeasurements.neckHeight = Vector3.Distance(head, neck);
-
-        // Upper Arm Length: Shoulder to Elbow (average of left and right)
-        float upperArmLeft = Vector3.Distance(
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ShoulderLeft]),
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ElbowLeft])
-        );
-        float upperArmRight = Vector3.Distance(
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ShoulderRight]),
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ElbowRight])
-        );
-        _KinectUserMeasurements.upperArmLength = (upperArmLeft + upperArmRight) * 0.5f;
-
-        // Lower Arm Length: Elbow to Wrist (average of left and right)
-        float lowerArmLeft = Vector3.Distance(
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ElbowLeft]),
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.WristLeft])
-        );
-        float lowerArmRight = Vector3.Distance(
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.ElbowRight]),
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.WristRight])
-        );
-        _KinectUserMeasurements.lowerArmLength = (lowerArmLeft + lowerArmRight) * 0.5f;
-
-        // Upper Leg Length: Hip to Knee (average of left and right)
-        float upperLegLeft = Vector3.Distance(
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.HipLeft]),
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.KneeLeft])
-        );
-        float upperLegRight = Vector3.Distance(
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.HipRight]),
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.KneeRight])
-        );
-        _KinectUserMeasurements.upperLegLength = (upperLegLeft + upperLegRight) * 0.5f;
-
-        // Lower Leg Length: Knee to Foot (average of left and right)
-        float lowerLegLeft = Vector3.Distance(
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.KneeLeft]),
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.AnkleLeft])
-        );
-        float lowerLegRight = Vector3.Distance(
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.KneeRight]),
-            BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.AnkleRight])
-        );
-        _KinectUserMeasurements.lowerLegLength = (lowerLegLeft + lowerLegRight) * 0.5f;
+        return (distLeft + distRight) * 0.5f;
     }
 
     private void ApplyUniformShoulderTranslation()
@@ -315,7 +308,6 @@ public class AvatarController : MonoBehaviour
         float footAvgY = (footLeft.position.y + footRight.position.y) / 2f;
         float height = headTop.position.y - footAvgY;
 
-        // Debug.Log($"AvatarMeasurement: Height = {height:F3} Unity units");
         _AvatarMeasurements.height = height;
     }
 
