@@ -863,6 +863,13 @@ function App() {
               );
               setSelectedFullbodyName(null);
             }
+            if (selectedTopNameRef.current) {
+              sendSelectionToBackend(
+                "top",
+                "deselect",
+                selectedTopNameRef.current
+              );
+            }
             setSelectedTopName(name);
             sendSelectionToBackend(type, "select", name);
           }
@@ -881,6 +888,13 @@ function App() {
                 selectedFullbodyNameRef.current
               );
               setSelectedFullbodyName(null);
+            }
+            if (selectedBottomNameRef.current) {
+              sendSelectionToBackend(
+                "bottom",
+                "deselect",
+                selectedBottomNameRef.current
+              );
             }
             setSelectedBottomName(name);
             sendSelectionToBackend(type, "select", name);
