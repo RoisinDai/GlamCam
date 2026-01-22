@@ -7,6 +7,7 @@ import asyncio
 import websockets
 import struct
 import uuid
+import os
 from Config import frame_height, frame_width
 from Config import (
     UI_UNITY_HOST as UNITY_HOST,
@@ -86,7 +87,8 @@ def select():
 
 @app.route("/")
 def index():
-    with open("C:\\Users\\bungu\\dev\\GlamCam\\website\\index.html", "r") as f:
+    index_path = os.path.join(os.path.dirname(__file__), "index.html")
+    with open(index_path, "r") as f:
         return f.read()
 
 
