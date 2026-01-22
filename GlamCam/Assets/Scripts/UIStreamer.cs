@@ -9,18 +9,48 @@ using UnityEngine;
 public class ClothingSelectionListener : MonoBehaviour
 {
     public int port = 5008;
-    public GameObject shirt1;
-    public GameObject skirt1;
+    public GameObject clothedAvatar;
     private TcpListener listener;
     private Thread listenerThread;
     private Queue<Action> mainThreadActions = new Queue<Action>();
+    private readonly Dictionary<string, GameObject> clothingByName = new Dictionary<string, GameObject>();
 
 
     void Start()
     {
+        if (clothedAvatar == null)
+        {
+            clothedAvatar = GameObject.Find("clothed_avatar");
+            if (clothedAvatar == null)
+            {
+                Debug.LogWarning("[UIStreamer] clothed_avatar not found in scene. Assign it in the inspector.");
+            }
+        }
+
+        BuildClothingLookup();
         listenerThread = new Thread(Listen);
         listenerThread.IsBackground = true;
         listenerThread.Start();
+    }
+
+    void BuildClothingLookup()
+    {
+        clothingByName.Clear();
+        if (clothedAvatar == null) return;
+
+        var transforms = clothedAvatar.GetComponentsInChildren<Transform>(true);
+        foreach (var t in transforms)
+        {
+            if (t == null || t.gameObject == null) continue;
+            if (t.gameObject == clothedAvatar) continue;
+
+            if (!clothingByName.ContainsKey(t.name))
+            {
+                clothingByName.Add(t.name, t.gameObject);
+            }
+        }
+
+        Debug.Log($"[UIStreamer] Clothing lookup built with {clothingByName.Count} items.");
     }
 
     void Listen()
@@ -86,9 +116,11 @@ public class ClothingSelectionListener : MonoBehaviour
 
             Debug.Log($"[Packet] Parsed: type={packet.type}, action={packet.action}, name={packet.name}");
 
-            GameObject go = null; // AvatarController ctrl = null;
-            if (packet.name == "shirt1") go = shirt1; // ctrl = shirt1.GetComponent<AvatarController>();
-            else if (packet.name == "skirt1") go = skirt1; // ctrl = skirt1.GetComponent<AvatarController>();
+            GameObject go = null;
+            if (!string.IsNullOrEmpty(packet.name) && clothingByName.TryGetValue(packet.name, out var found))
+            {
+                go = found;
+            }
 
             if (packet.action == "select")
             {
@@ -117,17 +149,14 @@ public class ClothingSelectionListener : MonoBehaviour
             }
             else if (packet.action == "clear")
             {
-                // Deactivate all items (expand this list if needed)
-                if (shirt1 != null)
+                foreach (var kvp in clothingByName)
                 {
-                    Debug.Log($"[Action] Deactivating GameObject: shirt1");
-                    shirt1.SetActive(false);
+                    if (kvp.Value != null)
+                    {
+                        kvp.Value.SetActive(false);
+                    }
                 }
-                if (skirt1 != null)
-                {
-                    Debug.Log($"[Action] Deactivating GameObject: skirt1");
-                    skirt1.SetActive(false);
-                }
+                Debug.Log("[Action] Deactivated all clothing items.");
             }
             else
             {
