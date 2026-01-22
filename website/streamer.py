@@ -1,4 +1,4 @@
-from flask import Flask, Response, request
+from flask import Flask, Response, request, send_from_directory
 import numpy as np
 import socket
 import json
@@ -7,6 +7,7 @@ import asyncio
 import websockets
 import struct
 import uuid
+import os
 from Config import frame_height, frame_width
 from Config import (
     UI_UNITY_HOST as UNITY_HOST,
@@ -19,7 +20,7 @@ from Config import (
     WS_PORT as WS_PORT,
 )
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 RUN_ID = str(uuid.uuid4())
 
@@ -86,8 +87,11 @@ def select():
 
 @app.route("/")
 def index():
-    with open("C:\\Users\\bungu\\dev\\GlamCam\\website\\index.html", "r") as f:
-        return f.read()
+    index_path = os.path.join(os.path.dirname(__file__), "index.html")
+    if os.path.exists(index_path):
+        with open(index_path, "r") as f:
+            return f.read()
+    return "index.html not found", 404
 
 
 # ---------- KINECT TCP HAND DATA LISTENER -----------
