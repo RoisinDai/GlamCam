@@ -49,6 +49,13 @@ const SCROLL_TRACK_WIDTH = 18;
 const SCROLL_TRACK_INSET = 0; // 0 = flush with drawer edge
 const SCROLL_CONTENT_PAD_LEFT = SCROLL_TRACK_WIDTH + 8;
 
+// Header sizing constants
+const DRAWER_LOGO_HEIGHT = 50; // reduced
+const DRAWER_CLEAR_HEIGHT = 36; // reduced
+const DRAWER_HEADER_GAP = 10;
+const DRAWER_HEADER_HEIGHT =
+  DRAWER_LOGO_HEIGHT + DRAWER_HEADER_GAP + DRAWER_CLEAR_HEIGHT;
+
 // VideoFeed component
 function VideoFeed() {
   return React.createElement("img", {
@@ -120,7 +127,7 @@ const ClosetTab = React.forwardRef(
               alignItems: "center",
               justifyContent: "center",
               backgroundColor: isActive
-                ? "rgba(144, 222, 238, 0.55)"
+                ? "#7685c5"
                 : isPressed
                 ? "rgba(255, 255, 255, 0.38)"
                 : "transparent",
@@ -198,22 +205,85 @@ const ClosetDrawer = React.forwardRef(
           gap: "0px",
           padding: "20px 10px",
           zIndex: 2,
-          backgroundColor: "#b1e1e4ff",
+          backgroundColor: "#b3c3daff",
           borderRadius: "16px 0 0 16px",
           backdropFilter: "blur(8px)",
           transition: "transform 0.4s ease-in-out, opacity 0.3s",
           transform: isOpen ? "translateX(0)" : "translateX(100%)",
           opacity: isOpen ? 1 : 0,
           overflow: "hidden",
+          minHeight: 0,
         },
       },
+
+      // Header images (non-scrollable)
+      React.createElement(
+        "div",
+        {
+          style: {
+            flex: "0 0 auto",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            gap: `${DRAWER_HEADER_GAP}px`,
+            height: `${DRAWER_HEADER_HEIGHT}px`,
+            width: "100%",
+            marginBottom: "8px",
+            boxSizing: "border-box",
+          },
+        },
+        React.createElement(
+          "div",
+          {
+            style: {
+              height: `${DRAWER_LOGO_HEIGHT}px`,
+              width: "100%",
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            },
+          },
+          React.createElement("img", {
+            src: "/static/Glamcam.png",
+            alt: "Glamcam",
+            draggable: false,
+            style: {
+              height: "100%",
+              width: "100%",
+              objectFit: "contain",
+              transform: "scale(1)",
+              transformOrigin: "center",
+              display: "block",
+              pointerEvents: "none",
+              userSelect: "none",
+            },
+          })
+        ),
+        React.createElement("img", {
+          src: "/static/clear.png",
+          alt: "Reset",
+          draggable: false,
+          style: {
+            height: `${DRAWER_CLEAR_HEIGHT}px`,
+            transform: "scale(1.25)",
+            transformOrigin: "center",
+            width: "auto",
+            objectFit: "contain",
+            display: "block",
+            userSelect: "none",
+          },
+        })
+      ),
 
       React.createElement(
         "div",
         {
           style: {
             position: "relative",
-            height: "100%",
+            flex: "1 1 auto",
+            minHeight: 0,
             width: "100%",
           },
         },
@@ -226,7 +296,8 @@ const ClosetDrawer = React.forwardRef(
             id: "drawer-scroll",
             style: {
               width: "100%",
-              maxHeight: `min(100%, ${SCROLL_VIEW_HEIGHT}px)`,
+              height: "100%",
+              maxHeight: `${SCROLL_VIEW_HEIGHT}px`,
               overflowY: items.length > VISIBLE_ITEMS ? "auto" : "hidden",
               overflowX: "hidden",
 
@@ -293,7 +364,7 @@ const ClosetDrawer = React.forwardRef(
                     opacity: isSelected ? 1 : 0,
                     transition: "opacity 0.15s ease",
                     background:
-                      "radial-gradient(circle at center, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.55) 35%, rgba(251,180,80,0.95) 78%, rgba(251,180,80,0.95) 100%)",
+                      "radial-gradient(circle at center, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.55) 35%, rgba(251,215,222,0.95) 78%, rgba(251,215,222,0.95) 100%)",
                   },
                 }),
                 React.createElement("div", {
