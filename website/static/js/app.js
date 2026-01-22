@@ -51,7 +51,7 @@ const SCROLL_CONTENT_PAD_LEFT = SCROLL_TRACK_WIDTH + 8;
 
 // Header sizing constants
 const DRAWER_LOGO_HEIGHT = 50; // reduced
-const DRAWER_CLEAR_HEIGHT = 36; // reduced
+const DRAWER_CLEAR_HEIGHT = 56; // increased for bigger button
 const DRAWER_HEADER_GAP = 10;
 const DRAWER_HEADER_HEIGHT =
   DRAWER_LOGO_HEIGHT + DRAWER_HEADER_GAP + DRAWER_CLEAR_HEIGHT;
@@ -177,6 +177,7 @@ const ClosetDrawer = React.forwardRef(
       scrollViewportRef,
       scrollTrackRef,
       scrollThumbRef,
+      clearButtonRef,
       selectedTopName,
       selectedBottomName,
       selectedFullbodyName,
@@ -261,19 +262,32 @@ const ClosetDrawer = React.forwardRef(
             },
           })
         ),
-        React.createElement("img", {
-          src: "/static/clear.png",
-          alt: "Reset",
-          draggable: false,
+        React.createElement("div", {
+          ref: clearButtonRef,
+          className: "clear-button",
           style: {
             height: `${DRAWER_CLEAR_HEIGHT}px`,
-            transform: "scale(1.25)",
-            transformOrigin: "center",
-            width: "auto",
-            objectFit: "contain",
-            display: "block",
-            userSelect: "none",
+            width: `${DRAWER_CLEAR_HEIGHT}px`,
+            borderRadius: "50%",
+            backgroundColor: "rgba(255, 255, 255, 0.25)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            transition: "background-color 0.15s ease, transform 0.15s ease",
           },
+          children: React.createElement("img", {
+            src: "/static/clear.png",
+            alt: "Reset",
+            draggable: false,
+            style: {
+              height: "100%",
+              width: "100%",
+              objectFit: "contain",
+              pointerEvents: "none",
+              userSelect: "none",
+            },
+          }),
         })
       ),
 
@@ -569,6 +583,7 @@ function App() {
   const closetTabRef = useRef(null);
   const closetTabSegmentRefs = useRef([]);
   const closetDrawerRef = useRef(null);
+  const clearButtonRef = useRef(null);
   const closetItemRefs = useRef({});
 
   // Custom scrollbar refs
@@ -732,6 +747,16 @@ function App() {
   const handleDwellSelect = useCallback(
     (target) => {
       setPressedSegIndex(null);
+
+      // Clear button dwell - deselect all
+      if (target === clearButtonRef.current) {
+        setSelectedTopName(null);
+        setSelectedBottomName(null);
+        setSelectedFullbodyName(null);
+        setSelectedHatName(null);
+        sendSelectionToBackend("all", "clear", "");
+        return;
+      }
 
       // Thumb dwell toggles drag ON/OFF
       if (target === drawerScrollThumbRef.current) {
@@ -950,7 +975,15 @@ function App() {
         }
       }
 
-      // 4) Items
+      // 4) Clear button
+      if (!foundTarget && closetOpenRef.current && clearButtonRef.current) {
+        const rect = clearButtonRef.current.getBoundingClientRect();
+        if (circleRectCollision(x, y, cursorRadius, rect)) {
+          foundTarget = clearButtonRef.current;
+        }
+      }
+
+      // 5) Items
       if (!foundTarget && closetOpenRef.current && closetDrawerRef.current) {
         for (const item of Object.values(closetItemRefs.current)) {
           if (!item) continue;
@@ -960,6 +993,14 @@ function App() {
             break;
           }
         }
+      }
+
+      // Hover visuals for clear button
+      if (clearButtonRef.current) {
+        const hoveringClear = foundTarget === clearButtonRef.current;
+        clearButtonRef.current.style.backgroundColor = hoveringClear
+          ? "rgba(255, 255, 255, 0.5)"
+          : "rgba(255, 255, 255, 0.25)";
       }
 
       // Hover visuals for track + thumb
@@ -1031,6 +1072,7 @@ function App() {
       scrollViewportRef: drawerScrollViewportRef,
       scrollTrackRef: drawerScrollTrackRef,
       scrollThumbRef: drawerScrollThumbRef,
+      clearButtonRef: clearButtonRef,
       selectedTopName,
       selectedBottomName,
       selectedFullbodyName,
