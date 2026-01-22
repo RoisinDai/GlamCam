@@ -70,7 +70,7 @@ function VideoFeed() {
 
 // ClosetTab component: each segment is its own hover target
 const ClosetTab = React.forwardRef(
-  ({ isOpen, activeIndex, segmentRefs }, ref) => {
+  ({ isOpen, activeIndex, pressedIndex, segmentRefs }, ref) => {
     const right = isOpen
       ? `${DRAWER_WIDTH + TAB_GAP}px`
       : `${TAB_RIGHT_MARGIN_CLOSED}px`;
@@ -99,8 +99,11 @@ const ClosetTab = React.forwardRef(
           transition: "right 0.4s ease-in-out",
         },
       },
-      CLOSET_CATEGORIES.map((cat, index) =>
-        React.createElement(
+      CLOSET_CATEGORIES.map((cat, index) => {
+        const isPressed = pressedIndex !== null && pressedIndex === index;
+        const isActive = activeIndex !== null && activeIndex === index;
+
+        return React.createElement(
           "div",
           {
             key: cat.key,
@@ -116,11 +119,12 @@ const ClosetTab = React.forwardRef(
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor:
-                activeIndex !== null && activeIndex === index
-                  ? "rgba(144, 238, 144, 0.55)"
-                  : "transparent",
-              transition: "background-color 0.15s ease",
+              backgroundColor: isActive
+                ? "rgba(144, 222, 238, 0.55)"
+                : isPressed
+                ? "rgba(255, 255, 255, 0.38)"
+                : "transparent",
+              transition: "background-color 0.12s ease",
             },
           },
           index === 0
@@ -145,10 +149,13 @@ const ClosetTab = React.forwardRef(
               objectFit: "contain",
               pointerEvents: "none",
               userSelect: "none",
+              transform:
+                isActive || !isPressed ? "translateY(0px)" : "translateY(4px)",
+              transition: "transform 0.12s ease",
             },
           })
-        )
-      )
+        );
+      })
     );
   }
 );
@@ -191,7 +198,7 @@ const ClosetDrawer = React.forwardRef(
           gap: "0px",
           padding: "20px 10px",
           zIndex: 2,
-          backgroundColor: "rgba(255, 255, 255, 0.1)",
+          backgroundColor: "#b1e1e4ff",
           borderRadius: "16px 0 0 16px",
           backdropFilter: "blur(8px)",
           transition: "transform 0.4s ease-in-out, opacity 0.3s",
@@ -267,25 +274,48 @@ const ClosetDrawer = React.forwardRef(
                     aspectRatio: "1 / 1",
                     borderRadius: "10px",
                     overflow: "hidden",
-                    backgroundColor: "rgba(255, 255, 255, 0.2)",
+                    backgroundColor: "#ebe4daff",
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
                     position: "relative",
                     boxSizing: "border-box",
-                    boxShadow: isSelected
-                      ? "inset 0 0 0 3px lightgreen"
-                      : "none",
-                    transition: "box-shadow 0.15s ease",
+                    padding: "6px",
+                    transition: "none",
                   },
                 },
+                React.createElement("div", {
+                  style: {
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "10px",
+                    pointerEvents: "none",
+                    opacity: isSelected ? 1 : 0,
+                    transition: "opacity 0.15s ease",
+                    background:
+                      "radial-gradient(circle at center, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.55) 35%, rgba(251,180,80,0.95) 78%, rgba(251,180,80,0.95) 100%)",
+                  },
+                }),
+                React.createElement("div", {
+                  style: {
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "10px",
+                    pointerEvents: "none",
+                    opacity: isSelected ? 1 : 0,
+                    transition: "opacity 0.15s ease",
+                    boxShadow: "inset 0 0 0 4px rgba(255,255,255,0.95)",
+                  },
+                }),
                 React.createElement("img", {
                   src: item.image,
                   alt: item.label,
                   style: {
-                    maxWidth: "100%",
-                    maxHeight: "100%",
+                    width: "100%",
+                    height: "100%",
                     objectFit: "contain",
+                    position: "relative",
+                    zIndex: 1,
                   },
                 })
               );
@@ -455,6 +485,13 @@ function App() {
   const [selectedHatName, setSelectedHatName] = useState(null);
   const [useKinect, setUseKinect] = useState(false);
 
+  const [pressedSegIndex, setPressedSegIndex] = useState(null);
+  const pressedSegIndexRef = useRef(null);
+
+  useEffect(() => {
+    pressedSegIndexRef.current = pressedSegIndex;
+  }, [pressedSegIndex]);
+
   const hoverTargetRef = useRef(null);
   const hoverStartTimeRef = useRef(null);
 
@@ -623,6 +660,8 @@ function App() {
 
   const handleDwellSelect = useCallback(
     (target) => {
+      setPressedSegIndex(null);
+
       // Thumb dwell toggles drag ON/OFF
       if (target === drawerScrollThumbRef.current) {
         if (!closetOpenRef.current) return;
@@ -868,6 +907,17 @@ function App() {
           : "rgba(255,255,255,0.35)";
       }
 
+      // Press animation for tab segments (while dwelling/hovering)
+      let hoveringSegIndex = null;
+      if (foundTarget?.classList?.contains("closet-tab-segment")) {
+        const idxStr = foundTarget.getAttribute("data-seg-index");
+        hoveringSegIndex = idxStr ? parseInt(idxStr, 10) : 0;
+      }
+
+      if (hoveringSegIndex !== pressedSegIndexRef.current) {
+        setPressedSegIndex(hoveringSegIndex);
+      }
+
       // Dwell timing
       if (foundTarget !== hoverTargetRef.current) {
         hoverTargetRef.current = foundTarget;
@@ -889,7 +939,7 @@ function App() {
       stoppedRef.current = true;
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
-  }, [circleRectCollision, handleDwellSelect, syncThumb]);
+  }, [circleRectCollision, handleDwellSelect, syncThumb, setPressedSegIndex]);
 
   return React.createElement(
     "div",
@@ -899,6 +949,7 @@ function App() {
       ref: closetTabRef,
       isOpen: closetOpen,
       activeIndex: activeCategoryIndex,
+      pressedIndex: pressedSegIndex,
       segmentRefs: closetTabSegmentRefs,
     }),
     React.createElement(ClosetDrawer, {
