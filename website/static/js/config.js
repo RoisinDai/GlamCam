@@ -24,9 +24,9 @@ window.CLOTHING_NAMES = {
     "knitted_sweater_01Mesh",
   ],
   Bottoms: [
-    "elvs_gored_elephantpants1Mesh",
+    "elvs_gored_elephantpant1Mesh",
     "m_trousers_02Mesh",
-    "elvs_disco_pants_drufflesMesh",
+    "elvs_disco_pant_drufflesMesh",
     "mariaskirtMesh",
     "pleated_skirtelv1Mesh",
   ],
