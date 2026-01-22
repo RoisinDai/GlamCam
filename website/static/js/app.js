@@ -49,6 +49,9 @@ const SCROLL_TRACK_WIDTH = 18;
 const SCROLL_TRACK_INSET = 0; // 0 = flush with drawer edge
 const SCROLL_CONTENT_PAD_LEFT = SCROLL_TRACK_WIDTH + 8;
 
+// Auto-close timer
+const AUTO_CLOSE_MS = 2000;
+
 // Header sizing constants
 const DRAWER_LOGO_HEIGHT = 50;
 const DRAWER_CLEAR_HEIGHT = 56;
@@ -644,6 +647,10 @@ function App() {
   const scrollDraggingRef = useRef(false);
   const scrollDragOffsetYRef = useRef(0);
 
+  // Auto-close timer refs
+  const lastInsideUiAtRef = useRef(performance.now());
+  const autoCloseFiredRef = useRef(false);
+
   const cursorRef = useRef({ x: cursorX, y: cursorY });
   const closetOpenRef = useRef(closetOpen);
   const rafIdRef = useRef(null);
@@ -662,7 +669,10 @@ function App() {
     closetOpenRef.current = closetOpen;
 
     // If drawer closes, force stop dragging
-    if (!closetOpen) scrollDraggingRef.current = false;
+    if (!closetOpen) {
+      scrollDraggingRef.current = false;
+      autoCloseFiredRef.current = false; // reset when closed
+    }
   }, [closetOpen]);
 
   useEffect(() => {
@@ -1077,6 +1087,79 @@ function App() {
 
       if (hoveringSegIndex !== pressedSegIndexRef.current) {
         setPressedSegIndex(hoveringSegIndex);
+      }
+
+      // AUTO CLOSE: if cursor is outside tab + TAB_GAP corridor + drawer for 2s, close
+      const now = performance.now();
+
+      const overTab = (() => {
+        const el = closetTabRef.current;
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return circleRectCollision(x, y, cursorRadius, r);
+      })();
+
+      const overDrawer = (() => {
+        if (!closetOpenRef.current) return false;
+        const el = closetDrawerRef.current;
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return circleRectCollision(x, y, cursorRadius, r);
+      })();
+
+      // Corridor between tab and drawer (the TAB_GAP space), only meaningful when drawer is open.
+      const overTabGap = (() => {
+        if (!closetOpenRef.current) return false;
+        const tabEl = closetTabRef.current;
+        const drawerEl = closetDrawerRef.current;
+        if (!tabEl || !drawerEl) return false;
+
+        const tr = tabEl.getBoundingClientRect();
+        const dr = drawerEl.getBoundingClientRect();
+
+        // Create a rectangle spanning the horizontal gap between tab (left edge) and drawer (right edge)
+        const left = Math.min(dr.right, tr.left); // drawer right is near screen edge
+        const right = Math.max(dr.left, tr.right); // corridor between tr.right and dr.left
+
+        // Only treat as gap if there's an actual gap
+        if (right <= left + 1) return false;
+
+        const gapRect = {
+          left,
+          right,
+          top: Math.min(tr.top, dr.top),
+          bottom: Math.max(tr.bottom, dr.bottom),
+        };
+
+        return circleRectCollision(x, y, cursorRadius, gapRect);
+      })();
+
+      const insideUi =
+        overTab || overDrawer || overTabGap || foundTarget != null;
+
+      if (insideUi) {
+        lastInsideUiAtRef.current = now;
+        autoCloseFiredRef.current = false;
+      } else {
+        if (
+          closetOpenRef.current &&
+          !autoCloseFiredRef.current &&
+          now - lastInsideUiAtRef.current >= AUTO_CLOSE_MS
+        ) {
+          autoCloseFiredRef.current = true;
+
+          // Close drawer + reset page selection/hover state
+          setClosetOpen(false);
+          setActiveCategoryIndex(null);
+          setPressedSegIndex(null);
+
+          // stop any hover/dwell-in-progress immediately
+          hoverTargetRef.current = null;
+          hoverStartTimeRef.current = null;
+
+          // stop scroll drag immediately
+          scrollDraggingRef.current = false;
+        }
       }
 
       // Dwell timing
