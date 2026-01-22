@@ -50,11 +50,17 @@ const SCROLL_TRACK_INSET = 0; // 0 = flush with drawer edge
 const SCROLL_CONTENT_PAD_LEFT = SCROLL_TRACK_WIDTH + 8;
 
 // Header sizing constants
-const DRAWER_LOGO_HEIGHT = 50; // reduced
-const DRAWER_CLEAR_HEIGHT = 56; // increased for bigger button
+const DRAWER_LOGO_HEIGHT = 50;
+const DRAWER_CLEAR_HEIGHT = 56;
 const DRAWER_HEADER_GAP = 10;
+const DRAWER_PAGE_LABEL_HEIGHT = 34;
+
 const DRAWER_HEADER_HEIGHT =
-  DRAWER_LOGO_HEIGHT + DRAWER_HEADER_GAP + DRAWER_CLEAR_HEIGHT;
+  DRAWER_LOGO_HEIGHT +
+  DRAWER_HEADER_GAP +
+  DRAWER_CLEAR_HEIGHT +
+  DRAWER_HEADER_GAP +
+  DRAWER_PAGE_LABEL_HEIGHT;
 
 // VideoFeed component
 function VideoFeed() {
@@ -182,6 +188,7 @@ const ClosetDrawer = React.forwardRef(
       selectedBottomName,
       selectedFullbodyName,
       selectedHatName,
+      pageLabel,
     },
     ref
   ) => {
@@ -217,7 +224,7 @@ const ClosetDrawer = React.forwardRef(
         },
       },
 
-      // Header images (non-scrollable)
+      // Header (non-scrollable)
       React.createElement(
         "div",
         {
@@ -234,6 +241,8 @@ const ClosetDrawer = React.forwardRef(
             boxSizing: "border-box",
           },
         },
+
+        // Logo
         React.createElement(
           "div",
           {
@@ -262,6 +271,8 @@ const ClosetDrawer = React.forwardRef(
             },
           })
         ),
+
+        // Clear button
         React.createElement("div", {
           ref: clearButtonRef,
           className: "clear-button",
@@ -288,7 +299,44 @@ const ClosetDrawer = React.forwardRef(
               userSelect: "none",
             },
           }),
-        })
+        }),
+
+        React.createElement(
+          "div",
+          {
+            className: "drawer-page-label",
+            style: {
+              height: `${DRAWER_PAGE_LABEL_HEIGHT}px`,
+
+              // full-width bleed
+              marginLeft: `-${DRAWER_PADDING_X}px`,
+              marginRight: `-${DRAWER_PADDING_X}px`,
+              width: `calc(100% + ${2 * DRAWER_PADDING_X}px)`,
+
+              backgroundColor: "#DEEAF4",
+
+              // text styling
+              color: "#7685c5",
+              fontFamily: `"Inter", "SF Pro Display", "Segoe UI", sans-serif`,
+              fontSize: "16px",
+              fontWeight: 600,
+              letterSpacing: "0.3px",
+
+              // shape
+              borderRadius: "0px",
+
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+
+              userSelect: "none",
+              pointerEvents: "none",
+              boxSizing: "border-box",
+              padding: "0 10px",
+            },
+          },
+          pageLabel || ""
+        )
       ),
 
       React.createElement(
@@ -314,8 +362,6 @@ const ClosetDrawer = React.forwardRef(
               maxHeight: `${SCROLL_VIEW_HEIGHT}px`,
               overflowY: items.length > VISIBLE_ITEMS ? "auto" : "hidden",
               overflowX: "hidden",
-
-              // Hide native scrollbar (Firefox)
               scrollbarWidth: "none",
             },
           },
@@ -443,8 +489,8 @@ const ClosetDrawer = React.forwardRef(
               position: "absolute",
               left: "3px",
               right: "3px",
-              top: "0px", // updated by JS
-              height: "28px", // updated by JS
+              top: "0px",
+              height: "28px",
               borderRadius: "999px",
               background: "rgba(255,255,255,0.35)",
               transition: "background-color 0.15s ease, opacity 0.15s ease",
@@ -557,6 +603,9 @@ function App() {
       : (CLOSET_CATEGORIES[activeCategoryIndex] &&
           CLOSET_CATEGORIES[activeCategoryIndex].key) ||
         null;
+
+  // drawer page label for header section
+  const drawerPageLabel = activeCategoryLabel || "";
 
   const activeItems =
     activeCategoryLabel === null
@@ -1077,6 +1126,7 @@ function App() {
       selectedBottomName,
       selectedFullbodyName,
       selectedHatName,
+      pageLabel: drawerPageLabel,
     }),
     React.createElement(VirtualCursor, { x: cursorX, y: cursorY })
   );
