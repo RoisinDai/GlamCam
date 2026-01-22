@@ -17,25 +17,20 @@ window.CATEGORY_TYPE = {
 
 window.CLOTHING_NAMES = {
   Tops: [
-    "mindfront_lusekofta",
-    "punkduck_retro_top",
-    "namuhekam_male_polo_shirt",
-    "toigo_fisherman_sweater",
-    "mindfront_knitted_sweater_01",
-    "mindfront_knitted_sweater_02",
+    "f_lusekoftaMesh",
+    "vintagetopMesh",
+    "Polo_t-shirtMesh",
+    "sweater_fishermanMesh",
+    "knitted_sweater_01Mesh",
   ],
   Bottoms: [
-    "elvs_gored_elephant_pants",
-    "mindfront_male_trousers_2",
-    "elvs_disco_pants_double_ruffles",
-    "sonicteam998_maria_skirt",
-    "elvs_pleated_plaid_mini_skirt",
+    "elvs_gored_elephantpants1Mesh",
+    "m_trousers_02Mesh",
+    "elvs_disco_pants_drufflesMesh",
+    "mariaskirtMesh",
+    "pleated_skirtelv1Mesh",
   ],
-  Dresses: ["elvs_halter_dress_mini", "punkduck_middle_length_qipao"],
-  Hats: [
-    "jujube_bag_on_head",
-    "culturalibre_cl_don_quixote_hat",
-    "elvs_tophat1",
-  ],
-  Fullbody: ["elvs_emt_uniform_jacket_male"],
+  Dresses: ["elvs_mini_halterdressMesh", "qipaoMesh"],
+  Hats: ["pillow_manMesh", "cl_don_quixote_hatMesh", "tophat1Mesh"],
+  Fullbody: ["rescueteam_jacket_maleMesh"],
 };
