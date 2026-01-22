@@ -102,7 +102,8 @@ public class AvatarController : MonoBehaviour
         Kinect.Body[] data = _BodyManager.GetData();
         if (data == null) return;
 
-        trackedBody = data.FirstOrDefault(b => b != null && b.IsTracked);
+        // trackedBody = data.FirstOrDefault(b => b != null && b.IsTracked);
+        trackedBody = GetClosestTrackedBody(data);
         if (trackedBody == null) return;
 
         if (animator != null)
@@ -136,6 +137,31 @@ public class AvatarController : MonoBehaviour
         // );
 
         hasValidBody = true;
+    }
+
+    /// <summary>
+    /// Selects the tracked body closest to the Kinect camera based on Z coordinate (depth).
+    /// In Kinect's coordinate system, smaller Z values indicate bodies closer to the camera.
+    /// </summary>
+    private Kinect.Body GetClosestTrackedBody(Kinect.Body[] bodies)
+    {
+        Kinect.Body closestBody = null;
+        float closestZ = float.MaxValue;
+        
+        foreach (var body in bodies)
+        {
+            if (body != null && body.IsTracked)
+            {
+                // Use SpineBase as reference point (center of body)
+                float z = body.Joints[Kinect.JointType.SpineBase].Position.Z;
+                if (z < closestZ)
+                {
+                    closestZ = z;
+                    closestBody = body;
+                }
+            }
+        }
+        return closestBody;
     }
 
     void LateUpdate()
