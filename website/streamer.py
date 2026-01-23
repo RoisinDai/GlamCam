@@ -20,12 +20,13 @@ from Config import (
     WS_PORT as WS_PORT,
 )
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__, static_folder="static")
 
 RUN_ID = str(uuid.uuid4())
 
-latest_right_hand = {"x": -1, "y": -1}  # start centered
+latest_right_hand = {"x": -1, "y": -1, "handState": "NotTracked"}  # start centered
 hand_joints = ["HandRight", "HandLeft", "HandTipRight", "HandTipLeft"]
+
 
 # ---- FLASK HTTP ENDPOINTS ----
 def socket_frame_generator():
@@ -56,10 +57,12 @@ def socket_frame_generator():
     finally:
         client.close()
 
+
 # runid changes each time we restart streamer.py
 @app.route("/run_id")
 def run_id():
     return RUN_ID, 200
+
 
 @app.route("/video_feed")
 def video_feed():
@@ -138,33 +141,39 @@ def kinect_hand_tcp_listener():
 
                     # Parse hands JSON array
                     hands_list = json.loads(data.decode())
-                    # print("[KINECT TCP] Received hands data:", hands_list)
                     if len(hands_list) == 0:
                         latest_right_hand = {
                             "x": -1,
                             "y": -1,
+                            "handState": "NotTracked",
                         }  # Use -1 to indicate no hands detected
                         # print("[KINECT TCP] No hands detected.")
                         continue
-
+                    else:
+                        print(
+                            "[KINECT TCP] Received non-empty right hand state data:",
+                            hands_list[0]["HandRight"],
+                        )
                     hands_dict = hands_list[0]
+                    hand_state = hands_dict.get("HandRightState", "Unknown")
                     try:
-                        hand_tip_x = float(hands_dict["HandTipRight"]["X"])
-                        hand_tip_y = float(hands_dict["HandTipRight"]["Y"])
-                        hand_x = float(hands_dict["HandRight"]["X"])
-                        hand_y = float(hands_dict["HandRight"]["Y"])
-                        # Calculate the center position between the hand and the hand tip
-                        hand_center_x = (hand_x + hand_tip_x) / 2
-                        hand_center_y = (hand_y + hand_tip_y) / 2
-                        # Use the center position as the latest right hand position
+                        hand_right = hands_dict.get("HandRight")
+                        if not hand_right:
+                            raise KeyError("HandRight")
+
+                        hand_x = float(hand_right["X"])
+                        hand_y = float(hand_right["Y"])
+
                         latest_right_hand = {
-                            "x": hand_center_x,
-                            "y": hand_center_y,
+                            "x": hand_x,
+                            "y": hand_y,
+                            "handState": hand_state,
                         }
-                    except KeyError as e:
+                    except (KeyError, TypeError, ValueError) as e:
                         latest_right_hand = {
                             "x": -1,
                             "y": -1,
+                            "handState": hand_state,
                         }  # Use -1 to indicate no right hand detected
                         print("[KINECT TCP] Error:", e)
 

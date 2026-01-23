@@ -1,6 +1,7 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
 const DWELL_TIME = 800; // ms
+const KINECT_SMOOTHING_ALPHA = 0.2; // lower = smoother, higher = snappier
 
 const CLOSET_CATEGORIES = window.CLOSET_CATEGORIES || [];
 const CATEGORY_TYPE = window.CATEGORY_TYPE || {};
@@ -510,7 +511,7 @@ const ClosetDrawer = React.forwardRef(
 );
 
 // VirtualCursor component
-function VirtualCursor({ x, y }) {
+function VirtualCursor({ x, y, isSelecting }) {
   return React.createElement("div", {
     id: "virtual-cursor",
     style: {
@@ -520,9 +521,11 @@ function VirtualCursor({ x, y }) {
       width: "36px",
       height: "36px",
       borderRadius: "50%",
-      background: "#ffd600",
+      background: isSelecting ? "#33d17a" : "#ffd600",
       border: "none",
-      boxShadow: "0 0 12px 2px #ffd60077",
+      boxShadow: isSelecting
+        ? "0 0 12px 2px rgba(51, 209, 122, 0.6)"
+        : "0 0 12px 2px #ffd60077",
       transform: "translate(-18px, -18px)",
       left: `${x}px`,
       top: `${y}px`,
@@ -625,6 +628,7 @@ function App() {
   const [selectedHatName, setSelectedHatName] = useState(null);
   const [selectedAccessoryName, setSelectedAccessoryName] = useState(null);
   const [useKinect, setUseKinect] = useState(false);
+  const [isFistClosed, setIsFistClosed] = useState(false);
 
   const [pressedSegIndex, setPressedSegIndex] = useState(null);
   const pressedSegIndexRef = useRef(null);
@@ -635,6 +639,8 @@ function App() {
 
   const hoverTargetRef = useRef(null);
   const hoverStartTimeRef = useRef(null);
+  const lastHandStateRef = useRef("Unknown");
+  const fistTriggerRef = useRef(false);
 
   const closetTabRef = useRef(null);
   const closetTabSegmentRefs = useRef([]);
@@ -659,6 +665,7 @@ function App() {
   const closetOpenRef = useRef(closetOpen);
   const rafIdRef = useRef(null);
   const stoppedRef = useRef(false);
+  const kinectSmoothedRef = useRef(null);
 
   const selectedTopNameRef = useRef(selectedTopName);
   const selectedBottomNameRef = useRef(selectedBottomName);
@@ -669,6 +676,16 @@ function App() {
   useEffect(() => {
     cursorRef.current = { x: cursorX, y: cursorY };
   }, [cursorX, cursorY]);
+
+  useEffect(() => {
+    if (useKinect) {
+      hoverTargetRef.current = null;
+      hoverStartTimeRef.current = null;
+    } else {
+      setIsFistClosed(false);
+      kinectSmoothedRef.current = null;
+    }
+  }, [useKinect]);
 
   useEffect(() => {
     closetOpenRef.current = closetOpen;
@@ -723,9 +740,30 @@ function App() {
         setUseKinect(false);
       } else {
         setUseKinect(true);
-        setCursorX(x);
-        setCursorY(y);
+        if (!kinectSmoothedRef.current) {
+          kinectSmoothedRef.current = { x, y };
+        } else {
+          const prev = kinectSmoothedRef.current;
+          kinectSmoothedRef.current = {
+            x: prev.x + (x - prev.x) * KINECT_SMOOTHING_ALPHA,
+            y: prev.y + (y - prev.y) * KINECT_SMOOTHING_ALPHA,
+          };
+        }
+        const smoothed = kinectSmoothedRef.current;
+        setCursorX(smoothed.x);
+        setCursorY(smoothed.y);
       }
+    }
+
+    if (typeof data.handState === "string") {
+      setIsFistClosed(data.handState === "Closed");
+      if (
+        lastHandStateRef.current !== "Closed" &&
+        data.handState === "Closed"
+      ) {
+        fistTriggerRef.current = true;
+      }
+      lastHandStateRef.current = data.handState;
     }
   }, []);
 
@@ -1204,15 +1242,22 @@ function App() {
         }
       }
 
-      // Dwell timing
-      if (foundTarget !== hoverTargetRef.current) {
-        hoverTargetRef.current = foundTarget;
-        hoverStartTimeRef.current = foundTarget ? performance.now() : null;
-      } else if (hoverTargetRef.current && hoverStartTimeRef.current) {
-        const elapsed = performance.now() - hoverStartTimeRef.current;
-        if (elapsed >= DWELL_TIME) {
-          handleDwellSelect(hoverTargetRef.current);
-          hoverStartTimeRef.current = null;
+      if (useKinect) {
+        if (fistTriggerRef.current) {
+          fistTriggerRef.current = false;
+          if (foundTarget) handleDwellSelect(foundTarget);
+        }
+      } else {
+        // Dwell timing
+        if (foundTarget !== hoverTargetRef.current) {
+          hoverTargetRef.current = foundTarget;
+          hoverStartTimeRef.current = foundTarget ? performance.now() : null;
+        } else if (hoverTargetRef.current && hoverStartTimeRef.current) {
+          const elapsed = performance.now() - hoverStartTimeRef.current;
+          if (elapsed >= DWELL_TIME) {
+            handleDwellSelect(hoverTargetRef.current);
+            hoverStartTimeRef.current = null;
+          }
         }
       }
 
@@ -1225,7 +1270,13 @@ function App() {
       stoppedRef.current = true;
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
-  }, [circleRectCollision, handleDwellSelect, syncThumb, setPressedSegIndex]);
+  }, [
+    circleRectCollision,
+    handleDwellSelect,
+    syncThumb,
+    setPressedSegIndex,
+    useKinect,
+  ]);
 
   return React.createElement(
     "div",
@@ -1254,7 +1305,11 @@ function App() {
       selectedAccessoryName,
       pageLabel: drawerPageLabel,
     }),
-    React.createElement(VirtualCursor, { x: cursorX, y: cursorY })
+    React.createElement(VirtualCursor, {
+      x: cursorX,
+      y: cursorY,
+      isSelecting: isFistClosed,
+    })
   );
 }
 

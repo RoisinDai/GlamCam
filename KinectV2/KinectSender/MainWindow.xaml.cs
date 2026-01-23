@@ -1,4 +1,4 @@
-﻿using Microsoft.Kinect;
+using Microsoft.Kinect;
 using System;
 using System.ComponentModel;
 using System.Globalization;
@@ -410,13 +410,12 @@ namespace Microsoft.Samples.Kinect.ColorBasics
                             if (body != null && body.IsTracked)
                             {
                                 var handJointsDict = new Dictionary<string, object>();
+                                handJointsDict["HandRightState"] = body.HandRightState.ToString();
+                                handJointsDict["HandLeftState"] = body.HandLeftState.ToString();
                                 foreach (var kv in body.Joints)
                                 {
                                     var jointType = kv.Key;
-                                    if (jointType == JointType.HandLeft ||
-                                        jointType == JointType.HandRight ||
-                                        jointType == JointType.HandTipLeft ||
-                                        jointType == JointType.HandTipRight)
+                                    if (jointType == JointType.HandLeft || jointType == JointType.HandRight)
                                     {
                                         // Get pixel coordinates
                                         CameraSpacePoint position = kv.Value.Position;
