@@ -141,6 +141,8 @@ public class AvatarController : MonoBehaviour
 
     /// <summary>
     /// Selects the tracked body closest to the Kinect camera based on Z coordinate (depth).
+    /// Uses multiple torso joints (SpineBase, SpineMid, SpineShoulder) and averages their Z values
+    /// for more robust and accurate depth measurement.
     /// In Kinect's coordinate system, smaller Z values indicate bodies closer to the camera.
     /// </summary>
     private Kinect.Body GetClosestTrackedBody(Kinect.Body[] bodies)
@@ -152,12 +154,40 @@ public class AvatarController : MonoBehaviour
         {
             if (body != null && body.IsTracked)
             {
-                // Use SpineBase as reference point (center of body)
-                float z = body.Joints[Kinect.JointType.SpineBase].Position.Z;
-                if (z < closestZ)
+                // Use multiple torso joints and average their Z values for more robust measurement
+                var joints = body.Joints;
+                float avgZ = 0f;
+                int validJointCount = 0;
+                
+                // Average Z coordinates from torso joints
+                var torsoJoints = new[]
                 {
-                    closestZ = z;
-                    closestBody = body;
+                    Kinect.JointType.SpineBase,
+                    Kinect.JointType.SpineMid,
+                    Kinect.JointType.SpineShoulder
+                };
+                
+                foreach (var jointType in torsoJoints)
+                {
+                    var joint = joints[jointType];
+                    // Prefer tracked joints, but include inferred joints if needed
+                    if (joint.TrackingState != Kinect.TrackingState.NotTracked)
+                    {
+                        avgZ += joint.Position.Z;
+                        validJointCount++;
+                    }
+                }
+                
+                // Only use this body if we have at least one valid joint
+                if (validJointCount > 0)
+                {
+                    avgZ /= validJointCount;
+                    
+                    if (avgZ < closestZ)
+                    {
+                        closestZ = avgZ;
+                        closestBody = body;
+                    }
                 }
             }
         }
