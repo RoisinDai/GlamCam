@@ -151,20 +151,31 @@ def kinect_hand_tcp_listener():
                     hands_dict = hands_list[0]
                     hand_state = hands_dict.get("HandRightState", "Unknown")
                     try:
-                        hand_tip_x = float(hands_dict["HandTipRight"]["X"])
-                        hand_tip_y = float(hands_dict["HandTipRight"]["Y"])
-                        hand_x = float(hands_dict["HandRight"]["X"])
-                        hand_y = float(hands_dict["HandRight"]["Y"])
-                        # Calculate the center position between the hand and the hand tip
-                        hand_center_x = (hand_x + hand_tip_x) / 2
-                        hand_center_y = (hand_y + hand_tip_y) / 2
-                        # Use the center position as the latest right hand position
+                        hand_right = hands_dict.get("HandRight")
+                        hand_tip = hands_dict.get("HandTipRight")
+                        if not hand_right:
+                            raise KeyError("HandRight")
+
+                        hand_x = float(hand_right["X"])
+                        hand_y = float(hand_right["Y"])
+
+                        if hand_tip:
+                            hand_tip_x = float(hand_tip["X"])
+                            hand_tip_y = float(hand_tip["Y"])
+                            # Use the center position between hand and hand tip when available
+                            hand_center_x = (hand_x + hand_tip_x) / 2
+                            hand_center_y = (hand_y + hand_tip_y) / 2
+                        else:
+                            # Closed fists often drop HandTipRight; fall back to HandRight
+                            hand_center_x = hand_x
+                            hand_center_y = hand_y
+
                         latest_right_hand = {
                             "x": hand_center_x,
                             "y": hand_center_y,
                             "handState": hand_state,
                         }
-                    except KeyError as e:
+                    except (KeyError, TypeError, ValueError) as e:
                         latest_right_hand = {
                             "x": -1,
                             "y": -1,

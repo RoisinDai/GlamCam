@@ -507,7 +507,7 @@ const ClosetDrawer = React.forwardRef(
 );
 
 // VirtualCursor component
-function VirtualCursor({ x, y }) {
+function VirtualCursor({ x, y, isSelecting }) {
   return React.createElement("div", {
     id: "virtual-cursor",
     style: {
@@ -517,9 +517,11 @@ function VirtualCursor({ x, y }) {
       width: "36px",
       height: "36px",
       borderRadius: "50%",
-      background: "#ffd600",
+      background: isSelecting ? "#33d17a" : "#ffd600",
       border: "none",
-      boxShadow: "0 0 12px 2px #ffd60077",
+      boxShadow: isSelecting
+        ? "0 0 12px 2px rgba(51, 209, 122, 0.6)"
+        : "0 0 12px 2px #ffd60077",
       transform: "translate(-18px, -18px)",
       left: `${x}px`,
       top: `${y}px`,
@@ -621,6 +623,7 @@ function App() {
   const [selectedFullbodyName, setSelectedFullbodyName] = useState(null);
   const [selectedHatName, setSelectedHatName] = useState(null);
   const [useKinect, setUseKinect] = useState(false);
+  const [isFistClosed, setIsFistClosed] = useState(false);
 
   const [pressedSegIndex, setPressedSegIndex] = useState(null);
   const pressedSegIndexRef = useRef(null);
@@ -671,6 +674,8 @@ function App() {
     if (useKinect) {
       hoverTargetRef.current = null;
       hoverStartTimeRef.current = null;
+    } else {
+      setIsFistClosed(false);
     }
   }, [useKinect]);
 
@@ -729,7 +734,11 @@ function App() {
     }
 
     if (typeof data.handState === "string") {
-      if (lastHandStateRef.current !== "Closed" && data.handState === "Closed") {
+      setIsFistClosed(data.handState === "Closed");
+      if (
+        lastHandStateRef.current !== "Closed" &&
+        data.handState === "Closed"
+      ) {
         fistTriggerRef.current = true;
       }
       lastHandStateRef.current = data.handState;
@@ -1254,7 +1263,11 @@ function App() {
       selectedHatName,
       pageLabel: drawerPageLabel,
     }),
-    React.createElement(VirtualCursor, { x: cursorX, y: cursorY })
+    React.createElement(VirtualCursor, {
+      x: cursorX,
+      y: cursorY,
+      isSelecting: isFistClosed,
+    })
   );
 }
 
