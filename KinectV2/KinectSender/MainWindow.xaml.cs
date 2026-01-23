@@ -415,10 +415,7 @@ namespace Microsoft.Samples.Kinect.ColorBasics
                                 foreach (var kv in body.Joints)
                                 {
                                     var jointType = kv.Key;
-                                    if (jointType == JointType.HandLeft ||
-                                        jointType == JointType.HandRight ||
-                                        jointType == JointType.HandTipLeft ||
-                                        jointType == JointType.HandTipRight)
+                                    if (jointType == JointType.HandLeft || jointType == JointType.HandRight)
                                     {
                                         // Get pixel coordinates
                                         CameraSpacePoint position = kv.Value.Position;
