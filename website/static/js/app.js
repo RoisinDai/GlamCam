@@ -50,7 +50,7 @@ const SCROLL_TRACK_INSET = 0; // 0 = flush with drawer edge
 const SCROLL_CONTENT_PAD_LEFT = SCROLL_TRACK_WIDTH + 8;
 
 // Auto-close timer
-const AUTO_CLOSE_MS = 2000;
+const AUTO_CLOSE_MS = 1500;
 
 // Header sizing constants
 const DRAWER_LOGO_HEIGHT = 50;
