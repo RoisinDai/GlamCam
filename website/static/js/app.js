@@ -1,6 +1,7 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
 const DWELL_TIME = 800; // ms
+const KINECT_SMOOTHING_ALPHA = 0.2; // lower = smoother, higher = snappier
 
 const CLOSET_CATEGORIES = window.CLOSET_CATEGORIES || [];
 const CATEGORY_TYPE = window.CATEGORY_TYPE || {};
@@ -660,6 +661,7 @@ function App() {
   const closetOpenRef = useRef(closetOpen);
   const rafIdRef = useRef(null);
   const stoppedRef = useRef(false);
+  const kinectSmoothedRef = useRef(null);
 
   const selectedTopNameRef = useRef(selectedTopName);
   const selectedBottomNameRef = useRef(selectedBottomName);
@@ -676,6 +678,7 @@ function App() {
       hoverStartTimeRef.current = null;
     } else {
       setIsFistClosed(false);
+      kinectSmoothedRef.current = null;
     }
   }, [useKinect]);
 
@@ -728,8 +731,18 @@ function App() {
         setUseKinect(false);
       } else {
         setUseKinect(true);
-        setCursorX(x);
-        setCursorY(y);
+        if (!kinectSmoothedRef.current) {
+          kinectSmoothedRef.current = { x, y };
+        } else {
+          const prev = kinectSmoothedRef.current;
+          kinectSmoothedRef.current = {
+            x: prev.x + (x - prev.x) * KINECT_SMOOTHING_ALPHA,
+            y: prev.y + (y - prev.y) * KINECT_SMOOTHING_ALPHA,
+          };
+        }
+        const smoothed = kinectSmoothedRef.current;
+        setCursorX(smoothed.x);
+        setCursorY(smoothed.y);
       }
     }
 
