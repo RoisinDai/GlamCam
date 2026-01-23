@@ -465,12 +465,12 @@ public class AvatarController : MonoBehaviour
     /// </summary>
     private void ApplyLegBoneRotations(Kinect.Body body)
     {
-        var legBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone)>
+        var legBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone, Kinect.JointType? Parent)>
         {
-            (Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg),
-            (Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg),
-            (Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg),
-            (Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg),
+            (Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg, Kinect.JointType.HipLeft),
+            (Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg, null),
+            (Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg, Kinect.JointType.HipRight),
+            (Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg, null),
         };
 
         // Get hip line for up reference
@@ -478,7 +478,7 @@ public class AvatarController : MonoBehaviour
         Vector3 hipRight = GetJointPosition(body.Joints[Kinect.JointType.HipRight]);
         Vector3 hipLine = (hipRight - hipLeft).normalized;
 
-        foreach (var (Start, End, UnityBone) in legBoneMapping)
+        foreach (var (Start, End, UnityBone, Parent) in legBoneMapping)
         {
             Transform boneTransform = animator.GetBoneTransform(UnityBone);
             if (boneTransform == null) continue;
@@ -488,19 +488,24 @@ public class AvatarController : MonoBehaviour
             Vector3 endPos = GetJointPosition(body.Joints[End]);
             Vector3 boneDirection = (endPos - startPos).normalized;
 
-            // Use a reference up vector perpendicular to the bone and hip line
-            Vector3 upReference = Vector3.Cross(hipLine, boneDirection).normalized;
-            if (upReference == Vector3.zero) upReference = Vector3.up;
+            Vector3 upReference;
+            if (Parent.HasValue) // Lower leg (shin)
+            {
+                Vector3 parentPos = GetJointPosition(body.Joints[Parent.Value]);
+                Vector3 thighDirection = (startPos - parentPos).normalized;
+                upReference = Vector3.Cross(thighDirection, boneDirection).normalized;
+                if (upReference == Vector3.zero) upReference = Vector3.up;
+            }
+            else // Upper leg (thigh)
+            {
+                upReference = Vector3.Cross(hipLine, boneDirection).normalized;
+                if (upReference == Vector3.zero) upReference = Vector3.up;
+            }
 
-            // The bone's forward (Z) points along the bone, up is perpendicular to the hips
             Quaternion worldRotation = Quaternion.LookRotation(boneDirection, upReference);
-
-            // If the avatar's rig expects a different axis, add an offset here (e.g., 90 deg X)
-            // Uncomment if needed:
             Quaternion boneOffset = Quaternion.Euler(90, 0, 0);
             worldRotation *= boneOffset;
 
-            // Convert to local rotation
             ApplyLocalRotation(boneTransform, worldRotation);
         }
     }
