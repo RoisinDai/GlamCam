@@ -3,9 +3,9 @@ window.CLOSET_CATEGORIES = [
   { key: "Tops", img: "/static/Tops.PNG", alt: "Tops" },
   { key: "Bottoms", img: "/static/Bottoms.PNG", alt: "Bottoms" },
   { key: "Dresses", img: "/static/Dresses.PNG", alt: "Dresses" },
+  { key: "Fullbody", img: "/static/Fullbody.PNG", alt: "Fullbody" },
   { key: "Hats", img: "/static/Hats.PNG", alt: "Hats" },
   { key: "Accessories", img: "/static/accessories.PNG", alt: "Accessories" },
-  { key: "Fullbody", img: "/static/Fullbody.PNG", alt: "Fullbody" },
 ];
 
 window.CATEGORY_TYPE = {
