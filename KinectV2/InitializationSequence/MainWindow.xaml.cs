@@ -9,10 +9,13 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
     using System;
     using System.Collections.Generic;
     using System.ComponentModel;
+    using System.Diagnostics;
     using System.Globalization;
     using System.IO;
     using System.Linq;
     using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
     using System.Windows;
     using System.Windows.Media;
     using System.Windows.Media.Imaging;
@@ -83,11 +86,6 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         private FrameDescription depthFrameDescription = null;
 
         /// <summary>
-        /// Bitmap to display silhouette
-        /// </summary>
-        private WriteableBitmap silhouetteBitmap = null;
-
-        /// <summary>
         /// Intermediate storage for body index frame data
         /// </summary>
         private byte[] bodyIndexData = null;
@@ -113,29 +111,24 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         private Body trackedBody = null;
 
         /// <summary>
-        /// Intermediate storage for silhouette pixels (RGBA format)
-        /// </summary>
-        private byte[] silhouettePixels = null;
-
-        /// <summary>
-        /// Bone connections defining the skeleton structure
-        /// </summary>
-        private List<Tuple<JointType, JointType>> bones = null;
-
-        /// <summary>
-        /// Joint radius for drawing (in pixels)
-        /// </summary>
-        private const int JOINT_RADIUS = 4;
-
-        /// <summary>
-        /// Bone line thickness (in pixels)
-        /// </summary>
-        private const int BONE_THICKNESS = 3;
-
-        /// <summary>
         /// Current status text to display
         /// </summary>
         private string statusText = null;
+
+        /// <summary>
+        /// Current body measurements (stored for model generation)
+        /// </summary>
+        private HumanoidMeasurements currentMeasurements = null;
+
+        /// <summary>
+        /// Flag to track if we've already captured measurements
+        /// </summary>
+        private bool measurementsCaptured = false;
+
+        /// <summary>
+        /// Flag to track if model generation is in progress
+        /// </summary>
+        private bool modelGenerationInProgress = false;
 
         /// <summary>
         /// Initializes a new instance of the MainWindow class.
@@ -169,44 +162,6 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 this.cleanedBodyIndexData = new byte[this.bodyIndexFrameDescription.Width * this.bodyIndexFrameDescription.Height];
                 this.depthData = new ushort[this.depthFrameDescription.Width * this.depthFrameDescription.Height];
                 this.bodies = new Body[this.kinectSensor.BodyFrameSource.BodyCount];
-                this.silhouettePixels = new byte[this.bodyIndexFrameDescription.Width * this.bodyIndexFrameDescription.Height * 4]; // RGBA
-
-                // Define bone connections (skeleton structure)
-                this.bones = new List<Tuple<JointType, JointType>>();
-                // Torso
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.Head, JointType.Neck));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.Neck, JointType.SpineShoulder));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineShoulder, JointType.SpineMid));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineMid, JointType.SpineBase));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineShoulder, JointType.ShoulderRight));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineShoulder, JointType.ShoulderLeft));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineBase, JointType.HipRight));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.SpineBase, JointType.HipLeft));
-                // Right Arm
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.ShoulderRight, JointType.ElbowRight));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.ElbowRight, JointType.WristRight));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.WristRight, JointType.HandRight));
-                // Left Arm
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.ShoulderLeft, JointType.ElbowLeft));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.ElbowLeft, JointType.WristLeft));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.WristLeft, JointType.HandLeft));
-                // Right Leg
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.HipRight, JointType.KneeRight));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.KneeRight, JointType.AnkleRight));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.AnkleRight, JointType.FootRight));
-                // Left Leg
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.HipLeft, JointType.KneeLeft));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.KneeLeft, JointType.AnkleLeft));
-                this.bones.Add(new Tuple<JointType, JointType>(JointType.AnkleLeft, JointType.FootLeft));
-
-                // Create bitmap for silhouette display (RGBA format)
-                this.silhouetteBitmap = new WriteableBitmap(
-                    this.bodyIndexFrameDescription.Width,
-                    this.bodyIndexFrameDescription.Height,
-                    96.0,
-                    96.0,
-                    PixelFormats.Bgra32,
-                    null);
 
                 // Set IsAvailableChanged event notifier
                 this.kinectSensor.IsAvailableChanged += this.Sensor_IsAvailableChanged;
@@ -217,7 +172,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
             // Set the status text
             this.StatusText = this.kinectSensor != null && this.kinectSensor.IsAvailable
-                ? "Kinect sensor ready"
+                ? "Kinect sensor ready - Waiting for body tracking..."
                 : "No sensor found";
 
             // Use the window object as the view model in this simple example
@@ -232,16 +187,6 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
-        /// <summary>
-        /// Gets the bitmap to display
-        /// </summary>
-        public ImageSource ImageSource
-        {
-            get
-            {
-                return this.silhouetteBitmap;
-            }
-        }
 
         /// <summary>
         /// Gets or sets the current status text to display
@@ -300,44 +245,6 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             }
         }
 
-        /// <summary>
-        /// Handles the user clicking on the screenshot button
-        /// </summary>
-        /// <param name="sender">object sending the event</param>
-        /// <param name="e">event arguments</param>
-        private void ScreenshotButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (this.silhouetteBitmap != null)
-            {
-                // Create a png bitmap encoder which knows how to save a .png file
-                BitmapEncoder encoder = new PngBitmapEncoder();
-
-                // Create frame from the writable bitmap and add to encoder
-                encoder.Frames.Add(BitmapFrame.Create(this.silhouetteBitmap));
-
-                string time = System.DateTime.UtcNow.ToString("hh'-'mm'-'ss", CultureInfo.CurrentUICulture.DateTimeFormat);
-
-                string myPhotos = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-
-                string path = Path.Combine(myPhotos, "KinectScreenshot-Silhouette-" + time + ".png");
-
-                // Write the new file to disk
-                try
-                {
-                    // FileStream is IDisposable
-                    using (FileStream fs = new FileStream(path, FileMode.Create))
-                    {
-                        encoder.Save(fs);
-                    }
-
-                    this.StatusText = string.Format(CultureInfo.CurrentCulture, "Saved screenshot to {0}", path);
-                }
-                catch (IOException)
-                {
-                    this.StatusText = string.Format(CultureInfo.CurrentCulture, "Failed to save screenshot to {0}", path);
-                }
-            }
-        }
 
         /// <summary>
         /// Handles the body index frame data arriving from the sensor
@@ -359,9 +266,10 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 }
             }
 
-            if (bodyIndexFrameProcessed)
+            if (bodyIndexFrameProcessed && !this.measurementsCaptured)
             {
-                this.ProcessBodyIndexData();
+                // Process body index data for measurements only (skip rendering)
+                this.ProcessBodyIndexDataForMeasurements();
             }
         }
 
@@ -388,8 +296,9 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 }
             }
 
-            if (bodyFrameProcessed)
+            if (bodyFrameProcessed && !this.measurementsCaptured)
             {
+                // Only update measurements if we haven't captured yet
                 this.UpdateMeasurements();
             }
         }
@@ -414,61 +323,29 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 }
             }
 
-            if (depthFrameProcessed)
+            if (depthFrameProcessed && !this.measurementsCaptured)
             {
+                // Only update measurements if we haven't captured yet
                 this.UpdateMeasurements();
             }
         }
 
         /// <summary>
-        /// Processes body index data and converts it to a displayable bitmap
-        /// BodyIndexData values: 0-5 = body pixels (different body IDs), 255 = background
-        /// Applies morphological cleanup to remove noise
+        /// Processes body index data for measurements only (no rendering)
+        /// Applies morphological cleanup to remove noise for accurate measurements
         /// </summary>
-        private void ProcessBodyIndexData()
+        private void ProcessBodyIndexDataForMeasurements()
         {
-            if (this.bodyIndexData == null || this.silhouetteBitmap == null)
+            if (this.bodyIndexData == null)
             {
                 return;
             }
 
             // Apply morphological cleanup (opening: erosion followed by dilation)
-            // This removes small noise spots and smooths the silhouette
+            // This removes small noise spots and smooths the silhouette for better measurements
             this.ApplyMorphologicalCleanup(this.bodyIndexData, this.cleanedBodyIndexData, MORPHOLOGICAL_RADIUS);
-
-            // Convert cleaned body index data to RGBA pixels
-            // White = body (255, 255, 255, 255), Black = background (0, 0, 0, 255)
-            for (int i = 0; i < this.cleanedBodyIndexData.Length; i++)
-            {
-                int pixelIndex = i * 4; // RGBA = 4 bytes per pixel
-
-                if (this.cleanedBodyIndexData[i] != 255)
-                {
-                    // Body pixel - WHITE
-                    this.silhouettePixels[pixelIndex] = 255;     // B
-                    this.silhouettePixels[pixelIndex + 1] = 255; // G
-                    this.silhouettePixels[pixelIndex + 2] = 255; // R
-                    this.silhouettePixels[pixelIndex + 3] = 255; // A
-                }
-                else
-                {
-                    // Background - BLACK
-                    this.silhouettePixels[pixelIndex] = 0;     // B
-                    this.silhouettePixels[pixelIndex + 1] = 0; // G
-                    this.silhouettePixels[pixelIndex + 2] = 0;   // R
-                    this.silhouettePixels[pixelIndex + 3] = 255; // A
-                }
-            }
-
-            // Render pixels to bitmap
-            this.RenderSilhouettePixels();
-
-            // Draw skeleton overlay on top of silhouette
-            if (this.trackedBody != null && this.trackedBody.IsTracked)
-            {
-                this.DrawSkeletonOnBitmap();
-            }
         }
+
 
         /// <summary>
         /// Applies morphological opening (erosion followed by dilation) to clean up noise
@@ -603,451 +480,6 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             }
         }
 
-        /// <summary>
-        /// Renders silhouette pixels into the writeableBitmap
-        /// </summary>
-        private void RenderSilhouettePixels()
-        {
-            if (this.silhouetteBitmap != null)
-            {
-                this.silhouetteBitmap.WritePixels(
-                    new Int32Rect(0, 0, this.silhouetteBitmap.PixelWidth, this.silhouetteBitmap.PixelHeight),
-                    this.silhouettePixels,
-                    this.silhouetteBitmap.PixelWidth * 4, // stride (4 bytes per pixel for BGRA32)
-                    0);
-            }
-        }
-
-        /// <summary>
-        /// Draws skeleton (joints and bones) on top of the silhouette bitmap
-        /// Also displays measurements next to each skeleton part
-        /// </summary>
-        private void DrawSkeletonOnBitmap()
-        {
-            if (this.trackedBody == null || !this.trackedBody.IsTracked || this.coordinateMapper == null)
-            {
-                return;
-            }
-
-            var joints = this.trackedBody.Joints;
-            Dictionary<JointType, System.Windows.Point> jointPoints = new Dictionary<JointType, System.Windows.Point>();
-
-            // Map all joints from 3D camera space to 2D depth space
-            foreach (JointType jointType in joints.Keys)
-            {
-                var joint = joints[jointType];
-                if (joint.TrackingState != TrackingState.NotTracked)
-                {
-                    DepthSpacePoint depthPoint = this.coordinateMapper.MapCameraPointToDepthSpace(joint.Position);
-                    
-                    // Only store if within bounds
-                    if (depthPoint.X >= 0 && depthPoint.X < DEPTH_WIDTH &&
-                        depthPoint.Y >= 0 && depthPoint.Y < DEPTH_HEIGHT)
-                    {
-                        jointPoints[jointType] = new System.Windows.Point(depthPoint.X, depthPoint.Y);
-                    }
-                }
-            }
-
-            // Calculate body measurements for display
-            HumanoidMeasurements measurements = this.MeasureKinectUserBodyParts(this.trackedBody);
-
-            // Draw bones first
-            foreach (var bone in this.bones)
-            {
-                this.DrawBoneOnBitmap(joints, jointPoints, bone.Item1, bone.Item2);
-            }
-
-            // Draw joints on top
-            foreach (JointType jointType in joints.Keys)
-            {
-                if (jointPoints.ContainsKey(jointType))
-                {
-                    var joint = joints[jointType];
-                    bool isTracked = joint.TrackingState == TrackingState.Tracked;
-                    this.DrawJointOnBitmap(jointPoints[jointType], isTracked);
-                }
-            }
-
-            // Draw measurements next to skeleton parts
-            this.DrawMeasurementsOnBitmap(jointPoints, measurements);
-
-            // Update the bitmap with skeleton overlay
-            this.silhouetteBitmap.WritePixels(
-                new Int32Rect(0, 0, this.silhouetteBitmap.PixelWidth, this.silhouetteBitmap.PixelHeight),
-                this.silhouettePixels,
-                this.silhouetteBitmap.PixelWidth * 4,
-                0);
-        }
-
-        /// <summary>
-        /// Draws measurement labels next to corresponding skeleton parts
-        /// </summary>
-        private void DrawMeasurementsOnBitmap(Dictionary<JointType, System.Windows.Point> jointPoints, HumanoidMeasurements measurements)
-        {
-            // Upper Arm measurements (draw near elbow joints)
-            if (jointPoints.ContainsKey(JointType.ElbowLeft) && measurements.upperArmLength > 0)
-            {
-                System.Windows.Point pos = jointPoints[JointType.ElbowLeft];
-                this.DrawTextOnBitmap((int)pos.X - 40, (int)pos.Y - 10, 
-                    string.Format(CultureInfo.CurrentCulture, "UA:{0:F2}m", measurements.upperArmLength));
-            }
-
-            // Lower Arm measurements (draw near wrist joints)
-            if (jointPoints.ContainsKey(JointType.WristLeft) && measurements.lowerArmLength > 0)
-            {
-                System.Windows.Point pos = jointPoints[JointType.WristLeft];
-                this.DrawTextOnBitmap((int)pos.X - 40, (int)pos.Y - 10,
-                    string.Format(CultureInfo.CurrentCulture, "LA:{0:F2}m", measurements.lowerArmLength));
-            }
-
-            // Upper Leg measurements (draw near knee joints)
-            if (jointPoints.ContainsKey(JointType.KneeLeft) && measurements.upperLegLength > 0)
-            {
-                System.Windows.Point pos = jointPoints[JointType.KneeLeft];
-                this.DrawTextOnBitmap((int)pos.X - 40, (int)pos.Y - 10,
-                    string.Format(CultureInfo.CurrentCulture, "UL:{0:F2}m", measurements.upperLegLength));
-            }
-
-            // Lower Leg measurements (draw near ankle joints)
-            if (jointPoints.ContainsKey(JointType.AnkleLeft) && measurements.lowerLegLength > 0)
-            {
-                System.Windows.Point pos = jointPoints[JointType.AnkleLeft];
-                this.DrawTextOnBitmap((int)pos.X - 40, (int)pos.Y - 10,
-                    string.Format(CultureInfo.CurrentCulture, "LL:{0:F2}m", measurements.lowerLegLength));
-            }
-
-            // Nape to Waist (draw near SpineShoulder)
-            if (jointPoints.ContainsKey(JointType.SpineShoulder) && measurements.napeToWaist > 0)
-            {
-                System.Windows.Point pos = jointPoints[JointType.SpineShoulder];
-                this.DrawTextOnBitmap((int)pos.X + 10, (int)pos.Y - 15,
-                    string.Format(CultureInfo.CurrentCulture, "NTW:{0:F2}m", measurements.napeToWaist));
-            }
-
-            // Shoulder Distance (draw near SpineShoulder, offset)
-            if (jointPoints.ContainsKey(JointType.SpineShoulder) && measurements.shoulderDist > 0)
-            {
-                System.Windows.Point pos = jointPoints[JointType.SpineShoulder];
-                this.DrawTextOnBitmap((int)pos.X + 10, (int)pos.Y + 5,
-                    string.Format(CultureInfo.CurrentCulture, "SD:{0:F2}m", measurements.shoulderDist));
-            }
-
-            // Waist to Hip (draw near SpineMid)
-            if (jointPoints.ContainsKey(JointType.SpineMid) && measurements.waistToHip > 0)
-            {
-                System.Windows.Point pos = jointPoints[JointType.SpineMid];
-                this.DrawTextOnBitmap((int)pos.X + 10, (int)pos.Y - 15,
-                    string.Format(CultureInfo.CurrentCulture, "WTH:{0:F2}m", measurements.waistToHip));
-            }
-
-            // Neck Height (draw near Neck joint)
-            if (jointPoints.ContainsKey(JointType.Neck) && measurements.neckHeight > 0)
-            {
-                System.Windows.Point pos = jointPoints[JointType.Neck];
-                this.DrawTextOnBitmap((int)pos.X + 10, (int)pos.Y - 10,
-                    string.Format(CultureInfo.CurrentCulture, "NH:{0:F2}m", measurements.neckHeight));
-            }
-
-            // Height (draw near Head)
-            if (jointPoints.ContainsKey(JointType.Head) && measurements.height > 0)
-            {
-                System.Windows.Point pos = jointPoints[JointType.Head];
-                this.DrawTextOnBitmap((int)pos.X - 30, (int)pos.Y - 20,
-                    string.Format(CultureInfo.CurrentCulture, "H:{0:F2}m", measurements.height));
-            }
-        }
-
-        /// <summary>
-        /// Draws text on the bitmap at the specified position
-        /// Uses a simple bitmap font rendering
-        /// </summary>
-        private void DrawTextOnBitmap(int x, int y, string text)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return;
-            }
-
-            // Draw background rectangle for text readability
-            int textWidth = text.Length * 6 + 4; // Approximate width
-            int textHeight = 10;
-            this.DrawFilledRectangle(x - 2, y - 2, textWidth, textHeight);
-
-            // Draw each character
-            for (int i = 0; i < text.Length; i++)
-            {
-                char c = text[i];
-                int charX = x + (i * 6);
-                this.DrawCharOnBitmap(charX, y, c);
-            }
-        }
-
-        /// <summary>
-        /// Draws a filled rectangle on the bitmap (for text background)
-        /// </summary>
-        private void DrawFilledRectangle(int x, int y, int width, int height)
-        {
-            // Semi-transparent dark background for text
-            byte r = 0;
-            byte g = 0;
-            byte b = 0;
-            byte a = 200; // Semi-transparent
-
-            for (int py = y; py < y + height && py < DEPTH_HEIGHT; py++)
-            {
-                if (py < 0) continue;
-                for (int px = x; px < x + width && px < DEPTH_WIDTH; px++)
-                {
-                    if (px < 0) continue;
-                    int index = (py * DEPTH_WIDTH + px) * 4;
-                    if (index >= 0 && index + 3 < this.silhouettePixels.Length)
-                    {
-                        this.silhouettePixels[index] = b;         // B
-                        this.silhouettePixels[index + 1] = g;     // G
-                        this.silhouettePixels[index + 2] = r;     // R
-                        this.silhouettePixels[index + 3] = a;     // A
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Draws a single character on the bitmap using simple pattern
-        /// This is a simplified implementation - you may want to use a proper font rendering
-        /// </summary>
-        private void DrawCharOnBitmap(int x, int y, char c)
-        {
-            // Simple 5x8 pixel font patterns for common characters
-            // For simplicity, we'll draw a basic representation
-            // White text color
-            byte r = 255;
-            byte g = 255;
-            byte b = 255;
-
-            // Draw character as a simple pattern (basic implementation)
-            // This draws a simplified representation - for better quality, use a proper font bitmap
-            switch (c)
-            {
-                case '0': case 'O': DrawPattern(x, y, "01110,10001,10001,10001,10001,10001,01110"); break;
-                case '1': DrawPattern(x, y, "00100,01100,00100,00100,00100,00100,01110"); break;
-                case '2': DrawPattern(x, y, "01110,10001,00001,00110,01000,10000,11111"); break;
-                case '3': DrawPattern(x, y, "01110,10001,00001,01110,00001,10001,01110"); break;
-                case '4': DrawPattern(x, y, "00010,00110,01010,10010,11111,00010,00010"); break;
-                case '5': DrawPattern(x, y, "11111,10000,10000,11110,00001,10001,01110"); break;
-                case '6': DrawPattern(x, y, "01110,10001,10000,11110,10001,10001,01110"); break;
-                case '7': DrawPattern(x, y, "11111,00001,00010,00100,01000,01000,01000"); break;
-                case '8': DrawPattern(x, y, "01110,10001,10001,01110,10001,10001,01110"); break;
-                case '9': DrawPattern(x, y, "01110,10001,10001,01111,00001,10001,01110"); break;
-                case '.': DrawPattern(x, y, "00000,00000,00000,00000,00000,00000,00010"); break;
-                case '-': DrawPattern(x, y, "00000,00000,00000,11111,00000,00000,00000"); break;
-                case ':': DrawPattern(x, y, "00000,00100,00000,00000,00000,00100,00000"); break;
-                case 'A': case 'a': DrawPattern(x, y, "00100,01010,10001,11111,10001,10001,10001"); break;
-                case 'B': case 'b': DrawPattern(x, y, "11110,10001,10001,11110,10001,10001,11110"); break;
-                case 'C': case 'c': DrawPattern(x, y, "01110,10001,10000,10000,10000,10001,01110"); break;
-                case 'D': case 'd': DrawPattern(x, y, "11110,10001,10001,10001,10001,10001,11110"); break;
-                case 'E': case 'e': DrawPattern(x, y, "11111,10000,10000,11110,10000,10000,11111"); break;
-                case 'F': case 'f': DrawPattern(x, y, "11111,10000,10000,11110,10000,10000,10000"); break;
-                case 'G': case 'g': DrawPattern(x, y, "01110,10001,10000,10111,10001,10001,01110"); break;
-                case 'H': case 'h': DrawPattern(x, y, "10001,10001,10001,11111,10001,10001,10001"); break;
-                case 'I': case 'i': DrawPattern(x, y, "01110,00100,00100,00100,00100,00100,01110"); break;
-                case 'J': case 'j': DrawPattern(x, y, "00111,00010,00010,00010,00010,10010,01100"); break;
-                case 'K': case 'k': DrawPattern(x, y, "10001,10010,10100,11000,10100,10010,10001"); break;
-                case 'L': case 'l': DrawPattern(x, y, "10000,10000,10000,10000,10000,10000,11111"); break;
-                case 'M': case 'm': DrawPattern(x, y, "10001,11011,10101,10001,10001,10001,10001"); break;
-                case 'N': case 'n': DrawPattern(x, y, "10001,11001,10101,10011,10001,10001,10001"); break;
-                case 'O': case 'o': DrawPattern(x, y, "01110,10001,10001,10001,10001,10001,01110"); break;
-                case 'P': case 'p': DrawPattern(x, y, "11110,10001,10001,11110,10000,10000,10000"); break;
-                case 'Q': case 'q': DrawPattern(x, y, "01110,10001,10001,10001,10101,10010,01101"); break;
-                case 'R': case 'r': DrawPattern(x, y, "11110,10001,10001,11110,10100,10010,10001"); break;
-                case 'S': case 's': DrawPattern(x, y, "01111,10000,10000,01110,00001,00001,11110"); break;
-                case 'T': case 't': DrawPattern(x, y, "11111,00100,00100,00100,00100,00100,00100"); break;
-                case 'U': case 'u': DrawPattern(x, y, "10001,10001,10001,10001,10001,10001,01110"); break;
-                case 'V': case 'v': DrawPattern(x, y, "10001,10001,10001,10001,01010,01010,00100"); break;
-                case 'W': case 'w': DrawPattern(x, y, "10001,10001,10001,10001,10101,11011,10001"); break;
-                case 'X': case 'x': DrawPattern(x, y, "10001,01010,00100,00100,00100,01010,10001"); break;
-                case 'Y': case 'y': DrawPattern(x, y, "10001,10001,01010,00100,00100,00100,00100"); break;
-                case 'Z': case 'z': DrawPattern(x, y, "11111,00001,00010,00100,01000,10000,11111"); break;
-                default:
-                    // Draw a simple rectangle for unknown characters
-                    for (int py = y; py < y + 7 && py < DEPTH_HEIGHT; py++)
-                    {
-                        if (py >= 0)
-                        {
-                            for (int px = x; px < x + 5 && px < DEPTH_WIDTH; px++)
-                            {
-                                if (px >= 0 && ((px - x) == 0 || (px - x) == 4 || (py - y) == 0 || (py - y) == 6))
-                                {
-                                    int index = (py * DEPTH_WIDTH + px) * 4;
-                                    if (index >= 0 && index + 3 < this.silhouettePixels.Length)
-                                    {
-                                        this.silhouettePixels[index] = b;
-                                        this.silhouettePixels[index + 1] = g;
-                                        this.silhouettePixels[index + 2] = r;
-                                        this.silhouettePixels[index + 3] = 255;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// Draws a character pattern on the bitmap
-        /// Pattern format: "11111,10001,..." where 1 = pixel on, 0 = pixel off, comma = new row
-        /// </summary>
-        private void DrawPattern(int x, int y, string pattern)
-        {
-            byte r = 255;
-            byte g = 255;
-            byte b = 255;
-
-            string[] rows = pattern.Split(',');
-            for (int row = 0; row < rows.Length; row++)
-            {
-                string rowData = rows[row];
-                for (int col = 0; col < rowData.Length && col < 5; col++)
-                {
-                    if (rowData[col] == '1')
-                    {
-                        int px = x + col;
-                        int py = y + row;
-                        if (px >= 0 && px < DEPTH_WIDTH && py >= 0 && py < DEPTH_HEIGHT)
-                        {
-                            int index = (py * DEPTH_WIDTH + px) * 4;
-                            if (index >= 0 && index + 3 < this.silhouettePixels.Length)
-                            {
-                                this.silhouettePixels[index] = b;
-                                this.silhouettePixels[index + 1] = g;
-                                this.silhouettePixels[index + 2] = r;
-                                this.silhouettePixels[index + 3] = 255;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Draws a bone (line) between two joints on the bitmap
-        /// </summary>
-        private void DrawBoneOnBitmap(IReadOnlyDictionary<JointType, Joint> joints, Dictionary<JointType, System.Windows.Point> jointPoints, JointType jointType0, JointType jointType1)
-        {
-            if (!jointPoints.ContainsKey(jointType0) || !jointPoints.ContainsKey(jointType1))
-            {
-                return;
-            }
-
-            var joint0 = joints[jointType0];
-            var joint1 = joints[jointType1];
-
-            // Only draw if at least one joint is tracked
-            if (joint0.TrackingState == TrackingState.NotTracked && joint1.TrackingState == TrackingState.NotTracked)
-            {
-                return;
-            }
-
-            System.Windows.Point pt0 = jointPoints[jointType0];
-            System.Windows.Point pt1 = jointPoints[jointType1];
-
-            // Draw line using Bresenham's line algorithm
-            this.DrawLineOnBitmap((int)pt0.X, (int)pt0.Y, (int)pt1.X, (int)pt1.Y, BONE_THICKNESS);
-        }
-
-        /// <summary>
-        /// Draws a joint (circle) on the bitmap
-        /// Green = Tracked, Yellow = Inferred
-        /// </summary>
-        private void DrawJointOnBitmap(System.Windows.Point point, bool isTracked)
-        {
-            int x = (int)point.X;
-            int y = (int)point.Y;
-
-            // Color: Green for tracked, Yellow for inferred
-            byte r = isTracked ? (byte)0 : (byte)255;      // Red component
-            byte g = isTracked ? (byte)255 : (byte)255;    // Green component
-            byte b = isTracked ? (byte)0 : (byte)0;        // Blue component
-
-            // Draw filled circle
-            for (int dy = -JOINT_RADIUS; dy <= JOINT_RADIUS; dy++)
-            {
-                for (int dx = -JOINT_RADIUS; dx <= JOINT_RADIUS; dx++)
-                {
-                    if (dx * dx + dy * dy <= JOINT_RADIUS * JOINT_RADIUS)
-                    {
-                        int px = x + dx;
-                        int py = y + dy;
-
-                        if (px >= 0 && px < DEPTH_WIDTH && py >= 0 && py < DEPTH_HEIGHT)
-                        {
-                            int index = (py * DEPTH_WIDTH + px) * 4;
-                            this.silhouettePixels[index] = b;         // B
-                            this.silhouettePixels[index + 1] = g;     // G
-                            this.silhouettePixels[index + 2] = r;     // R
-                            this.silhouettePixels[index + 3] = 255;   // A
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Draws a line on the bitmap using Bresenham's line algorithm
-        /// </summary>
-        private void DrawLineOnBitmap(int x0, int y0, int x1, int y1, int thickness)
-        {
-            // Color: Cyan for bones
-            byte r = 0;
-            byte g = 255;
-            byte b = 255;
-
-            int dx = Math.Abs(x1 - x0);
-            int dy = Math.Abs(y1 - y0);
-            int sx = x0 < x1 ? 1 : -1;
-            int sy = y0 < y1 ? 1 : -1;
-            int err = dx - dy;
-
-            int x = x0;
-            int y = y0;
-
-            while (true)
-            {
-                // Draw pixel with thickness (draw surrounding pixels)
-                for (int tx = -thickness / 2; tx <= thickness / 2; tx++)
-                {
-                    for (int ty = -thickness / 2; ty <= thickness / 2; ty++)
-                    {
-                        int px = x + tx;
-                        int py = y + ty;
-
-                        if (px >= 0 && px < DEPTH_WIDTH && py >= 0 && py < DEPTH_HEIGHT)
-                        {
-                            int index = (py * DEPTH_WIDTH + px) * 4;
-                            this.silhouettePixels[index] = b;         // B
-                            this.silhouettePixels[index + 1] = g;     // G
-                            this.silhouettePixels[index + 2] = r;     // R
-                            this.silhouettePixels[index + 3] = 255;   // A
-                        }
-                    }
-                }
-
-                if (x == x1 && y == y1) break;
-
-                int e2 = 2 * err;
-                if (e2 > -dy)
-                {
-                    err -= dy;
-                    x += sx;
-                }
-                if (e2 < dx)
-                {
-                    err += dx;
-                    y += sy;
-                }
-            }
-        }
 
         /// <summary>
         /// Updates body width measurements using skeleton joints and coordinate mapping
@@ -1064,6 +496,9 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
             // Calculate all body part measurements from skeleton
             HumanoidMeasurements measurements = this.MeasureKinectUserBodyParts(this.trackedBody);
+            
+            // Store measurements for model generation
+            this.currentMeasurements = measurements;
 
             // Use cleaned body index data for width measurement (after morphological cleanup)
             byte[] measurementData = this.cleanedBodyIndexData != null ? this.cleanedBodyIndexData : this.bodyIndexData;
@@ -1095,6 +530,18 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             }
 
             this.MeasurementText.Text = sb.ToString();
+
+            // Automatically capture and generate model if measurements are valid and not already captured
+            if (!this.measurementsCaptured && !this.modelGenerationInProgress &&
+                measurements.height > 0 &&
+                measurements.upperArmLength > 0 &&
+                measurements.lowerArmLength > 0 &&
+                measurements.upperLegLength > 0 &&
+                measurements.lowerLegLength > 0)
+            {
+                // Trigger automatic capture and generation
+                this.CaptureMeasurementsAndGenerate();
+            }
         }
 
         /// <summary>
@@ -1338,6 +785,345 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             this.StatusText = this.kinectSensor.IsAvailable
                 ? "Kinect sensor ready"
                 : "Sensor not available";
+        }
+
+        /// <summary>
+        /// Captures measurements and automatically generates the model
+        /// </summary>
+        private async void CaptureMeasurementsAndGenerate()
+        {
+            if (this.measurementsCaptured || this.modelGenerationInProgress)
+            {
+                return;
+            }
+
+            if (this.currentMeasurements == null)
+            {
+                return;
+            }
+
+            // Mark as captured immediately to prevent duplicate calls
+            this.measurementsCaptured = true;
+            this.modelGenerationInProgress = true;
+
+            this.StatusText = "Body tracked! Generating model...";
+
+            // Wait a brief moment to ensure measurements are stable
+            await Task.Delay(500);
+
+            // Automatically generate the model
+            await Task.Run(() =>
+            {
+                this.Dispatcher.Invoke(() =>
+                {
+                    this.GenerateMakeHumanModel(this.currentMeasurements);
+                });
+            });
+        }
+
+
+        /// <summary>
+        /// Generates a MakeHuman model using the provided measurements
+        /// </summary>
+        /// <param name="measurements">Body measurements in meters</param>
+        private void GenerateMakeHumanModel(HumanoidMeasurements measurements)
+        {
+            try
+            {
+                this.StatusText = "Generating model...";
+
+                // Get paths relative to the executable location
+                // Executable is in: KinectV2/InitializationSequence/bin/AnyCPU/Release or Debug
+                // Project root is: ../../../../ (4 levels up)
+                string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string exeDir = Path.GetDirectoryName(exePath);
+                
+                // Navigate to project root (4 levels up from bin/AnyCPU/Release)
+                string projectRoot = Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", ".."));
+                
+                // Alternative: Try to find project root by looking for GlamCam directory
+                string currentDir = exeDir;
+                string projectRootAlt = null;
+                for (int i = 0; i < 10; i++)
+                {
+                    string glamCamPath = Path.Combine(currentDir, "GlamCam");
+                    if (Directory.Exists(glamCamPath))
+                    {
+                        projectRootAlt = currentDir;
+                        break;
+                    }
+                    currentDir = Path.GetDirectoryName(currentDir);
+                    if (string.IsNullOrEmpty(currentDir)) break;
+                }
+
+                if (projectRootAlt != null)
+                {
+                    projectRoot = projectRootAlt;
+                }
+
+                // MakeHuman script path
+                string makehumanScript = Path.Combine(projectRoot, "makehuman", "makehuman", "generate_human.py");
+                
+                // Unity rig path (adjust based on actual MakeHuman installation)
+                // Try common locations
+                string rigPath = null;
+                string[] possibleRigPaths = new string[]
+                {
+                    // Try specific known path first
+                    "/Users/keeganliu/Documents/MakeHuman/v1py3/data/rigs/Unity_Rig/unity.mhskel",
+                    // Then try relative to project root
+                    Path.Combine(projectRoot, "makehuman", "data", "rigs", "Unity_Rig", "unity.mhskel"),
+                    // Then try user profile paths
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "MakeHuman", "v1py3", "data", "rigs", "Unity_Rig", "unity.mhskel"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "MakeHuman", "v1py3", "data", "rigs", "Unity_Rig", "unity.mhskel"),
+                };
+
+                foreach (string path in possibleRigPaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        rigPath = path;
+                        break;
+                    }
+                }
+
+                if (rigPath == null)
+                {
+                    MessageBox.Show(
+                        "Unity rig file not found. Please specify the path to unity.mhskel in the code.",
+                        "Rig Not Found",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    this.StatusText = "Error: Rig file not found";
+                    return;
+                }
+
+                // Clothes directory - try known paths
+                string clothesDir = null;
+                string[] possibleClothesDirs = new string[]
+                {
+                    // Try specific known path first
+                    "/Users/keeganliu/Documents/MakeHuman/v1py3/data/clothes",
+                    // Then try relative to project root
+                    Path.Combine(projectRoot, "makehuman", "data", "clothes"),
+                    // Then try user profile path
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "MakeHuman", "v1py3", "data", "clothes"),
+                };
+
+                foreach (string path in possibleClothesDirs)
+                {
+                    if (Directory.Exists(path))
+                    {
+                        clothesDir = path;
+                        break;
+                    }
+                }
+
+                if (clothesDir == null)
+                {
+                    MessageBox.Show(
+                        "Clothes directory not found. Please check the MakeHuman installation.",
+                        "Clothes Directory Not Found",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    this.StatusText = "Error: Clothes directory not found";
+                    return;
+                }
+
+                // Output directory
+                string outputDir = Path.Combine(projectRoot, "GlamCam", "Assets", "Base Models");
+                if (!Directory.Exists(outputDir))
+                {
+                    Directory.CreateDirectory(outputDir);
+                }
+
+                // MHM temp directory
+                string mhmDir = Path.Combine(projectRoot, "tmp");
+                if (!Directory.Exists(mhmDir))
+                {
+                    Directory.CreateDirectory(mhmDir);
+                }
+
+                // Python executable (use python3 on macOS/Linux, python on Windows)
+                string pythonExe = "python3";
+                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                {
+                    // Try venv first
+                    string venvPython = Path.Combine(projectRoot, "venv", "Scripts", "python.exe");
+                    if (File.Exists(venvPython))
+                    {
+                        pythonExe = venvPython;
+                    }
+                    else
+                    {
+                        pythonExe = "python";
+                    }
+                }
+                else
+                {
+                    // macOS/Linux - try venv first
+                    string venvPython = Path.Combine(projectRoot, "venv", "bin", "python3");
+                    if (File.Exists(venvPython))
+                    {
+                        pythonExe = venvPython;
+                    }
+                }
+
+                // Convert measurements from meters to centimeters
+                double heightCm = measurements.height * 100.0;
+                double upperArmCm = measurements.upperArmLength * 100.0;
+                double lowerArmCm = measurements.lowerArmLength * 100.0;
+                double upperLegCm = measurements.upperLegLength * 100.0;
+                double lowerLegCm = measurements.lowerLegLength * 100.0;
+
+                // Build command-line arguments
+                string arguments = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "\"{0}\" --height {1:F1} --upper-arm {2:F1} --lower-arm {3:F1} --upper-leg {4:F1} --lower-leg {5:F1} --rig-path \"{6}\" --clothes-dir \"{7}\" --output-dir \"{8}\" --mhm-dir \"{9}\" --pose tpose --tolerance 0.3",
+                    makehumanScript,
+                    heightCm,
+                    upperArmCm,
+                    lowerArmCm,
+                    upperLegCm,
+                    lowerLegCm,
+                    rigPath,
+                    clothesDir,
+                    outputDir,
+                    mhmDir);
+
+                this.StatusText = "Starting MakeHuman script...";
+
+                // Create process start info
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = pythonExe,
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    WorkingDirectory = projectRoot
+                };
+
+                // Start the process
+                using (Process process = Process.Start(startInfo))
+                {
+                    if (process == null)
+                    {
+                        throw new Exception("Failed to start MakeHuman script process");
+                    }
+
+                    this.StatusText = "Generating model (this may take a while)...";
+
+                    // Read output asynchronously
+                    StringBuilder output = new StringBuilder();
+                    StringBuilder error = new StringBuilder();
+
+                    process.OutputDataReceived += (sender, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
+                        {
+                            output.AppendLine(e.Data);
+                        }
+                    };
+
+                    process.ErrorDataReceived += (sender, e) =>
+                    {
+                        if (!string.IsNullOrEmpty(e.Data))
+                        {
+                            error.AppendLine(e.Data);
+                        }
+                    };
+
+                    process.BeginOutputReadLine();
+                    process.BeginErrorReadLine();
+
+                    // Wait for completion with timeout (5 minutes)
+                    bool completed = process.WaitForExit(300000);
+
+                    if (!completed)
+                    {
+                        process.Kill();
+                        throw new Exception("MakeHuman script timed out after 5 minutes");
+                    }
+
+                    if (process.ExitCode != 0)
+                    {
+                        string errorMsg = error.ToString();
+                        if (string.IsNullOrEmpty(errorMsg))
+                        {
+                            errorMsg = output.ToString();
+                        }
+                        throw new Exception($"MakeHuman script failed with exit code {process.ExitCode}:\n{errorMsg}");
+                    }
+
+                    // Check if model file was created
+                    string modelFile = Path.Combine(outputDir, "clothed_avatar.fbx");
+                    if (File.Exists(modelFile))
+                    {
+                        this.StatusText = "Model generated successfully!";
+                        
+                        // If this was automatic generation, close the window after a short delay
+                        if (this.modelGenerationInProgress)
+                        {
+                            MessageBox.Show(
+                                string.Format(
+                                    CultureInfo.CurrentCulture,
+                                    "Model generated successfully!\n\nFile: {0}\n\nThis window will close automatically.",
+                                    modelFile),
+                                "Success",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Information);
+                            
+                            // Close the window after a short delay
+                            var closeTimer = new System.Windows.Threading.DispatcherTimer();
+                            closeTimer.Interval = TimeSpan.FromSeconds(2);
+                            closeTimer.Tick += (s, e) =>
+                            {
+                                closeTimer.Stop();
+                                this.Close();
+                            };
+                            closeTimer.Start();
+                        }
+                        else
+                        {
+                            MessageBox.Show(
+                                string.Format(
+                                    CultureInfo.CurrentCulture,
+                                    "Model generated successfully!\n\nFile: {0}\n\nYou can now close this window and run the main application.",
+                                    modelFile),
+                                "Success",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Information);
+                        }
+                    }
+                    else
+                    {
+                        this.StatusText = "Warning: Model file not found";
+                        MessageBox.Show(
+                            "The MakeHuman script completed, but the model file was not found at the expected location.\n\n" +
+                            "Expected: " + modelFile + "\n\n" +
+                            "Please check the script output for errors.",
+                            "Model File Not Found",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                this.StatusText = "Error generating model";
+                this.modelGenerationInProgress = false;
+                MessageBox.Show(
+                    "Failed to generate model:\n\n" + ex.Message + "\n\n" + ex.StackTrace,
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                this.modelGenerationInProgress = false;
+            }
         }
     }
 }
