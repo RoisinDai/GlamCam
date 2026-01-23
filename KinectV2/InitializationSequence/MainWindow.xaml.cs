@@ -173,13 +173,27 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             // Set the status text
             this.StatusText = this.kinectSensor != null && this.kinectSensor.IsAvailable
                 ? "Kinect sensor ready - Waiting for body tracking..."
-                : "No sensor found";
+                : "No sensor found - Using hardcoded measurements";
 
             // Use the window object as the view model in this simple example
             this.DataContext = this;
 
             // Initialize the components (controls) of the window
             this.InitializeComponent();
+            
+            // If no Kinect is available, trigger hardcoded measurements after a short delay
+            if (this.kinectSensor == null || !this.kinectSensor.IsAvailable)
+            {
+                // Use a timer to trigger hardcoded measurements after window is fully loaded
+                var timer = new System.Windows.Threading.DispatcherTimer();
+                timer.Interval = TimeSpan.FromSeconds(1); // Wait 1 second for window to load
+                timer.Tick += (s, e) =>
+                {
+                    timer.Stop();
+                    this.TriggerHardcodedMeasurements();
+                };
+                timer.Start();
+            }
         }
 
         /// <summary>
@@ -531,17 +545,50 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
             this.MeasurementText.Text = sb.ToString();
 
-            // Automatically capture and generate model if measurements are valid and not already captured
-            if (!this.measurementsCaptured && !this.modelGenerationInProgress &&
-                measurements.height > 0 &&
-                measurements.upperArmLength > 0 &&
-                measurements.lowerArmLength > 0 &&
-                measurements.upperLegLength > 0 &&
-                measurements.lowerLegLength > 0)
+            // TEMPORARY: Hardcoded measurements for testing without Kinect
+            // TODO: Remove this when Kinect is available
+            if (!this.measurementsCaptured && !this.modelGenerationInProgress)
             {
+                // Create hardcoded measurements (average human proportions in meters)
+                this.currentMeasurements = new HumanoidMeasurements
+                {
+                    height = 1.70,           // 170 cm
+                    upperArmLength = 0.30,   // 30 cm
+                    lowerArmLength = 0.25,   // 25 cm
+                    upperLegLength = 0.40,   // 40 cm
+                    lowerLegLength = 0.40,   // 40 cm
+                    napeToWaist = 0.30,       // 30 cm
+                    shoulderDist = 0.40,     // 40 cm
+                    waistToHip = 0.15,       // 15 cm
+                    neckHeight = 0.10         // 10 cm
+                };
+                
+                // Update display with hardcoded measurements
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Height: {0:F3} m ({1:F1} cm)", this.currentMeasurements.height, this.currentMeasurements.height * 100));
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", this.currentMeasurements.upperArmLength, this.currentMeasurements.lowerArmLength));
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", this.currentMeasurements.upperLegLength, this.currentMeasurements.lowerLegLength));
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Nape to Waist: {0:F3} m | Shoulder Dist: {1:F3} m", this.currentMeasurements.napeToWaist, this.currentMeasurements.shoulderDist));
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Waist to Hip: {0:F3} m | Neck Height: {1:F3} m", this.currentMeasurements.waistToHip, this.currentMeasurements.neckHeight));
+                sb.AppendLine("(Using hardcoded measurements - no Kinect)");
+                this.MeasurementText.Text = sb.ToString();
+                
                 // Trigger automatic capture and generation
                 this.CaptureMeasurementsAndGenerate();
             }
+            
+            // ORIGINAL CODE (commented out for now):
+            // Automatically capture and generate model if measurements are valid and not already captured
+            // if (!this.measurementsCaptured && !this.modelGenerationInProgress &&
+            //     measurements.height > 0 &&
+            //     measurements.upperArmLength > 0 &&
+            //     measurements.lowerArmLength > 0 &&
+            //     measurements.upperLegLength > 0 &&
+            //     measurements.lowerLegLength > 0)
+            // {
+            //     // Trigger automatic capture and generation
+            //     this.CaptureMeasurementsAndGenerate();
+            // }
         }
 
         /// <summary>
@@ -785,6 +832,44 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             this.StatusText = this.kinectSensor.IsAvailable
                 ? "Kinect sensor ready"
                 : "Sensor not available";
+        }
+
+        /// <summary>
+        /// Triggers hardcoded measurements when no Kinect is available
+        /// </summary>
+        private void TriggerHardcodedMeasurements()
+        {
+            if (this.measurementsCaptured || this.modelGenerationInProgress)
+            {
+                return;
+            }
+
+            // Create hardcoded measurements (in meters) - only these 5 are passed to MakeHuman script
+            this.currentMeasurements = new HumanoidMeasurements
+            {
+                height = 1.69,           // 169.0 cm
+                upperArmLength = 0.29,   // 29.0 cm
+                lowerArmLength = 0.25,   // 25.0 cm
+                upperLegLength = 0.385,   // 38.5 cm
+                lowerLegLength = 0.48,   // 48.0 cm
+                napeToWaist = 0.30,       // Not used in script
+                shoulderDist = 0.40,     // Not used in script
+                waistToHip = 0.15,       // Not used in script
+                neckHeight = 0.10         // Not used in script
+            };
+            
+            // Update display with hardcoded measurements
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Height: {0:F3} m ({1:F1} cm)", this.currentMeasurements.height, this.currentMeasurements.height * 100));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", this.currentMeasurements.upperArmLength, this.currentMeasurements.lowerArmLength));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", this.currentMeasurements.upperLegLength, this.currentMeasurements.lowerLegLength));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Nape to Waist: {0:F3} m | Shoulder Dist: {1:F3} m", this.currentMeasurements.napeToWaist, this.currentMeasurements.shoulderDist));
+            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Waist to Hip: {0:F3} m | Neck Height: {1:F3} m", this.currentMeasurements.waistToHip, this.currentMeasurements.neckHeight));
+            sb.AppendLine("(Using hardcoded measurements - no Kinect)");
+            this.MeasurementText.Text = sb.ToString();
+            
+            // Trigger automatic capture and generation
+            this.CaptureMeasurementsAndGenerate();
         }
 
         /// <summary>
