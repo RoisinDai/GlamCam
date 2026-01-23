@@ -347,6 +347,7 @@ public class AvatarController : MonoBehaviour
         ApplySpineBoneRotations(body);
         ApplyLimbBoneRotations(body);
         ApplyHeadBoneRotation(body);
+        ApplyFeetRotations(body);
     }
 
     /// <summary>
@@ -524,6 +525,36 @@ public class AvatarController : MonoBehaviour
         else
         {
             boneTransform.localRotation = worldRotation;
+        }
+    }
+
+    /// <summary>
+    /// Points the feet forward using the shoulder normal as the forward direction, with a 90-degree X offset.
+    /// </summary>
+    private void ApplyFeetRotations(Kinect.Body body)
+    {
+        // Calculate shoulder normal (forward direction)
+        Vector3 shoulderLeft = GetJointPosition(body.Joints[Kinect.JointType.ShoulderLeft]);
+        Vector3 shoulderRight = GetJointPosition(body.Joints[Kinect.JointType.ShoulderRight]);
+        Vector3 shoulderDir = (shoulderRight - shoulderLeft).normalized;
+        Vector3 forward = -Vector3.Cross(shoulderDir, Vector3.up).normalized;
+        Vector3 up = Vector3.up;
+        Quaternion footOffset = Quaternion.Euler(90, 0, 0);
+
+        // Left foot
+        Transform leftFoot = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+        if (leftFoot != null)
+        {
+            Quaternion worldRotation = Quaternion.LookRotation(forward, up) * footOffset;
+            ApplyLocalRotation(leftFoot, worldRotation);
+        }
+
+        // Right foot
+        Transform rightFoot = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+        if (rightFoot != null)
+        {
+            Quaternion worldRotation = Quaternion.LookRotation(forward, up) * footOffset;
+            ApplyLocalRotation(rightFoot, worldRotation);
         }
     }
 }
