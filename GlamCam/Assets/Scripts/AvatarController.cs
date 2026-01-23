@@ -224,8 +224,8 @@ public class AvatarController : MonoBehaviour
             Debug.Log($"UniformScaleFactor set to {UniformScaleFactor:F3}");
         }
 
-        // 5. Optional: shoulder-based translation correction
-        ApplyUniformShoulderTranslation();
+        // 5. Optional: shoulder-based translation correction every frame
+        ApplyUniformTranslationBasedOnShoulders();
     }
 
     private void MeasureKinectUserBodyParts(Kinect.Body body)
@@ -292,7 +292,7 @@ public class AvatarController : MonoBehaviour
         return (distLeft + distRight) * 0.5f;
     }
 
-    private void ApplyUniformShoulderTranslation()
+    private void ApplyUniformTranslationBasedOnShoulders()
     {
         var joints = trackedBody.Joints;
         Transform modelShoulderLeft =
@@ -307,16 +307,16 @@ public class AvatarController : MonoBehaviour
             BodySourceView.GetVector3FromJoint(trackedBody.Joints[Kinect.JointType.ShoulderLeft]);
         Vector3 kinectRight =
             BodySourceView.GetVector3FromJoint(trackedBody.Joints[Kinect.JointType.ShoulderRight]);
+        Vector3 kinectShoulderAvg = (kinectLeft + kinectRight) * 0.5f;
 
         Vector3 modelLeft = modelShoulderLeft.position;
         Vector3 modelRight = modelShoulderRight.position;
+        Vector3 modelShoulderAvg = (modelLeft + modelRight) * 0.5f;
 
-        Vector3 delta =
-            (kinectLeft - modelRight + (kinectRight - modelLeft)) * 0.5f;
-        
-        Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
-        Vector3 newPosition = spineBasePos + delta;
-        ClothedBaseAvatar.transform.position = new Vector3(newPosition.x, newPosition.y, newPosition.z);
+        Vector3 delta = (kinectShoulderAvg - modelShoulderAvg);
+
+        Vector3 avatarPosition = ClothedBaseAvatar.transform.position;
+        ClothedBaseAvatar.transform.position = new Vector3(avatarPosition.x, avatarPosition.y + delta.y + 0.5f, avatarPosition.z); // Small offset from experimental results
     }
 
     private void RotateAvatarBasedOnShoulders(Kinect.Joint leftShoulder, Kinect.Joint rightShoulder)
