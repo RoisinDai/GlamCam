@@ -166,7 +166,7 @@ function VideoFeed() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: "20px",
+            gap: "24px",
           },
         },
         React.createElement("img", {
@@ -174,8 +174,8 @@ function VideoFeed() {
           alt: "Happy",
           className: "waiting-smiley",
           style: {
-            maxWidth: "200px",
-            maxHeight: "200px",
+            maxWidth: "240px",
+            maxHeight: "240px",
             objectFit: "contain",
           },
         }),
@@ -183,12 +183,12 @@ function VideoFeed() {
           "div",
           {
             style: {
-              fontSize: "48px",
+              fontSize: "56px",
               fontWeight: "bold",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: "20px",
+              gap: "24px",
             },
           },
           "Waiting for Person"
@@ -197,7 +197,7 @@ function VideoFeed() {
           "div",
           {
             style: {
-              fontSize: "24px",
+              fontSize: "28px",
               color: "#666",
             },
           },
