@@ -68,21 +68,143 @@ const DRAWER_HEADER_HEIGHT =
 
 // VideoFeed component
 function VideoFeed() {
-  return React.createElement("img", {
-    id: "video-feed",
-    src: "/video_feed",
-    alt: "Live Fashion Feed",
-    style: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      objectFit: "cover",
-      zIndex: 1,
-      transform: "scaleX(1)",
+  const [isStreaming, setIsStreaming] = React.useState(false);
+  const imgRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+
+    const handleLoad = () => {
+      setIsStreaming(true);
+    };
+
+    const handleError = () => {
+      setIsStreaming(false);
+    };
+
+    img.addEventListener("load", handleLoad);
+    img.addEventListener("error", handleError);
+
+    return () => {
+      img.removeEventListener("load", handleLoad);
+      img.removeEventListener("error", handleError);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!isStreaming) {
+      const style = document.createElement("style");
+      style.textContent = `
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .loading-spinner {
+          animation: spin 1s linear infinite;
+        }
+      `;
+      document.head.appendChild(style);
+
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
+  }, [isStreaming]);
+
+  return React.createElement(
+    "div",
+    {
+      id: "video-container-wrapper",
+      style: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: isStreaming ? "transparent" : "#AAD1EB",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1,
+        transition: "background-color 0.3s ease",
+      },
     },
-  });
+    // Video feed image
+    React.createElement("img", {
+      ref: imgRef,
+      id: "video-feed",
+      src: "/video_feed",
+      alt: "Live Fashion Feed",
+      style: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        zIndex: 1,
+        transform: "scaleX(1)",
+        opacity: isStreaming ? 1 : 0,
+        transition: "opacity 0.3s ease",
+      },
+    }),
+    // Waiting overlay
+    !isStreaming &&
+      React.createElement(
+        "div",
+        {
+          style: {
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            textAlign: "center",
+            zIndex: 2,
+            color: "#333",
+            fontFamily: "Arial, sans-serif",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "20px",
+          },
+        },
+        React.createElement("img", {
+          src: "/static/Happy.PNG",
+          alt: "Happy",
+          className: "waiting-smiley",
+          style: {
+            maxWidth: "200px",
+            maxHeight: "200px",
+            objectFit: "contain",
+          },
+        }),
+        React.createElement(
+          "div",
+          {
+            style: {
+              fontSize: "48px",
+              fontWeight: "bold",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "20px",
+            },
+          },
+          "Waiting for Person"
+        ),
+        React.createElement(
+          "div",
+          {
+            style: {
+              fontSize: "24px",
+              color: "#666",
+            },
+          },
+          "Please step in front of the camera..."
+        )
+      )
+  );
 }
 
 // ClosetTab component: each segment is its own hover target
