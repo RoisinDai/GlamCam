@@ -473,6 +473,11 @@ public class AvatarController : MonoBehaviour
             (Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg),
         };
 
+        // Get hip line for up reference
+        Vector3 hipLeft = GetJointPosition(body.Joints[Kinect.JointType.HipLeft]);
+        Vector3 hipRight = GetJointPosition(body.Joints[Kinect.JointType.HipRight]);
+        Vector3 hipLine = (hipRight - hipLeft).normalized;
+
         foreach (var (Start, End, UnityBone) in legBoneMapping)
         {
             Transform boneTransform = animator.GetBoneTransform(UnityBone);
@@ -483,11 +488,17 @@ public class AvatarController : MonoBehaviour
             Vector3 endPos = GetJointPosition(body.Joints[End]);
             Vector3 boneDirection = (endPos - startPos).normalized;
 
-            // Use a consistent forward vector, but reverse Z direction
-            Vector3 forward = -ClothedBaseAvatar.transform.forward;
+            // Use a reference up vector perpendicular to the bone and hip line
+            Vector3 upReference = Vector3.Cross(hipLine, boneDirection).normalized;
+            if (upReference == Vector3.zero) upReference = Vector3.up;
 
-            // Create rotation: bone points from start to end
-            Quaternion worldRotation = Quaternion.LookRotation(forward, boneDirection);
+            // The bone's forward (Z) points along the bone, up is perpendicular to the hips
+            Quaternion worldRotation = Quaternion.LookRotation(boneDirection, upReference);
+
+            // If the avatar's rig expects a different axis, add an offset here (e.g., 90 deg X)
+            // Uncomment if needed:
+            Quaternion boneOffset = Quaternion.Euler(90, 0, 0);
+            worldRotation *= boneOffset;
 
             // Convert to local rotation
             ApplyLocalRotation(boneTransform, worldRotation);
