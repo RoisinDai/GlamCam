@@ -461,24 +461,19 @@ public class AvatarController : MonoBehaviour
 
     /// <summary>
     /// Applies rotations to leg bones using forward kinematics.
-    /// Legs face outward based on hip line (left thigh faces left, right thigh faces right).
+    /// Legs simply track the user's movement (no forced outward facing).
     /// </summary>
     private void ApplyLegBoneRotations(Kinect.Body body)
     {
-        // Calculate hip line direction
-        Vector3 hipLeft = GetJointPosition(body.Joints[Kinect.JointType.HipLeft]);
-        Vector3 hipRight = GetJointPosition(body.Joints[Kinect.JointType.HipRight]);
-        Vector3 hipDirection = (hipRight - hipLeft).normalized;
-
-        var legBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone, bool IsLeft)>
+        var legBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone)>
         {
-            (Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg, true),
-            (Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg, true),
-            (Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg, false),
-            (Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg, false),
+            (Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg),
+            (Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg),
+            (Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg),
+            (Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg),
         };
 
-        foreach (var (Start, End, UnityBone, IsLeft) in legBoneMapping)
+        foreach (var (Start, End, UnityBone) in legBoneMapping)
         {
             Transform boneTransform = animator.GetBoneTransform(UnityBone);
             if (boneTransform == null) continue;
@@ -486,19 +481,13 @@ public class AvatarController : MonoBehaviour
             // Get joint positions in Unity space
             Vector3 startPos = GetJointPosition(body.Joints[Start]);
             Vector3 endPos = GetJointPosition(body.Joints[End]);
-            Vector3 boneDirection = (startPos - endPos).normalized;
+            Vector3 boneDirection = (endPos - startPos).normalized;
 
-            // Determine outward direction based on which leg
-            Vector3 outward = IsLeft ? hipDirection : -hipDirection;
-            
-            // Calculate right vector perpendicular to bone direction and outward direction
-            Vector3 rightVector = Vector3.Cross(boneDirection, outward).normalized;
-            
-            // Recalculate forward to ensure orthogonality
-            Vector3 forward = Vector3.Cross(rightVector, boneDirection).normalized;
+            // Use a consistent forward vector, but reverse Z direction
+            Vector3 forward = -ClothedBaseAvatar.transform.forward;
 
-            // Create rotation: bone points down, forward aligns with outward direction
-            Quaternion worldRotation = Quaternion.LookRotation(forward, -boneDirection);
+            // Create rotation: bone points from start to end
+            Quaternion worldRotation = Quaternion.LookRotation(forward, boneDirection);
 
             // Convert to local rotation
             ApplyLocalRotation(boneTransform, worldRotation);
