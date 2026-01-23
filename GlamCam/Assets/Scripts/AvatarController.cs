@@ -461,24 +461,27 @@ public class AvatarController : MonoBehaviour
 
     /// <summary>
     /// Applies rotations to leg bones using forward kinematics.
-    /// Legs simply track the user's movement (no forced outward facing).
     /// </summary>
     private void ApplyLegBoneRotations(Kinect.Body body)
     {
-        var legBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone, Kinect.JointType? Parent)>
+        // 1. REORDERED MAPPING: Upper Legs MUST be processed before Lower Legs.
+        var legBoneMapping = new List<(Kinect.JointType Start, Kinect.JointType End, HumanBodyBones UnityBone)>
         {
-            (Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg, Kinect.JointType.HipLeft),
-            (Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg, null),
-            (Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg, Kinect.JointType.HipRight),
-            (Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg, null),
+            // Upper Legs (Parents)
+            (Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg),
+            (Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg),
+            
+            // Lower Legs (Children)
+            (Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg),
+            (Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg),
         };
 
-        // Get hip line for up reference
+        // Get hip line to determine the "Right" axis of the character
         Vector3 hipLeft = GetJointPosition(body.Joints[Kinect.JointType.HipLeft]);
         Vector3 hipRight = GetJointPosition(body.Joints[Kinect.JointType.HipRight]);
         Vector3 hipLine = (hipRight - hipLeft).normalized;
 
-        foreach (var (Start, End, UnityBone, Parent) in legBoneMapping)
+        foreach (var (Start, End, UnityBone) in legBoneMapping)
         {
             Transform boneTransform = animator.GetBoneTransform(UnityBone);
             if (boneTransform == null) continue;
@@ -487,25 +490,22 @@ public class AvatarController : MonoBehaviour
             Vector3 startPos = GetJointPosition(body.Joints[Start]);
             Vector3 endPos = GetJointPosition(body.Joints[End]);
             Vector3 boneDirection = (endPos - startPos).normalized;
+            if (boneDirection == Vector3.zero) continue;
 
-            Vector3 upReference;
-            if (Parent.HasValue) // Lower leg (shin)
-            {
-                Vector3 parentPos = GetJointPosition(body.Joints[Parent.Value]);
-                Vector3 thighDirection = (startPos - parentPos).normalized;
-                upReference = Vector3.Cross(thighDirection, boneDirection).normalized;
-                if (upReference == Vector3.zero) upReference = Vector3.up;
-            }
-            else // Upper leg (thigh)
-            {
-                upReference = Vector3.Cross(hipLine, boneDirection).normalized;
-                if (upReference == Vector3.zero) upReference = Vector3.up;
-            }
+            // 2. CALCULATE FACING DIRECTION (Z-Axis)
+            // We want the front of the leg (Z) to point Forward relative to the hips.
+            // Cross Product: (Bone Direction [Down]) x (Hip Line [Right]) = Forward
+            // Note: If leg is vertical, Down x Right = Forward.
+            Vector3 faceDirection = Vector3.Cross(boneDirection, hipLine).normalized;
 
-            Quaternion worldRotation = Quaternion.LookRotation(boneDirection, upReference);
-            Quaternion boneOffset = Quaternion.Euler(90, 0, 0);
-            worldRotation *= boneOffset;
+            // 3. APPLY ROTATION
+            // Quaternion.LookRotation(View, UpHint):
+            // - We set View (Z) to 'faceDirection' (Forward).
+            // - We set UpHint (Y) to 'boneDirection' (Down). 
+            //   (Note: Passing the bone direction as the "Up" hint aligns the Y-axis along the bone).
+            Quaternion worldRotation = Quaternion.LookRotation(faceDirection, boneDirection);
 
+            // Convert to local rotation
             ApplyLocalRotation(boneTransform, worldRotation);
         }
     }
