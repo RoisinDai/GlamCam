@@ -149,8 +149,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   port: 5008
-  shirt1: {fileID: 0}
-  skirt1: {fileID: 0}
+  clothedAvatar: {fileID: 0}
 --- !u!4 &75230359
 Transform:
   m_ObjectHideFlags: 0
@@ -498,7 +497,7 @@ PrefabInstance:
     - target: {fileID: 5866666021909216657, guid: 12667711ae0ae4d2b96a0d4e91f58743, type: 3}
       propertyPath: m_Controller
       value: 
-      objectReference: {fileID: 9100000, guid: 921ca7142629346f2be3f6851f182148, type: 2}
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -598,7 +597,7 @@ Transform:
   m_GameObject: {fileID: 300744145}
   serializedVersion: 2
   m_LocalRotation: {x: 0.004499174, y: -0.00269431, z: 0.00004909378, w: -0.9999863}
-  m_LocalPosition: {x: 0, y: 3.84, z: -17.57}
+  m_LocalPosition: {x: 155.59218, y: -4.379919, z: 130.01859}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
