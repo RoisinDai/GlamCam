@@ -191,6 +191,7 @@ const ClosetDrawer = React.forwardRef(
       selectedBottomName,
       selectedFullbodyName,
       selectedHatName,
+      selectedAccessoryName,
       pageLabel,
     },
     ref
@@ -391,7 +392,9 @@ const ClosetDrawer = React.forwardRef(
                 (item.type === "bottom" && selectedBottomName === item.name) ||
                 (item.type === "fullbody" &&
                   selectedFullbodyName === item.name) ||
-                (item.type === "hat" && selectedHatName === item.name);
+                (item.type === "hat" && selectedHatName === item.name) ||
+                (item.type === "accessory" &&
+                  selectedAccessoryName === item.name);
 
               return React.createElement(
                 "div",
@@ -620,6 +623,7 @@ function App() {
   const [selectedBottomName, setSelectedBottomName] = useState(null);
   const [selectedFullbodyName, setSelectedFullbodyName] = useState(null);
   const [selectedHatName, setSelectedHatName] = useState(null);
+  const [selectedAccessoryName, setSelectedAccessoryName] = useState(null);
   const [useKinect, setUseKinect] = useState(false);
 
   const [pressedSegIndex, setPressedSegIndex] = useState(null);
@@ -660,6 +664,7 @@ function App() {
   const selectedBottomNameRef = useRef(selectedBottomName);
   const selectedFullbodyNameRef = useRef(selectedFullbodyName);
   const selectedHatNameRef = useRef(selectedHatName);
+  const selectedAccessoryNameRef = useRef(selectedAccessoryName);
 
   useEffect(() => {
     cursorRef.current = { x: cursorX, y: cursorY };
@@ -694,6 +699,10 @@ function App() {
   useEffect(() => {
     selectedHatNameRef.current = selectedHatName;
   }, [selectedHatName]);
+
+  useEffect(() => {
+    selectedAccessoryNameRef.current = selectedAccessoryName;
+  }, [selectedAccessoryName]);
 
   useRunIdMonitor();
 
@@ -813,6 +822,7 @@ function App() {
         setSelectedBottomName(null);
         setSelectedFullbodyName(null);
         setSelectedHatName(null);
+        setSelectedAccessoryName(null);
         sendSelectionToBackend("all", "clear", "");
         return;
       }
@@ -949,6 +959,24 @@ function App() {
               );
             }
             setSelectedHatName(name);
+            sendSelectionToBackend(type, "select", name);
+          }
+          return;
+        }
+
+        if (type === "accessory") {
+          if (selectedAccessoryNameRef.current === name) {
+            setSelectedAccessoryName(null);
+            sendSelectionToBackend(type, "deselect", name);
+          } else {
+            if (selectedAccessoryNameRef.current) {
+              sendSelectionToBackend(
+                "accessory",
+                "deselect",
+                selectedAccessoryNameRef.current
+              );
+            }
+            setSelectedAccessoryName(name);
             sendSelectionToBackend(type, "select", name);
           }
           return;
@@ -1223,6 +1251,7 @@ function App() {
       selectedBottomName,
       selectedFullbodyName,
       selectedHatName,
+      selectedAccessoryName,
       pageLabel: drawerPageLabel,
     }),
     React.createElement(VirtualCursor, { x: cursorX, y: cursorY })

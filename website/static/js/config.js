@@ -4,6 +4,7 @@ window.CLOSET_CATEGORIES = [
   { key: "Bottoms", img: "/static/Bottoms.PNG", alt: "Bottoms" },
   { key: "Dresses", img: "/static/Dresses.PNG", alt: "Dresses" },
   { key: "Hats", img: "/static/Hats.PNG", alt: "Hats" },
+  { key: "Accessories", img: "/static/accessories.PNG", alt: "Accessories" },
   { key: "Fullbody", img: "/static/Fullbody.PNG", alt: "Fullbody" },
 ];
 
@@ -13,6 +14,7 @@ window.CATEGORY_TYPE = {
   Dresses: "fullbody",
   Fullbody: "fullbody",
   Hats: "hat",
+  Accessories: "accessory",
 };
 
 window.CLOTHING_NAMES = {
@@ -22,6 +24,7 @@ window.CLOTHING_NAMES = {
     "Polo_t-shirtMesh",
     "sweater_fishermanMesh",
     "knitted_sweater_01Mesh",
+    "elvs_butterflydiscotop1Mesh",
   ],
   Bottoms: [
     "elvs_gored_elephantpant1Mesh",
@@ -33,4 +36,10 @@ window.CLOTHING_NAMES = {
   Dresses: ["elvs_mini_halterdressMesh", "qipaoMesh"],
   Hats: ["pillow_manMesh", "cl_don_quixote_hatMesh", "tophat1Mesh"],
   Fullbody: ["rescueteam_jacket_maleMesh"],
+  Accessories: [
+    "tennisracketMesh",
+    "bowMesh",
+    "suitcaseMesh",
+    "shoppingbagMesh",
+  ],
 };
