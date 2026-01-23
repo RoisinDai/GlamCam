@@ -631,6 +631,8 @@ function App() {
 
   const hoverTargetRef = useRef(null);
   const hoverStartTimeRef = useRef(null);
+  const lastHandStateRef = useRef("Unknown");
+  const fistTriggerRef = useRef(false);
 
   const closetTabRef = useRef(null);
   const closetTabSegmentRefs = useRef([]);
@@ -664,6 +666,13 @@ function App() {
   useEffect(() => {
     cursorRef.current = { x: cursorX, y: cursorY };
   }, [cursorX, cursorY]);
+
+  useEffect(() => {
+    if (useKinect) {
+      hoverTargetRef.current = null;
+      hoverStartTimeRef.current = null;
+    }
+  }, [useKinect]);
 
   useEffect(() => {
     closetOpenRef.current = closetOpen;
@@ -717,6 +726,13 @@ function App() {
         setCursorX(x);
         setCursorY(y);
       }
+    }
+
+    if (typeof data.handState === "string") {
+      if (lastHandStateRef.current !== "Closed" && data.handState === "Closed") {
+        fistTriggerRef.current = true;
+      }
+      lastHandStateRef.current = data.handState;
     }
   }, []);
 
@@ -1176,15 +1192,22 @@ function App() {
         }
       }
 
-      // Dwell timing
-      if (foundTarget !== hoverTargetRef.current) {
-        hoverTargetRef.current = foundTarget;
-        hoverStartTimeRef.current = foundTarget ? performance.now() : null;
-      } else if (hoverTargetRef.current && hoverStartTimeRef.current) {
-        const elapsed = performance.now() - hoverStartTimeRef.current;
-        if (elapsed >= DWELL_TIME) {
-          handleDwellSelect(hoverTargetRef.current);
-          hoverStartTimeRef.current = null;
+      if (useKinect) {
+        if (fistTriggerRef.current) {
+          fistTriggerRef.current = false;
+          if (foundTarget) handleDwellSelect(foundTarget);
+        }
+      } else {
+        // Dwell timing
+        if (foundTarget !== hoverTargetRef.current) {
+          hoverTargetRef.current = foundTarget;
+          hoverStartTimeRef.current = foundTarget ? performance.now() : null;
+        } else if (hoverTargetRef.current && hoverStartTimeRef.current) {
+          const elapsed = performance.now() - hoverStartTimeRef.current;
+          if (elapsed >= DWELL_TIME) {
+            handleDwellSelect(hoverTargetRef.current);
+            hoverStartTimeRef.current = null;
+          }
         }
       }
 
@@ -1197,7 +1220,13 @@ function App() {
       stoppedRef.current = true;
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
-  }, [circleRectCollision, handleDwellSelect, syncThumb, setPressedSegIndex]);
+  }, [
+    circleRectCollision,
+    handleDwellSelect,
+    syncThumb,
+    setPressedSegIndex,
+    useKinect,
+  ]);
 
   return React.createElement(
     "div",

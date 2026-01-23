@@ -24,7 +24,7 @@ app = Flask(__name__, static_folder='static')
 
 RUN_ID = str(uuid.uuid4())
 
-latest_right_hand = {"x": -1, "y": -1}  # start centered
+latest_right_hand = {"x": -1, "y": -1, "handState": "NotTracked"}  # start centered
 hand_joints = ["HandRight", "HandLeft", "HandTipRight", "HandTipLeft"]
 
 # ---- FLASK HTTP ENDPOINTS ----
@@ -143,11 +143,13 @@ def kinect_hand_tcp_listener():
                         latest_right_hand = {
                             "x": -1,
                             "y": -1,
+                            "handState": "NotTracked",
                         }  # Use -1 to indicate no hands detected
                         # print("[KINECT TCP] No hands detected.")
                         continue
 
                     hands_dict = hands_list[0]
+                    hand_state = hands_dict.get("HandRightState", "Unknown")
                     try:
                         hand_tip_x = float(hands_dict["HandTipRight"]["X"])
                         hand_tip_y = float(hands_dict["HandTipRight"]["Y"])
@@ -160,11 +162,13 @@ def kinect_hand_tcp_listener():
                         latest_right_hand = {
                             "x": hand_center_x,
                             "y": hand_center_y,
+                            "handState": hand_state,
                         }
                     except KeyError as e:
                         latest_right_hand = {
                             "x": -1,
                             "y": -1,
+                            "handState": hand_state,
                         }  # Use -1 to indicate no right hand detected
                         print("[KINECT TCP] Error:", e)
 

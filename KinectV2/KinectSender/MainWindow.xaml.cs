@@ -1,4 +1,4 @@
-﻿using Microsoft.Kinect;
+using Microsoft.Kinect;
 using System;
 using System.ComponentModel;
 using System.Globalization;
@@ -410,6 +410,8 @@ namespace Microsoft.Samples.Kinect.ColorBasics
                             if (body != null && body.IsTracked)
                             {
                                 var handJointsDict = new Dictionary<string, object>();
+                                handJointsDict["HandRightState"] = body.HandRightState.ToString();
+                                handJointsDict["HandLeftState"] = body.HandLeftState.ToString();
                                 foreach (var kv in body.Joints)
                                 {
                                     var jointType = kv.Key;
