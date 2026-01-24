@@ -59,16 +59,54 @@ public class AvatarSpawner : MonoBehaviour
         // For now, move the model to the origin but we can look to change this if needed
         modelInstance.transform.position = Vector3.zero;
 
-        // Disable all child meshes
+        // Disable all child meshes, except for the base avatar mesh named "clothed_avatarMesh"
         var meshRenderers = modelInstance.GetComponentsInChildren<MeshRenderer>(true);
         foreach (var meshRenderer in meshRenderers)
         {
-            meshRenderer.gameObject.SetActive(false);
+            if (meshRenderer.gameObject.name != "clothed_avatarMesh")
+            {
+                meshRenderer.gameObject.SetActive(false);
+            }
         }
         var skinnedMeshRenderers = modelInstance.GetComponentsInChildren<SkinnedMeshRenderer>(true);
         foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
         {
-            skinnedMeshRenderer.gameObject.SetActive(false);
+            if (skinnedMeshRenderer.gameObject.name != "clothed_avatarMesh")
+            {
+                skinnedMeshRenderer.gameObject.SetActive(false);
+            }
+        }
+
+        // Set the base avatar's material to the Invisible Mask, which allows us to perform segmentation (NOT THE CLOTHES)
+        // The goal of this material is to make the base avatar invisible in the scene, but still obscure the clothed avatar where it makes sense.
+        // For example, the inside of a hat should be obscured by the avatar's head, the collar of a shirt should be obscured by the avatar's neck, etc.
+        Material invisibleMaskMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/InvisibleMask.mat");
+        if (invisibleMaskMaterial != null)
+        {
+            Transform meshTransform = modelInstance.transform.Find("clothed_avatarMesh");
+            if (meshTransform != null)
+            {
+                var meshRenderer = meshTransform.GetComponent<MeshRenderer>();
+                if (meshRenderer != null)
+                {
+                    meshRenderer.sharedMaterial = invisibleMaskMaterial;
+                    Debug.Log("[AvatarSpawner] Set Invisible Mask material on MeshRenderer of 'clothed_avatarMesh'.");
+                }
+                var skinnedMeshRenderer = meshTransform.GetComponent<SkinnedMeshRenderer>();
+                if (skinnedMeshRenderer != null)
+                {
+                    skinnedMeshRenderer.sharedMaterial = invisibleMaskMaterial;
+                    Debug.Log("[AvatarSpawner] Set Invisible Mask material on SkinnedMeshRenderer of 'clothed_avatarMesh'.");
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[AvatarSpawner] Child named 'clothed_avatarMesh' not found in model instance.");
+            }
+        }
+        else
+        {
+            Debug.LogWarning("[AvatarSpawner] Invisible Mask material not found at Assets/Materials/InvisibleMask.mat");
         }
 
         Debug.Log($"[AvatarSpawner] Spawned model instance: {modelInstance.name} (all child meshes set inactive)");
