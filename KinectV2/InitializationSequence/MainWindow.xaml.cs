@@ -832,113 +832,19 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             {
                 this.StatusText = "Generating model...";
 
-                // Get paths relative to the executable location
-                // Executable is in: KinectV2/InitializationSequence/bin/AnyCPU/Release or Debug
-                // Project root is: ../../../../ (4 levels up)
-                string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                string exeDir = Path.GetDirectoryName(exePath);
-                
-                // Navigate to project root (4 levels up from bin/AnyCPU/Release)
-                string projectRoot = Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", ".."));
-                
-                // Alternative: Try to find project root by looking for GlamCam directory
-                string currentDir = exeDir;
-                string projectRootAlt = null;
-                for (int i = 0; i < 10; i++)
-                {
-                    string glamCamPath = Path.Combine(currentDir, "GlamCam");
-                    if (Directory.Exists(glamCamPath))
-                    {
-                        projectRootAlt = currentDir;
-                        break;
-                    }
-                    currentDir = Path.GetDirectoryName(currentDir);
-                    if (string.IsNullOrEmpty(currentDir)) break;
-                }
+                // Hardcoded paths
+                string makehumanScript = "/Users/jiye/Documents/GlamCam/makehuman/makehuman/generate_human.py";
+                string rigPath = "/Users/jiye/Documents/MakeHuman/v1py3/data/rigs/Unity_Rig/unity.mhskel";
+                string clothesDir = "/Users/jiye/Documents/MakeHuman/v1py3/data/clothes";
+                string outputDir = "/Users/jiye/Documents/GlamCam/GlamCam/Assets/Base Models";
+                string mhmDir = "/Users/jiye/Documents/GlamCam/tmp";
 
-                if (projectRootAlt != null)
-                {
-                    projectRoot = projectRootAlt;
-                }
-
-                // MakeHuman script path
-                string makehumanScript = Path.Combine(projectRoot, "makehuman", "makehuman", "generate_human.py");
-                
-                // Unity rig path (adjust based on actual MakeHuman installation)
-                // Try common locations
-                string rigPath = null;
-                string[] possibleRigPaths = new string[]
-                {
-                    // Try specific known path first
-                    "/Users/keeganliu/Documents/MakeHuman/v1py3/data/rigs/Unity_Rig/unity.mhskel",
-                    // Then try relative to project root
-                    Path.Combine(projectRoot, "makehuman", "data", "rigs", "Unity_Rig", "unity.mhskel"),
-                    // Then try user profile paths
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "MakeHuman", "v1py3", "data", "rigs", "Unity_Rig", "unity.mhskel"),
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "MakeHuman", "v1py3", "data", "rigs", "Unity_Rig", "unity.mhskel"),
-                };
-
-                foreach (string path in possibleRigPaths)
-                {
-                    if (File.Exists(path))
-                    {
-                        rigPath = path;
-                        break;
-                    }
-                }
-
-                if (rigPath == null)
-                {
-                    MessageBox.Show(
-                        "Unity rig file not found. Please specify the path to unity.mhskel in the code.",
-                        "Rig Not Found",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error);
-                    this.StatusText = "Error: Rig file not found";
-                    return;
-                }
-
-                // Clothes directory - try known paths
-                string clothesDir = null;
-                string[] possibleClothesDirs = new string[]
-                {
-                    // Try specific known path first
-                    "/Users/keeganliu/Documents/MakeHuman/v1py3/data/clothes",
-                    // Then try relative to project root
-                    Path.Combine(projectRoot, "makehuman", "data", "clothes"),
-                    // Then try user profile path
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "MakeHuman", "v1py3", "data", "clothes"),
-                };
-
-                foreach (string path in possibleClothesDirs)
-                {
-                    if (Directory.Exists(path))
-                    {
-                        clothesDir = path;
-                        break;
-                    }
-                }
-
-                if (clothesDir == null)
-                {
-                    MessageBox.Show(
-                        "Clothes directory not found. Please check the MakeHuman installation.",
-                        "Clothes Directory Not Found",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error);
-                    this.StatusText = "Error: Clothes directory not found";
-                    return;
-                }
-
-                // Output directory
-                string outputDir = Path.Combine(projectRoot, "GlamCam", "Assets", "Base Models");
+                // Create directories if they don't exist
                 if (!Directory.Exists(outputDir))
                 {
                     Directory.CreateDirectory(outputDir);
                 }
 
-                // MHM temp directory
-                string mhmDir = Path.Combine(projectRoot, "tmp");
                 if (!Directory.Exists(mhmDir))
                 {
                     Directory.CreateDirectory(mhmDir);
