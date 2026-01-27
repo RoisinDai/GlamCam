@@ -859,14 +859,14 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             };
             
             // Update display with hardcoded measurements
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Height: {0:F3} m ({1:F1} cm)", this.currentMeasurements.height, this.currentMeasurements.height * 100));
-            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", this.currentMeasurements.upperArmLength, this.currentMeasurements.lowerArmLength));
-            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", this.currentMeasurements.upperLegLength, this.currentMeasurements.lowerLegLength));
-            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Nape to Waist: {0:F3} m | Shoulder Dist: {1:F3} m", this.currentMeasurements.napeToWaist, this.currentMeasurements.shoulderDist));
-            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Waist to Hip: {0:F3} m | Neck Height: {1:F3} m", this.currentMeasurements.waistToHip, this.currentMeasurements.neckHeight));
-            sb.AppendLine("(Using hardcoded measurements - no Kinect)");
-            this.MeasurementText.Text = sb.ToString();
+            // StringBuilder sb = new StringBuilder();
+            // sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Height: {0:F3} m ({1:F1} cm)", this.currentMeasurements.height, this.currentMeasurements.height * 100));
+            // sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", this.currentMeasurements.upperArmLength, this.currentMeasurements.lowerArmLength));
+            // sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", this.currentMeasurements.upperLegLength, this.currentMeasurements.lowerLegLength));
+            // sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Nape to Waist: {0:F3} m | Shoulder Dist: {1:F3} m", this.currentMeasurements.napeToWaist, this.currentMeasurements.shoulderDist));
+            // sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Waist to Hip: {0:F3} m | Neck Height: {1:F3} m", this.currentMeasurements.waistToHip, this.currentMeasurements.neckHeight));
+            // sb.AppendLine("(Using hardcoded measurements - no Kinect)");
+            // this.MeasurementText.Text = sb.ToString();
             
             // Trigger automatic capture and generation
             this.CaptureMeasurementsAndGenerate();
@@ -918,6 +918,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 this.StatusText = "Generating model...";
 
                 // Hardcoded paths
+                string makehumanProjectRoot = "C:\\Users\\roisi\\Desktop\\makehuman";
                 string makehumanScript = "C:\\Users\\roisi\\Desktop\\makehuman\\makehuman\\generate_human.py";
                 string rigPath = "C:\\Users\\roisi\\OneDrive\\Documents\\makehuman\\v1py3\\data\\rigs\\Unity_Rig\\unity.mhskel";
                 string clothesDir = "C:\\Users\\roisi\\OneDrive\\Documents\\makehuman\\v1py3\\data\\clothes";
@@ -940,7 +941,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 if (Environment.OSVersion.Platform == PlatformID.Win32NT)
                 {
                     // Try venv first
-                    string venvPython = Path.Combine(projectRoot, "venv", "Scripts", "python.exe");
+                    string venvPython = Path.Combine(makehumanProjectRoot, "venv", "Scripts", "python.exe");
                     if (File.Exists(venvPython))
                     {
                         pythonExe = venvPython;
@@ -953,7 +954,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 else
                 {
                     // macOS/Linux - try venv first
-                    string venvPython = Path.Combine(projectRoot, "venv", "bin", "python3");
+                    string venvPython = Path.Combine(makehumanProjectRoot, "venv", "bin", "python3");
                     if (File.Exists(venvPython))
                     {
                         pythonExe = venvPython;
@@ -993,8 +994,13 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true,
-                    WorkingDirectory = projectRoot
+                    WorkingDirectory = makehumanProjectRoot,
+                    StandardOutputEncoding = Encoding.UTF8,
+                    StandardErrorEncoding = Encoding.UTF8
                 };
+
+                // Force UTF-8 encoding for Python output to handle Unicode characters
+                startInfo.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8";
 
                 // Start the process
                 using (Process process = Process.Start(startInfo))
@@ -1010,11 +1016,40 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                     StringBuilder output = new StringBuilder();
                     StringBuilder error = new StringBuilder();
 
+                    // Create log file path - write to output directory for easier access
+                    string logFile = Path.Combine(outputDir, $"makehuman_generation_{DateTime.Now:yyyyMMdd_HHmmss}.log");
+                    StreamWriter logWriter = null;
+                    
+                    try
+                    {
+                        logWriter = new StreamWriter(logFile, true) { AutoFlush = true };
+                        logWriter.WriteLine($"=== MakeHuman Generation Log - {DateTime.Now} ===");
+                        logWriter.WriteLine($"Command: {pythonExe} {arguments}");
+                        logWriter.WriteLine($"Working Directory: {makehumanProjectRoot}");
+                        logWriter.WriteLine("========================================\n");
+                        
+                        // Update UI with log file location
+                        this.Dispatcher.Invoke(() => {
+                            this.StatusText = $"Generating model... (log: {Path.GetFileName(logFile)})";
+                        });
+                    }
+                    catch (Exception logEx)
+                    {
+                        // If log file creation fails, continue without logging
+                        this.Dispatcher.Invoke(() => {
+                            this.StatusText = $"Generating model... (Warning: Could not create log file: {logEx.Message})";
+                        });
+                    }
+
                     process.OutputDataReceived += (sender, e) =>
                     {
                         if (!string.IsNullOrEmpty(e.Data))
                         {
                             output.AppendLine(e.Data);
+                            if (logWriter != null)
+                            {
+                                try { logWriter.WriteLine($"[OUTPUT] {e.Data}"); } catch { }
+                            }
                         }
                     };
 
@@ -1023,14 +1058,32 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                         if (!string.IsNullOrEmpty(e.Data))
                         {
                             error.AppendLine(e.Data);
+                            if (logWriter != null)
+                            {
+                                try { logWriter.WriteLine($"[ERROR] {e.Data}"); } catch { }
+                            }
                         }
                     };
 
+                    // Start reading output asynchronously
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine();
 
                     // Wait for completion with timeout (5 minutes)
                     bool completed = process.WaitForExit(300000);
+
+                    // Close log writer with final info
+                    if (logWriter != null)
+                    {
+                        try
+                        {
+                            logWriter.WriteLine($"\n=== Process completed at {DateTime.Now} ===");
+                            logWriter.WriteLine($"Exit code: {(completed ? process.ExitCode.ToString() : "TIMEOUT")}");
+                            logWriter.Close();
+                            logWriter.Dispose();
+                        }
+                        catch { }
+                    }
 
                     if (!completed)
                     {
@@ -1053,19 +1106,20 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                     if (File.Exists(modelFile))
                     {
                         this.StatusText = "Model generated successfully!";
-                        
+
                         // If this was automatic generation, close the window after a short delay
                         if (this.modelGenerationInProgress)
                         {
                             MessageBox.Show(
                                 string.Format(
                                     CultureInfo.CurrentCulture,
-                                    "Model generated successfully!\n\nFile: {0}\n\nThis window will close automatically.",
-                                    modelFile),
+                                    "Model generated successfully!\n\nFile: {0}\n\nLog file: {1}\n\nThis window will close automatically.",
+                                    modelFile,
+                                    logFile),
                                 "Success",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information);
-                            
+
                             // Close the window after a short delay
                             var closeTimer = new System.Windows.Threading.DispatcherTimer();
                             closeTimer.Interval = TimeSpan.FromSeconds(2);
@@ -1081,8 +1135,9 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                             MessageBox.Show(
                                 string.Format(
                                     CultureInfo.CurrentCulture,
-                                    "Model generated successfully!\n\nFile: {0}\n\nYou can now close this window and run the main application.",
-                                    modelFile),
+                                    "Model generated successfully!\n\nFile: {0}\n\nLog file: {1}\n\nYou can now close this window and run the main application.",
+                                    modelFile,
+                                    logFile),
                                 "Success",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information);

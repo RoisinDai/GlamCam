@@ -102,10 +102,40 @@ def run_initialization_sequence():
 
         exit_code = process.returncode
 
+        # Decode output
+        stdout_text = stdout.decode('utf-8', errors='ignore').strip()
+        stderr_text = stderr.decode('utf-8', errors='ignore').strip()
+
+        # Print stdout if present
+        if stdout_text:
+            print("\n--- Standard Output ---")
+            print(stdout_text)
+            print("-" * 50)
+
+        # Print stderr if present
+        if stderr_text:
+            print("\n--- Standard Error ---")
+            print(stderr_text)
+            print("-" * 50)
+
         if exit_code != 0:
             print(f"\n[WARN] InitializationSequence exited with code {exit_code}")
-            if stderr:
-                print(f"Error output:\n{stderr.decode('utf-8', errors='ignore')}")
+
+            # Save full output to a log file for easier viewing
+            log_file = PROJECT_ROOT / "initialization_sequence_output.log"
+            with open(log_file, 'w', encoding='utf-8') as f:
+                f.write("=== InitializationSequence Output Log ===\n\n")
+                f.write(f"Exit Code: {exit_code}\n\n")
+                if stdout_text:
+                    f.write("--- STDOUT ---\n")
+                    f.write(stdout_text)
+                    f.write("\n\n")
+                if stderr_text:
+                    f.write("--- STDERR ---\n")
+                    f.write(stderr_text)
+                    f.write("\n")
+
+            print(f"\nFull output saved to: {log_file}")
         else:
             print("\nInitializationSequence completed successfully.")
 
