@@ -918,11 +918,11 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 this.StatusText = "Generating model...";
 
                 // Hardcoded paths
-                string makehumanScript = "/Users/jiye/Documents/GlamCam/makehuman/makehuman/generate_human.py";
-                string rigPath = "/Users/jiye/Documents/MakeHuman/v1py3/data/rigs/Unity_Rig/unity.mhskel";
-                string clothesDir = "/Users/jiye/Documents/MakeHuman/v1py3/data/clothes";
-                string outputDir = "/Users/jiye/Documents/GlamCam/GlamCam/Assets/Base Models";
-                string mhmDir = "/Users/jiye/Documents/GlamCam/tmp";
+                string makehumanScript = "C:\\Users\\roisi\\Desktop\\makehuman\\makehuman\\generate_human.py";
+                string rigPath = "C:\\Users\\roisi\\OneDrive\\Documents\\makehuman\\v1py3\\data\\rigs\\Unity_Rig\\unity.mhskel";
+                string clothesDir = "C:\\Users\\roisi\\OneDrive\\Documents\\makehuman\\v1py3\\data\\clothes";
+                string outputDir = "C:\\Users\\roisi\\Desktop\\GlamCam\\GlamCam\\Assets\\Base Models";
+                string mhmDir = "C:\\Users\\roisi\\Desktop\\makehuman\\makehuman\\tmp";
 
                 // Create directories if they don't exist
                 if (!Directory.Exists(outputDir))
