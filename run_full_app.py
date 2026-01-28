@@ -227,12 +227,17 @@ def main():
                 return 1
 
         # Step 3: Run launcher.py
-        print("\n" + "=" * 60)
-        print("Proceeding to main application...")
-        print("=" * 60)
-        time.sleep(1)
+        # COMMENTED OUT FOR TESTING - Just testing InitializationSequence
+        # print("\n" + "=" * 60)
+        # print("Proceeding to main application...")
+        # print("=" * 60)
+        # time.sleep(1)
 
-        run_launcher()
+        # run_launcher()
+
+        print("\n" + "=" * 60)
+        print("InitializationSequence complete - Skipping launcher.py")
+        print("=" * 60)
 
     except KeyboardInterrupt:
         print("\n\nCtrl+C detected. Exiting...")

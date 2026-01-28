@@ -71,6 +71,16 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         private DepthFrameReader depthFrameReader = null;
 
         /// <summary>
+        /// Reader for color frames
+        /// </summary>
+        private ColorFrameReader colorFrameReader = null;
+
+        /// <summary>
+        /// Bitmap to display color frame
+        /// </summary>
+        private WriteableBitmap colorBitmap = null;
+
+        /// <summary>
         /// Coordinate mapper for spatial transformations
         /// </summary>
         private CoordinateMapper coordinateMapper = null;
@@ -138,6 +148,17 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             // Get the kinectSensor object
             this.kinectSensor = KinectSensor.GetDefault();
 
+            // Debug logging
+            Console.WriteLine("========== Kinect Initialization ==========");
+            Console.WriteLine($"KinectSensor.GetDefault() returned: {(this.kinectSensor != null ? "NOT NULL" : "NULL")}");
+            if (this.kinectSensor != null)
+            {
+                Console.WriteLine($"Kinect IsAvailable: {this.kinectSensor.IsAvailable}");
+                Console.WriteLine($"Kinect IsOpen: {this.kinectSensor.IsOpen}");
+                Console.WriteLine($"Kinect UniqueKinectId: {this.kinectSensor.UniqueKinectId}");
+            }
+            Console.WriteLine("==========================================");
+
             if (this.kinectSensor != null)
             {
                 // Get coordinate mapper
@@ -156,6 +177,13 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
                 this.depthFrameReader = this.kinectSensor.DepthFrameSource.OpenReader();
                 this.depthFrameReader.FrameArrived += this.Reader_DepthFrameArrived;
+
+                this.colorFrameReader = this.kinectSensor.ColorFrameSource.OpenReader();
+                this.colorFrameReader.FrameArrived += this.Reader_ColorFrameArrived;
+
+                // Create bitmap for color display
+                FrameDescription colorFrameDescription = this.kinectSensor.ColorFrameSource.CreateFrameDescription(ColorImageFormat.Bgra);
+                this.colorBitmap = new WriteableBitmap(colorFrameDescription.Width, colorFrameDescription.Height, 96.0, 96.0, PixelFormats.Bgr32, null);
 
                 // Allocate storage arrays
                 this.bodyIndexData = new byte[this.bodyIndexFrameDescription.Width * this.bodyIndexFrameDescription.Height];
@@ -180,19 +208,58 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
             // Initialize the components (controls) of the window
             this.InitializeComponent();
-            
-            // If no Kinect is available, trigger hardcoded measurements after a short delay
-            if (this.kinectSensor == null || !this.kinectSensor.IsAvailable)
+
+            // Set the image source for color display
+            if (this.colorBitmap != null)
             {
-                // Use a timer to trigger hardcoded measurements after window is fully loaded
+                this.ColorImageView.Source = this.colorBitmap;
+            }
+
+            // Wait for Kinect to become available before falling back to hardcoded measurements
+            if (this.kinectSensor == null)
+            {
+                // No Kinect sensor found at all - use hardcoded immediately
+                Console.WriteLine("[FALLBACK] No Kinect sensor detected - using hardcoded measurements");
                 var timer = new System.Windows.Threading.DispatcherTimer();
-                timer.Interval = TimeSpan.FromSeconds(1); // Wait 1 second for window to load
+                timer.Interval = TimeSpan.FromSeconds(1);
                 timer.Tick += (s, e) =>
                 {
                     timer.Stop();
                     this.TriggerHardcodedMeasurements();
                 };
                 timer.Start();
+            }
+            else if (!this.kinectSensor.IsAvailable)
+            {
+                // Kinect exists but not available yet - wait up to 10 seconds for it to become available
+                Console.WriteLine("[WAITING] Kinect sensor found but not available yet. Waiting up to 10 seconds...");
+                int waitSeconds = 0;
+                var timer = new System.Windows.Threading.DispatcherTimer();
+                timer.Interval = TimeSpan.FromSeconds(1);
+                timer.Tick += (s, e) =>
+                {
+                    waitSeconds++;
+                    Console.WriteLine($"[WAITING] Checking Kinect availability... ({waitSeconds}/10 seconds)");
+
+                    if (this.kinectSensor.IsAvailable)
+                    {
+                        timer.Stop();
+                        Console.WriteLine("[SUCCESS] Kinect sensor is now available!");
+                        this.StatusText = "Kinect sensor ready - Waiting for body tracking...";
+                    }
+                    else if (waitSeconds >= 10)
+                    {
+                        timer.Stop();
+                        Console.WriteLine("[FALLBACK] Kinect did not become available after 10 seconds - using hardcoded measurements");
+                        this.TriggerHardcodedMeasurements();
+                    }
+                };
+                timer.Start();
+            }
+            else
+            {
+                // Kinect is already available
+                Console.WriteLine("[SUCCESS] Kinect sensor is available and ready!");
             }
         }
 
@@ -250,6 +317,12 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             {
                 this.depthFrameReader.Dispose();
                 this.depthFrameReader = null;
+            }
+
+            if (this.colorFrameReader != null)
+            {
+                this.colorFrameReader.Dispose();
+                this.colorFrameReader = null;
             }
 
             if (this.kinectSensor != null)
@@ -314,6 +387,40 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             {
                 // Only update measurements if we haven't captured yet
                 this.UpdateMeasurements();
+            }
+        }
+
+        /// <summary>
+        /// Handles the color frame data arriving from the sensor
+        /// </summary>
+        /// <param name="sender">object sending the event</param>
+        /// <param name="e">event arguments</param>
+        private void Reader_ColorFrameArrived(object sender, ColorFrameArrivedEventArgs e)
+        {
+            using (ColorFrame colorFrame = e.FrameReference.AcquireFrame())
+            {
+                if (colorFrame != null)
+                {
+                    FrameDescription colorFrameDescription = colorFrame.FrameDescription;
+
+                    using (KinectBuffer colorBuffer = colorFrame.LockRawImageBuffer())
+                    {
+                        this.colorBitmap.Lock();
+
+                        // Verify data and write to the display bitmap
+                        if ((colorFrameDescription.Width == this.colorBitmap.PixelWidth) && (colorFrameDescription.Height == this.colorBitmap.PixelHeight))
+                        {
+                            colorFrame.CopyConvertedFrameDataToIntPtr(
+                                this.colorBitmap.BackBuffer,
+                                (uint)(colorFrameDescription.Width * colorFrameDescription.Height * 4),
+                                ColorImageFormat.Bgra);
+
+                            this.colorBitmap.AddDirtyRect(new Int32Rect(0, 0, this.colorBitmap.PixelWidth, this.colorBitmap.PixelHeight));
+                        }
+
+                        this.colorBitmap.Unlock();
+                    }
+                }
             }
         }
 
