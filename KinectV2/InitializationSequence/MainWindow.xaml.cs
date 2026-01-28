@@ -511,8 +511,11 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             // Calculate all body part measurements from skeleton
             HumanoidMeasurements measurements = this.MeasureKinectUserBodyParts(this.trackedBody);
             
-            // Store measurements for model generation
-            this.currentMeasurements = measurements;
+            // Store measurements for model generation (freeze once we've captured)
+            if (!this.measurementsCaptured && !this.modelGenerationInProgress)
+            {
+                this.currentMeasurements = measurements;
+            }
 
             // Use cleaned body index data for width measurement (after morphological cleanup)
             byte[] measurementData = this.cleanedBodyIndexData != null ? this.cleanedBodyIndexData : this.bodyIndexData;
@@ -545,50 +548,46 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
             this.MeasurementText.Text = sb.ToString();
 
-            // TEMPORARY: Hardcoded measurements for testing without Kinect
-            // TODO: Remove this when Kinect is available
-            if (!this.measurementsCaptured && !this.modelGenerationInProgress)
+            // Automatically capture and generate when we have valid Kinect measurements
+            if (!this.measurementsCaptured && !this.modelGenerationInProgress &&
+                measurements.height > 0 &&
+                measurements.upperArmLength > 0 &&
+                measurements.lowerArmLength > 0 &&
+                measurements.upperLegLength > 0 &&
+                measurements.lowerLegLength > 0)
             {
-                // Create hardcoded measurements (in meters) - only these 5 are passed to MakeHuman script
-                this.currentMeasurements = new HumanoidMeasurements
-                {
-                    height = 1.69,           // 169.0 cm
-                    upperArmLength = 0.29,   // 29.0 cm
-                    lowerArmLength = 0.25,   // 25.0 cm
-                    upperLegLength = 0.385,   // 38.5 cm
-                    lowerLegLength = 0.48,   // 48.0 cm
-                    napeToWaist = 0.30,       // Not used in script
-                    shoulderDist = 0.40,     // Not used in script
-                    waistToHip = 0.15,       // Not used in script
-                    neckHeight = 0.10         // Not used in script
-                };
-                
-                // Update display with hardcoded measurements (reuse existing sb)
-                sb.Clear();
-                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Height: {0:F3} m ({1:F1} cm)", this.currentMeasurements.height, this.currentMeasurements.height * 100));
-                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", this.currentMeasurements.upperArmLength, this.currentMeasurements.lowerArmLength));
-                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", this.currentMeasurements.upperLegLength, this.currentMeasurements.lowerLegLength));
-                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Nape to Waist: {0:F3} m | Shoulder Dist: {1:F3} m", this.currentMeasurements.napeToWaist, this.currentMeasurements.shoulderDist));
-                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Waist to Hip: {0:F3} m | Neck Height: {1:F3} m", this.currentMeasurements.waistToHip, this.currentMeasurements.neckHeight));
-                sb.AppendLine("(Using hardcoded measurements - no Kinect)");
-                this.MeasurementText.Text = sb.ToString();
-                
-                // Trigger automatic capture and generation
+                double? widthForLog = widthInMeters > 0 ? (double?)widthInMeters : null;
+                LogMeasurementsToConsole(measurements, widthForLog, "Kinect");
                 this.CaptureMeasurementsAndGenerate();
             }
-            
-            // ORIGINAL CODE (commented out for now):
-            // Automatically capture and generate model if measurements are valid and not already captured
-            // if (!this.measurementsCaptured && !this.modelGenerationInProgress &&
-            //     measurements.height > 0 &&
-            //     measurements.upperArmLength > 0 &&
-            //     measurements.lowerArmLength > 0 &&
-            //     measurements.upperLegLength > 0 &&
-            //     measurements.lowerLegLength > 0)
-            // {
-            //     // Trigger automatic capture and generation
-            //     this.CaptureMeasurementsAndGenerate();
-            // }
+        }
+
+        /// <summary>
+        /// Writes all measurements to the console (terminal).
+        /// </summary>
+        /// <param name="m">Body measurements in meters</param>
+        /// <param name="spineMidWidthM">Optional SpineMid width from silhouette (meters). Omit if not measured.</param>
+        /// <param name="source">Optional label, e.g. "Kinect" or "hardcoded"</param>
+        private void LogMeasurementsToConsole(HumanoidMeasurements m, double? spineMidWidthM = null, string source = null)
+        {
+            Console.WriteLine("---------- Measurements ----------");
+            if (!string.IsNullOrEmpty(source))
+            {
+                Console.WriteLine("  Source: {0}", source);
+            }
+
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Height: {0:F3} m ({1:F1} cm)", m.height, m.height * 100));
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", m.upperArmLength, m.lowerArmLength));
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", m.upperLegLength, m.lowerLegLength));
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Nape to Waist: {0:F3} m | Shoulder Dist: {1:F3} m", m.napeToWaist, m.shoulderDist));
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Waist to Hip: {0:F3} m | Neck Height: {1:F3} m", m.waistToHip, m.neckHeight));
+
+            if (spineMidWidthM.HasValue && spineMidWidthM.Value > 0)
+            {
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  SpineMid Width (silhouette): {0:F3} m ({1:F1} cm)", spineMidWidthM.Value, spineMidWidthM.Value * 100));
+            }
+
+            Console.WriteLine("----------------------------------");
         }
 
         /// <summary>
@@ -868,7 +867,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             // sb.AppendLine("(Using hardcoded measurements - no Kinect)");
             // this.MeasurementText.Text = sb.ToString();
             
-            // Trigger automatic capture and generation
+            LogMeasurementsToConsole(this.currentMeasurements, null, "hardcoded (no Kinect)");
             this.CaptureMeasurementsAndGenerate();
         }
 
@@ -967,6 +966,11 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 double lowerArmCm = measurements.lowerArmLength * 100.0;
                 double upperLegCm = measurements.upperLegLength * 100.0;
                 double lowerLegCm = measurements.lowerLegLength * 100.0;
+
+                // Log measurements passed to MakeHuman script to Console
+                Console.WriteLine("[MakeHuman] Passing measured values to script:");
+                Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  height={0:F1} cm, upper-arm={1:F1} cm, lower-arm={2:F1} cm, upper-leg={3:F1} cm, lower-leg={4:F1} cm",
+                    heightCm, upperArmCm, lowerArmCm, upperLegCm, lowerLegCm));
 
                 // Build command-line arguments
                 string arguments = string.Format(
