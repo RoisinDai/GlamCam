@@ -957,12 +957,12 @@ public class AvatarController : MonoBehaviour
         _BoneMappingConfigs = new List<BoneMappingConfig>
         {
             // Upper arms (bilateral) - Note: Kinect left = Unity right due to mirroring
-            new BoneMappingConfig(Kinect.JointType.SpineShoulder, Kinect.JointType.ElbowLeft, HumanBodyBones.RightUpperArm, yAxis),
-            new BoneMappingConfig(Kinect.JointType.SpineShoulder, Kinect.JointType.ElbowRight, HumanBodyBones.LeftUpperArm, yAxis),
+            new BoneMappingConfig(Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft, HumanBodyBones.RightUpperArm, yAxis),
+            new BoneMappingConfig(Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight, HumanBodyBones.LeftUpperArm, yAxis),
             
             // Lower arms (bilateral)
-            new BoneMappingConfig(Kinect.JointType.ElbowLeft, Kinect.JointType.HandLeft, HumanBodyBones.RightLowerArm, yAxis),
-            new BoneMappingConfig(Kinect.JointType.ElbowRight, Kinect.JointType.HandRight, HumanBodyBones.LeftLowerArm, yAxis),
+            new BoneMappingConfig(Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft, HumanBodyBones.RightLowerArm, yAxis),
+            new BoneMappingConfig(Kinect.JointType.ElbowRight, Kinect.JointType.WristRight, HumanBodyBones.LeftLowerArm, yAxis),
             
             // Upper legs (bilateral)
             new BoneMappingConfig(Kinect.JointType.SpineBase, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg, yAxis),
