@@ -10,10 +10,11 @@ public class BodySourceView : MonoBehaviour
 {
   public Material BoneMaterial;
   public GameObject BodySourceManager;
-  public Material TransparentMaterial; // Material for joints skeleton to hide it
+  public Material TransparentMaterial; // Material for joints skeleton to hide it  
   private Dictionary<ulong, GameObject> _Bodies = new Dictionary<ulong, GameObject>();
   private BodySourceManager _BodyManager;
   private bool _ShowSkeleton = false; // Flag to toggle skeleton visibility
+  private static float OffsetX = 0.5f;
 
   // Maps joints to the joint they are connected to
   private Dictionary<Kinect.JointType, Kinect.JointType> _BoneMap = new Dictionary<Kinect.JointType, Kinect.JointType>()
@@ -144,6 +145,7 @@ public class BodySourceView : MonoBehaviour
       else
       {
         // Apply a transparent material to the object
+        // TODO: Just make the joint and line renderer invisible by making it non-active
         jointObj.GetComponent<Renderer>().material = TransparentMaterial;
         LineRenderer lr = jointObj.AddComponent<LineRenderer>();
         lr.material = TransparentMaterial;
@@ -212,9 +214,11 @@ public class BodySourceView : MonoBehaviour
   // Z: forward to back
   // Convert a position in Kinect Coordinate System (meters) to Unity Coordinate System (units)
   // Joint positions are scaled by *10, so the skeleton is drawn at 10x its true size.
+  // Need offset X to center the skeleton in the view.
+  // This is because the depth camera and color camera are not at the same position, so we need a uniform offset.
   public static Vector3 GetVector3FromKinectCoord(float kinect_x, float kinect_y, float kinect_z)
   {
-    return new Vector3(kinect_x * 10, kinect_y * 10, kinect_z * 10);
+    return new Vector3(kinect_x * 10 + OffsetX, kinect_y * 10, kinect_z * 10);
   }
 
   public static Vector3 GetVector3FromJoint(Kinect.Joint joint)
