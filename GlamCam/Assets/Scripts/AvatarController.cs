@@ -28,6 +28,354 @@ class ExtensionFactors
     public float lowerLegExtensionFactor = 0;
 }
 
+// Stores the original local scale of each bone for reference
+class BoneScaleData
+{
+    public Vector3 originalLocalScale;
+    public Vector3 currentScale = Vector3.one;
+    public Transform boneTransform;
+    
+    public BoneScaleData(Transform bone)
+    {
+        boneTransform = bone;
+        originalLocalScale = bone.localScale;
+    }
+}
+
+// Phase 1.4: Configuration for mapping Kinect joint pairs to Unity humanoid bones
+class BoneMappingConfig
+{
+    public Kinect.JointType startJoint;      // Start Kinect joint (e.g., ShoulderLeft)
+    public Kinect.JointType endJoint;        // End Kinect joint (e.g., ElbowLeft)
+    public HumanBodyBones unityBone;         // Corresponding Unity bone (note left-right mirror)
+    public Vector3 stretchAxis;              // Which local axis the bone stretches along (typically Y)
+    
+    public BoneMappingConfig(Kinect.JointType start, Kinect.JointType end, HumanBodyBones bone, Vector3 axis)
+    {
+        startJoint = start;
+        endJoint = end;
+        unityBone = bone;
+        stretchAxis = axis;
+    }
+}
+
+// FakeUMA - Non-uniform bone scaling system
+// Allows independent scaling of individual bones using inverse scale compensation
+public class FakeUMA
+{
+    private Dictionary<Transform, BoneScaleData> _BoneScaleDatabase = new Dictionary<Transform, BoneScaleData>();
+    private bool _Initialized = false;
+    private GameObject _Avatar;
+    private Animator _Animator;
+
+    public FakeUMA(GameObject avatar, Animator animator)
+    {
+        _Avatar = avatar;
+        _Animator = animator;
+    }
+
+    /// <summary>
+    /// Initializes the bone scaling system by collecting all bones in the hierarchy.
+    /// Call this once before using the scaling APIs.
+    /// </summary>
+    public void Initialize()
+    {
+        if (_Initialized) return;
+
+        _BoneScaleDatabase.Clear();
+
+        // Get all transforms in the avatar hierarchy
+        Transform[] allTransforms = _Avatar.GetComponentsInChildren<Transform>();
+        
+        foreach (Transform bone in allTransforms)
+        {
+            _BoneScaleDatabase[bone] = new BoneScaleData(bone);
+        }
+
+        _Initialized = true;
+        Debug.Log($"FakeUMA bone scaling system initialized with {_BoneScaleDatabase.Count} bones.");
+    }
+
+    /// <summary>
+    /// Scales a specific bone independently by applying inverse scale to its direct children.
+    /// This is the core API for non-uniform bone scaling.
+    /// </summary>
+    /// <param name="bone">The bone transform to scale</param>
+    /// <param name="scaleFactor">The scale factor to apply (e.g., Vector3(1.5f, 1.5f, 1.5f))</param>
+    public void ScaleBoneIndependently(Transform bone, Vector3 scaleFactor)
+    {
+        if (!_Initialized)
+        {
+            Debug.LogWarning("FakeUMA not initialized. Call Initialize() first.");
+            return;
+        }
+
+        if (bone == null)
+        {
+            Debug.LogError("Cannot scale null bone.");
+            return;
+        }
+
+        if (!_BoneScaleDatabase.ContainsKey(bone))
+        {
+            Debug.LogWarning($"Bone {bone.name} not found in scaling database.");
+            return;
+        }
+
+        // Step 1: Apply the scale to the bone itself
+        bone.localScale = Vector3.Scale(bone.localScale, scaleFactor);
+        
+        // Update the database with the new scale
+        _BoneScaleDatabase[bone].currentScale = Vector3.Scale(_BoneScaleDatabase[bone].currentScale, scaleFactor);
+
+        // Step 2: Apply inverse scale to all direct children to compensate
+        Vector3 inverseScale = new Vector3(
+            1.0f / scaleFactor.x,
+            1.0f / scaleFactor.y,
+            1.0f / scaleFactor.z
+        );
+
+        foreach (Transform child in bone)
+        {
+            if (_BoneScaleDatabase.ContainsKey(child))
+            {
+                child.localScale = Vector3.Scale(child.localScale, inverseScale);
+                // Update the child's current scale in the database
+                _BoneScaleDatabase[child].currentScale = Vector3.Scale(_BoneScaleDatabase[child].currentScale, inverseScale);
+            }
+        }
+
+        Debug.Log($"Scaled bone '{bone.name}' by {scaleFactor}, applied inverse scale to {bone.childCount} children.");
+    }
+
+    /// <summary>
+    /// Scales a bone by name. Convenience method that finds the bone first.
+    /// </summary>
+    /// <param name="boneName">The name of the bone to scale</param>
+    /// <param name="scaleFactor">The scale factor to apply</param>
+    public void ScaleBoneByName(string boneName, Vector3 scaleFactor)
+    {
+        Transform bone = FindBoneByName(boneName);
+        if (bone != null)
+        {
+            ScaleBoneIndependently(bone, scaleFactor);
+        }
+        else
+        {
+            Debug.LogError($"Bone with name '{boneName}' not found in hierarchy.");
+        }
+    }
+
+    /// <summary>
+    /// Scales a Unity humanoid bone independently.
+    /// </summary>
+    /// <param name="humanBone">The HumanBodyBones enum value</param>
+    /// <param name="scaleFactor">The scale factor to apply</param>
+    public void ScaleHumanoidBone(HumanBodyBones humanBone, Vector3 scaleFactor)
+    {
+        if (_Animator == null)
+        {
+            Debug.LogError("Animator is null. Cannot scale humanoid bone.");
+            return;
+        }
+
+        Transform bone = _Animator.GetBoneTransform(humanBone);
+        if (bone != null)
+        {
+            ScaleBoneIndependently(bone, scaleFactor);
+        }
+        else
+        {
+            Debug.LogError($"Humanoid bone '{humanBone}' not found in animator.");
+        }
+    }
+
+    /// <summary>
+    /// Resets a bone's scale to its original value.
+    /// </summary>
+    /// <param name="bone">The bone to reset</param>
+    public void ResetBoneScale(Transform bone)
+    {
+        if (!_Initialized || bone == null || !_BoneScaleDatabase.ContainsKey(bone))
+        {
+            Debug.LogWarning("Cannot reset bone scale. System not initialized or bone not found.");
+            return;
+        }
+
+        BoneScaleData data = _BoneScaleDatabase[bone];
+        
+        // Calculate the inverse of the current scale to return to original
+        Vector3 resetScale = new Vector3(
+            data.originalLocalScale.x / bone.localScale.x,
+            data.originalLocalScale.y / bone.localScale.y,
+            data.originalLocalScale.z / bone.localScale.z
+        );
+
+        // Apply the reset scale (which will also inverse scale children)
+        ScaleBoneIndependently(bone, resetScale);
+    }
+
+    /// <summary>
+    /// Resets all bones to their original scales.
+    /// </summary>
+    public void ResetAllBoneScales()
+    {
+        if (!_Initialized) return;
+
+        foreach (var kvp in _BoneScaleDatabase)
+        {
+            Transform bone = kvp.Key;
+            BoneScaleData data = kvp.Value;
+            
+            if (bone != null)
+            {
+                bone.localScale = data.originalLocalScale;
+                data.currentScale = Vector3.one;
+            }
+        }
+
+        // Debug.Log("Reset all bone scales to original values.");
+    }
+
+    /// <summary>
+    /// Gets the current scale factor applied to a bone.
+    /// </summary>
+    /// <param name="bone">The bone to query</param>
+    /// <returns>The cumulative scale factor applied to this bone</returns>
+    public Vector3 GetBoneScaleFactor(Transform bone)
+    {
+        if (!_Initialized || bone == null || !_BoneScaleDatabase.ContainsKey(bone))
+        {
+            return Vector3.one;
+        }
+
+        return _BoneScaleDatabase[bone].currentScale;
+    }
+
+    /// <summary>
+    /// Finds a bone by name in the avatar hierarchy.
+    /// </summary>
+    private Transform FindBoneByName(string boneName)
+    {
+        foreach (var kvp in _BoneScaleDatabase)
+        {
+            if (kvp.Key.name == boneName)
+            {
+                return kvp.Key;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Lists all bones in the scaling system for debugging.
+    /// </summary>
+    public void ListAllBones()
+    {
+        if (!_Initialized)
+        {
+            Debug.LogWarning("FakeUMA not initialized.");
+            return;
+        }
+
+        Debug.Log($"=== FakeUMA Bone Scaling System: {_BoneScaleDatabase.Count} bones ===");
+        foreach (var kvp in _BoneScaleDatabase)
+        {
+            Transform bone = kvp.Key;
+            BoneScaleData data = kvp.Value;
+            Debug.Log($"Bone: {bone.name}, Original Scale: {data.originalLocalScale}, Current Scale: {data.currentScale}, Children: {bone.childCount}");
+        }
+    }
+
+    // ========================================================================================
+    // CYLINDER-BASED SCALING API (User-Friendly Wrappers)
+    // ========================================================================================
+    // Each bone is approximated as a cylinder with a length axis and a thickness (radius).
+    // These methods make it easier to scale bones by separating length from thickness.
+
+    /// <summary>
+    /// Scales the length of a humanoid bone along its primary axis.
+    /// Think of this as making the bone longer or shorter (changing cylinder height).
+    /// </summary>
+    /// <param name="humanBone">The HumanBodyBones enum value</param>
+    /// <param name="lengthScale">Length scale factor (e.g., 1.5f = 50% longer)</param>
+    public void ScaleBoneLength(HumanBodyBones humanBone, float lengthScale)
+    {
+        if (_Animator == null) return;
+        Transform bone = _Animator.GetBoneTransform(humanBone);
+        if (bone == null) return;
+
+        Vector3 scaleVector = GetBoneLengthScaleVector(humanBone, lengthScale);
+        ScaleBoneIndependently(bone, scaleVector);
+    }
+
+    /// <summary>
+    /// Scales the thickness of a humanoid bone (cross-section radius).
+    /// Think of this as making the bone thicker or thinner (changing cylinder radius).
+    /// </summary>
+    /// <param name="humanBone">The HumanBodyBones enum value</param>
+    /// <param name="thicknessScale">Thickness scale factor (e.g., 1.5f = 50% thicker)</param>
+    public void ScaleBoneThickness(HumanBodyBones humanBone, float thicknessScale)
+    {
+        if (_Animator == null) return;
+        Transform bone = _Animator.GetBoneTransform(humanBone);
+        if (bone == null) return;
+
+        Vector3 scaleVector = GetBoneThicknessScaleVector(humanBone, thicknessScale);
+        ScaleBoneIndependently(bone, scaleVector);
+    }
+
+    /// <summary>
+    /// Scales both length and thickness of a humanoid bone independently.
+    /// </summary>
+    /// <param name="humanBone">The HumanBodyBones enum value</param>
+    /// <param name="lengthScale">Length scale factor</param>
+    /// <param name="thicknessScale">Thickness scale factor</param>
+    public void ScaleBoneLengthAndThickness(HumanBodyBones humanBone, float lengthScale, float thicknessScale)
+    {
+        if (_Animator == null) return;
+        Transform bone = _Animator.GetBoneTransform(humanBone);
+        if (bone == null) return;
+
+        Vector3 lengthVector = GetBoneLengthScaleVector(humanBone, lengthScale);
+        Vector3 thicknessVector = GetBoneThicknessScaleVector(humanBone, thicknessScale);
+        
+        // Combine length and thickness scales
+        Vector3 combinedScale = new Vector3(
+            lengthVector.x * thicknessVector.x,
+            lengthVector.y * thicknessVector.y,
+            lengthVector.z * thicknessVector.z
+        );
+        
+        ScaleBoneIndependently(bone, combinedScale);
+    }
+
+    /// <summary>
+    /// Determines the length axis scale vector for a specific bone.
+    /// Returns a Vector3 where the length axis has the scale factor and other axes are 1.0.
+    /// For standard Unity humanoid rigs, the Y-axis is the length axis for all bones.
+    /// </summary>
+    private Vector3 GetBoneLengthScaleVector(HumanBodyBones humanBone, float lengthScale)
+    {
+        // For standard Unity humanoid rigs, Y-axis is the length axis (bones grow along Y)
+        // This applies to: spine, torso, head, arms, legs, fingers
+        return new Vector3(1f, lengthScale, 1f);
+    }
+
+    /// <summary>
+    /// Determines the thickness (cross-section) scale vector for a specific bone.
+    /// Returns a Vector3 where the thickness axes have the scale factor and the length axis is 1.0.
+    /// For standard Unity humanoid rigs, X and Z axes control thickness (perpendicular to Y length axis).
+    /// </summary>
+    private Vector3 GetBoneThicknessScaleVector(HumanBodyBones humanBone, float thicknessScale)
+    {
+        // For standard Unity humanoid rigs, X and Z axes control thickness
+        // Since Y is the length axis, X and Z are the radial thickness axes
+        // This creates uniform radial expansion (circular cross-section remains circular)
+        return new Vector3(thicknessScale, 1f, thicknessScale);
+    }
+}
+
 // Responsible for controlling the clothed base avatar, making it track the user's body
 public class AvatarController : MonoBehaviour
 {
@@ -54,6 +402,43 @@ public class AvatarController : MonoBehaviour
     private ExtensionFactors _ExtensionFactors = new();
     private bool hasValidBody = false;
 
+    // Non-uniform bone scaling system
+    public FakeUMA fakeUMA;
+
+    // ========================================================================================
+    // SMOOTHED CONTINUOUS BONE SCALING SYSTEM
+    // ========================================================================================
+    
+    // Phase 1.1: Current avatar bone lengths (measured every frame to reflect scaling changes)
+    private Dictionary<HumanBodyBones, float> _CurrentAvatarBoneLengths = new Dictionary<HumanBodyBones, float>();
+    
+    // Phase 1.2: Smoothed Kinect bone length measurements (updated every frame)
+    private Dictionary<HumanBodyBones, float> _SmoothedKinectBoneLengths = new Dictionary<HumanBodyBones, float>();
+    
+    // Phase 1.3: Smoothing factor for exponential smoothing (0-1 range, lower = smoother)
+    [Range(0.01f, 1.0f)]
+    [Tooltip("Smoothing factor for bone scaling. Lower values (0.05) = more smoothing, Higher values (0.2) = more responsive")]
+    public float boneSmoothingFactor = 0.1f;
+    
+    // Phase 1.4: Bone mapping configuration (Kinect joints -> Unity bones)
+    private List<BoneMappingConfig> _BoneMappingConfigs;
+    
+    // ========================================================================================
+    // STATISTICAL THICKNESS SCALING SYSTEM
+    // ========================================================================================
+    
+    // Enable/disable thickness scaling
+    [Tooltip("Enable statistical body build estimation for thickness scaling")]
+    public bool enableThicknessScaling = true;
+    
+    // Smoothed body build factor (updated every frame)
+    private float _SmoothedBuildFactor = 1.0f;
+    
+    // Smoothing factor for thickness (slower than length for stability)
+    [Range(0.01f, 0.5f)]
+    [Tooltip("Smoothing factor for thickness scaling. Lower = smoother. Should be slower than bone length smoothing.")]
+    public float thicknessSmoothingFactor = 0.05f;
+
     void Start()
     {
         print("AvatarController Start called for " + ClothedBaseAvatar.name);
@@ -71,11 +456,13 @@ public class AvatarController : MonoBehaviour
 
         // Get the measurements of the ClothedBaseAvatar
         GetAvatarHeight();
-        // Debug.Log("_AvatarMeasurements - Height: " + _AvatarMeasurements.height);
-        // Debug.Log("_AvatarMeasurements - Upper Arm Length: " + _AvatarMeasurements.upperArmLength);
-        // Debug.Log("_AvatarMeasurements - Lower Arm Length: " + _AvatarMeasurements.lowerArmLength);
-        // Debug.Log("_AvatarMeasurements - Upper Leg Length: " + _AvatarMeasurements.upperLegLength);
-        // Debug.Log("_AvatarMeasurements - Lower Leg Length: " + _AvatarMeasurements.lowerLegLength);
+
+        // Initialize the non-uniform bone scaling system (FakeUMA)
+        fakeUMA = new FakeUMA(ClothedBaseAvatar, animator);
+        fakeUMA.Initialize();
+
+        // Phase 2: Initialize the smoothed continuous bone scaling system
+        InitializeBoneMappingConfigs();
 
         // Hide the BaseAvatar if desired
         if (_HideAvatar)
@@ -109,7 +496,7 @@ public class AvatarController : MonoBehaviour
         if (animator != null)
         {
             animator.enabled = false; // Disables the Animator temporarily
-            Debug.Log("Animator has been disabled for manual bone control.");
+            // Debug.Log("Animator has been disabled for manual bone control.");
         }
 
         // Cache joints we need later
@@ -119,22 +506,7 @@ public class AvatarController : MonoBehaviour
         Vector3 head = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.Head]);
         Vector3 footL = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootLeft]);
         Vector3 footR = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootRight]);
-
         _KinectUserMeasurements.height = head.y - ((footL.y + footR.y) * 0.5f);
-
-        // MeasureKinectUserBodyParts(trackedBody);
-        // Print all measurements (in meters)
-        // Debug.Log(
-        //     $"Height: {_KinectUserMeasurements.height:F3} m, " +
-        //     $"NapeToWaist: {_KinectUserMeasurements.napeToWaist:F3} m, " +
-        //     $"ShoulderDist: {_KinectUserMeasurements.shoulderDist:F3} m, " +
-        //     $"WaistToHip: {_KinectUserMeasurements.waistToHip:F3} m, " +
-        //     $"NeckHeight: {_KinectUserMeasurements.neckHeight:F3} m, " +
-        //     $"UpperArm: {_KinectUserMeasurements.upperArmLength:F3} m, " +
-        //     $"LowerArm: {_KinectUserMeasurements.lowerArmLength:F3} m, " +
-        //     $"UpperLeg: {_KinectUserMeasurements.upperLegLength:F3} m, " +
-        //     $"LowerLeg: {_KinectUserMeasurements.lowerLegLength:F3} m"
-        // );
 
         hasValidBody = true;
     }
@@ -198,21 +570,25 @@ public class AvatarController : MonoBehaviour
     {
         if (!hasValidBody || trackedBody == null) return;
 
-        // 1. Apply forward kinematics (bone rotations)
+        // Phase 5.3: Execution order
+        // 1. First, update bone scaling based on Kinect measurements
+        UpdateContinuousBoneScaling();
+
+        // 2. Then, apply forward kinematics (bone rotations)
         ApplyForwardKinematics(trackedBody);
 
-        // 2. Rotate avatar root from shoulders
+        // 3. Rotate avatar root from shoulders
         RotateAvatarBasedOnShoulders(
             trackedBody.Joints[Kinect.JointType.ShoulderLeft],
             trackedBody.Joints[Kinect.JointType.ShoulderRight]
         );
         var joints = trackedBody.Joints;
 
-        // 3. Move avatar root to spine base
+        // 4. Move avatar root to spine base
         Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
         ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
 
-        // 4. Apply uniform scaling ONCE
+        // 5. Apply uniform scaling ONCE (this is now mostly handled by continuous bone scaling)
         if (UniformScaleFactor < 0f && _AvatarMeasurements.height > 0f)
         {
             UniformScaleFactor =
@@ -224,36 +600,8 @@ public class AvatarController : MonoBehaviour
             Debug.Log($"UniformScaleFactor set to {UniformScaleFactor:F3}");
         }
 
-        // 5. Optional: shoulder-based translation correction every frame
+        // 6. Optional: shoulder-based translation correction
         ApplyUniformTranslationBasedOnShoulders();
-    }
-
-    private void MeasureKinectUserBodyParts(Kinect.Body body)
-    {
-        var joints = body.Joints;
-
-        // Torso measurements
-        _KinectUserMeasurements.napeToWaist = MeasureDistance(joints, Kinect.JointType.SpineShoulder, Kinect.JointType.SpineMid);
-        _KinectUserMeasurements.waistToHip = MeasureDistance(joints, Kinect.JointType.SpineBase, Kinect.JointType.SpineMid);
-        _KinectUserMeasurements.neckHeight = MeasureDistance(joints, Kinect.JointType.Head, Kinect.JointType.Neck);
-        _KinectUserMeasurements.shoulderDist = MeasureAverageShoulderDistance(joints);
-
-        // Limb measurements
-        _KinectUserMeasurements.upperArmLength = MeasureAverageBilateralDistance(joints, 
-            Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft,
-            Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight);
-        
-        _KinectUserMeasurements.lowerArmLength = MeasureAverageBilateralDistance(joints,
-            Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft,
-            Kinect.JointType.ElbowRight, Kinect.JointType.WristRight);
-        
-        _KinectUserMeasurements.upperLegLength = MeasureAverageBilateralDistance(joints,
-            Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft,
-            Kinect.JointType.HipRight, Kinect.JointType.KneeRight);
-        
-        _KinectUserMeasurements.lowerLegLength = MeasureAverageBilateralDistance(joints,
-            Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft,
-            Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight);
     }
 
     /// <summary>
@@ -591,5 +939,514 @@ public class AvatarController : MonoBehaviour
             Quaternion worldRotation = Quaternion.LookRotation(forward, up) * footOffset;
             ApplyLocalRotation(rightFoot, worldRotation);
         }
+    }
+
+    // ========================================================================================
+    // PHASE 2: INITIALIZATION SYSTEM
+    // ========================================================================================
+
+    /// <summary>
+    /// Phase 2.1 & 1.4: Initialize bone mapping configuration that maps Kinect joint pairs to Unity bones.
+    /// This defines which bones will be scaled and how to measure them from Kinect data.
+    /// </summary>
+    private void InitializeBoneMappingConfigs()
+    {
+        // Y-axis is the standard stretch axis for Unity humanoid bones
+        Vector3 yAxis = new Vector3(1f, 0f, 1f); // Scale only Y, keep X and Z at 1
+        
+        _BoneMappingConfigs = new List<BoneMappingConfig>
+        {
+            // Upper arms (bilateral) - Note: Kinect left = Unity right due to mirroring
+            new BoneMappingConfig(Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft, HumanBodyBones.RightUpperArm, yAxis),
+            new BoneMappingConfig(Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight, HumanBodyBones.LeftUpperArm, yAxis),
+            
+            // Lower arms (bilateral)
+            new BoneMappingConfig(Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft, HumanBodyBones.RightLowerArm, yAxis),
+            new BoneMappingConfig(Kinect.JointType.ElbowRight, Kinect.JointType.WristRight, HumanBodyBones.LeftLowerArm, yAxis),
+            
+            // Upper legs (bilateral)
+            new BoneMappingConfig(Kinect.JointType.SpineBase, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg, yAxis),
+            new BoneMappingConfig(Kinect.JointType.SpineBase, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg, yAxis),
+            
+            // Lower legs (bilateral)
+            new BoneMappingConfig(Kinect.JointType.KneeLeft, Kinect.JointType.FootLeft, HumanBodyBones.RightLowerLeg, yAxis),
+            new BoneMappingConfig(Kinect.JointType.KneeRight, Kinect.JointType.FootRight, HumanBodyBones.LeftLowerLeg, yAxis),
+        };
+        
+        Debug.Log($"Initialized {_BoneMappingConfigs.Count} bone mapping configurations.");
+    }
+
+    /// <summary>
+    /// Phase 2.1: Measure current avatar bone lengths.
+    /// CRITICAL: This must be called EVERY FRAME before calculating scale factors,
+    /// so that we measure the bone lengths after the previous frame's scaling.
+    /// This allows the system to correct overshooting or undershooting.
+    /// </summary>
+    private void MeasureCurrentAvatarBoneLengths()
+    {
+        if (animator == null)
+        {
+            Debug.LogError("Cannot measure avatar bone lengths: Animator is null.");
+            return;
+        }
+
+        _CurrentAvatarBoneLengths.Clear();
+
+        foreach (var config in _BoneMappingConfigs)
+        {
+            Transform boneTransform = animator.GetBoneTransform(config.unityBone);
+            
+            if (boneTransform == null)
+            {
+                continue;
+            }
+
+            // Measure bone length from the bone to its first child
+            float boneLength = MeasureAvatarBoneLength(boneTransform);
+            
+            if (boneLength <= 0f)
+            {
+                continue;
+            }
+
+            _CurrentAvatarBoneLengths[config.unityBone] = boneLength;
+        }
+    }
+
+    /// <summary>
+    /// Helper method to measure the length of an avatar bone.
+    /// Measures the distance from the bone to its first child using LOCAL space.
+    /// CRITICAL: Must use local space because FakeUMA manipulates localScale and applies inverse scale to children.
+    /// World space measurements would be corrupted by the inverse scale compensation.
+    /// </summary>
+    private float MeasureAvatarBoneLength(Transform bone)
+    {
+        if (bone == null || bone.childCount == 0)
+        {
+            return 0f;
+        }
+
+        Transform firstChild = bone.GetChild(0);
+        if (firstChild == null)
+        {
+            return 0f;
+        }
+
+        // CRITICAL: Use local position of child, which represents the bone's actual length
+        // The child's localPosition.y is the bone length along the Y-axis (the stretch axis)
+        // We take the magnitude of the local position vector to get the actual bone length
+        Vector3 childLocalPos = firstChild.localPosition;
+        float distance = childLocalPos.magnitude;
+        
+        return distance;
+    }
+
+    // ========================================================================================
+    // PHASE 3: MEASUREMENT AND SMOOTHING SYSTEM
+    // ========================================================================================
+
+    /// <summary>
+    /// Phase 3.1: Measure the distance between two Kinect joints in REAL METERS (no scaling).
+    /// CRITICAL: This uses RAW Kinect coordinates WITHOUT the ×10 scaling factor applied by GetVector3FromJoint().
+    /// This ensures measurements are in real meters, matching the avatar's local space measurements (also in meters).
+    /// Previously, using GetVector3FromJoint() applied ×10 scaling, causing scale factors to be ~10 instead of ~1.
+    /// </summary>
+    private float MeasureRawKinectBoneLength(Kinect.Body body, Kinect.JointType startJoint, Kinect.JointType endJoint)
+    {
+        if (body == null)
+        {
+            return 0f;
+        }
+
+        // Get RAW Kinect positions in meters (NO ×10 scaling!)
+        var startJointData = body.Joints[startJoint];
+        var endJointData = body.Joints[endJoint];
+        
+        Vector3 startPos = new Vector3(
+            startJointData.Position.X,
+            startJointData.Position.Y,
+            startJointData.Position.Z
+        );
+        
+        Vector3 endPos = new Vector3(
+            endJointData.Position.X,
+            endJointData.Position.Y,
+            endJointData.Position.Z
+        );
+        
+        // Calculate distance in real meters (matches avatar's local space)
+        float distance = Vector3.Distance(startPos, endPos);
+        
+        return distance;
+    }
+
+    /// <summary>
+    /// Phase 3.2: Apply exponential smoothing to Kinect bone length measurements.
+    /// This reduces jitter while maintaining responsiveness to actual body movements.
+    /// </summary>
+    private float MeasureSmoothedKinectBoneLength(Kinect.Body body, Kinect.JointType startJoint, Kinect.JointType endJoint, HumanBodyBones boneId)
+    {
+        // Phase 3.3: Measurement quality checks
+        if (body == null)
+        {
+            return GetPreviousSmoothedValue(boneId);
+        }
+
+        // Check tracking state of both joints
+        var startTracking = body.Joints[startJoint].TrackingState;
+        var endTracking = body.Joints[endJoint].TrackingState;
+        
+        if (startTracking != Kinect.TrackingState.Tracked || endTracking != Kinect.TrackingState.Tracked)
+        {
+            // Joints not fully tracked, use previous smoothed value
+            return GetPreviousSmoothedValue(boneId);
+        }
+
+        // Get current raw measurement
+        float rawMeasurement = MeasureRawKinectBoneLength(body, startJoint, endJoint);
+        
+        // Phase 3.3: Validate measurement is within reasonable bounds
+        // Unity transformed space: typical bone lengths range from ~2-10 units for limbs
+        // (Same coordinate system as height, which is ~170-200 units for adult)
+        // if (rawMeasurement < 1.0f || rawMeasurement > 100.0f)
+        // {
+        //     // Measurement out of reasonable range, use previous value
+        //     Debug.LogWarning($"[KINECT MEASUREMENT] {boneId}: OUT OF BOUNDS! Raw = {rawMeasurement:F4} (valid range: 1.0-100.0)");
+        //     return GetPreviousSmoothedValue(boneId);
+        // }
+
+        // Phase 3.2: Apply exponential smoothing
+        if (!_SmoothedKinectBoneLengths.ContainsKey(boneId))
+        {
+            // First measurement: store and return raw value
+            _SmoothedKinectBoneLengths[boneId] = rawMeasurement;
+            return rawMeasurement;
+        }
+
+        // Apply exponential moving average: smoothed = lerp(previous, current, alpha)
+        float previousSmoothed = _SmoothedKinectBoneLengths[boneId];
+        float newSmoothed = Mathf.Lerp(previousSmoothed, rawMeasurement, boneSmoothingFactor);
+        
+        _SmoothedKinectBoneLengths[boneId] = newSmoothed;
+        return newSmoothed;
+    }
+
+    /// <summary>
+    /// Helper method to retrieve previous smoothed value or zero if none exists.
+    /// </summary>
+    private float GetPreviousSmoothedValue(HumanBodyBones boneId)
+    {
+        if (_SmoothedKinectBoneLengths.ContainsKey(boneId))
+        {
+            return _SmoothedKinectBoneLengths[boneId];
+        }
+        return 0f;
+    }
+
+    // ========================================================================================
+    // PHASE 4: SCALE FACTOR CALCULATION
+    // ========================================================================================
+
+    /// <summary>
+    /// Phase 4.1: Calculate the scale factor needed to match Kinect bone length to avatar bone length.
+    /// Includes safety clamping to prevent extreme scaling.
+    /// </summary>
+    private float CalculateBoneScaleFactor(float kinectBoneLength, float avatarBoneLength)
+    {
+        // Validate avatar bone length
+        if (avatarBoneLength <= 0f)
+        {
+            Debug.LogWarning($"Invalid avatar bone length: {avatarBoneLength}. Cannot calculate scale factor.");
+            return 1.0f;
+        }
+
+        if (kinectBoneLength <= 0f)
+        {
+            // No valid Kinect measurement yet
+            Debug.LogWarning($"Invalid Kinect bone length: {kinectBoneLength}. Cannot calculate scale factor.");
+            return 1.0f;
+        }
+
+        // Calculate ratio
+        float scaleFactor = kinectBoneLength / avatarBoneLength;
+
+        // Phase 4.1: Safety clamping to prevent extreme scaling
+        // Using same range as uniform scale factor (typically 110-120x for this avatar)
+        // Allow 50x-200x range to accommodate variations
+        // scaleFactor = Mathf.Clamp(scaleFactor, 50.0f, 200.0f);
+        Debug.Log($"[BONE SCALING] Calculated scale factor: Kinect Length = {kinectBoneLength:F4}, Avatar Length = {avatarBoneLength:F4}, Scale Factor = {scaleFactor:F4}");
+        
+        return scaleFactor;
+    }
+
+    // ========================================================================================
+    // PHASE 5: INTEGRATION INTO UPDATE LOOP
+    // ========================================================================================
+
+    /// <summary>
+    /// Phase 5.2: Main scaling update method called every frame to apply smoothed bone scaling.
+    /// CRITICAL: Processes bones in HIERARCHICAL ORDER (parent before children) to ensure
+    /// cumulative scale calculations are correct in a single pass.
+    /// Now includes both length and thickness scaling based on statistical estimation.
+    /// </summary>
+    private void UpdateContinuousBoneScaling()
+    {
+        // Verify we have a valid tracked body
+        if (!hasValidBody || trackedBody == null)
+        {
+            return;
+        }
+
+        // CRITICAL: Measure current avatar bone lengths BEFORE calculating scale factors
+        // This ensures we compare against the CURRENT scaled lengths, not the original lengths
+        // This allows the system to correct errors from previous frames
+        MeasureCurrentAvatarBoneLengths();
+
+        float thicknessFactor = 1.0f;
+        if (enableThicknessScaling)
+        {
+            float rawBuildFactor = EstimateBodyBuildFactor();
+            thicknessFactor = SmoothBodyBuildFactor(rawBuildFactor);
+        }
+
+        // CRITICAL FIX: Sort bones in hierarchical order (parent before children)
+        // This ensures parent scales are applied before children calculate cumulative parent scales
+        var sortedConfigs = SortBonesInHierarchicalOrder(_BoneMappingConfigs);
+
+        // Process each bone in HIERARCHICAL ORDER
+        foreach (var config in sortedConfigs)
+        {
+            // Check if we have a current measurement for this bone
+            if (!_CurrentAvatarBoneLengths.ContainsKey(config.unityBone))
+            {
+                Debug.LogWarning($"[BONE SCALING] SKIPPED {config.unityBone}: No current measurement in dictionary");
+                continue;
+            }
+
+            // Phase 3: Measure smoothed Kinect bone length
+            float kinectLength = MeasureSmoothedKinectBoneLength(
+                trackedBody, 
+                config.startJoint, 
+                config.endJoint, 
+                config.unityBone
+            );
+
+            if (kinectLength <= 0f)
+            {
+                // No valid measurement yet
+                Debug.LogWarning($"[BONE SCALING] SKIPPED {config.unityBone}: Invalid Kinect length ({kinectLength})");
+                continue;
+            }
+
+            // Phase 2.1: Retrieve CURRENT avatar bone length (measured this frame)
+            float avatarLength = _CurrentAvatarBoneLengths[config.unityBone];
+
+            // Phase 4.1: Calculate DESIRED world scale factor
+            float desiredLengthScale = CalculateBoneScaleFactor(kinectLength, avatarLength);
+
+            // Get the bone transform
+            Transform boneTransform = animator.GetBoneTransform(config.unityBone);
+            if (boneTransform == null)
+            {
+                Debug.LogError($"[BONE SCALING] SKIPPED {config.unityBone}: Bone transform is NULL from animator!");
+                continue;
+            }
+
+            // Phase 5.1: CRITICAL FIX - Account for parent's cumulative scale AND uniform scale factor
+            // Calculate parent's cumulative scale to determine required local scale
+            // NOW CORRECT: Parent has already been scaled in this frame (pre-order traversal)
+            Vector3 parentCumulativeScale = GetParentCumulativeScale(boneTransform);
+            
+            // CRITICAL: Multiply by UniformScaleFactor to preserve the base uniform scaling!
+            // desiredLengthScale is ~1.0 because we measure against already-uniformly-scaled bones.
+            // Without multiplying by UniformScaleFactor, we would remove the uniform scale.
+            // Desired world scale for this bone (what we want in world space)
+            Vector3 desiredWorldScale = new Vector3(
+                thicknessFactor * UniformScaleFactor, 
+                desiredLengthScale * UniformScaleFactor, 
+                thicknessFactor * UniformScaleFactor
+            );
+            
+            // Required local scale = desiredWorldScale / parentCumulativeScale
+            // This accounts for scale inheritance from parent bones
+            Vector3 requiredLocalScale = new Vector3(
+                desiredWorldScale.x / parentCumulativeScale.x,
+                desiredWorldScale.y / parentCumulativeScale.y,
+                desiredWorldScale.z / parentCumulativeScale.z
+            );
+
+            // Get current local scale from FakeUMA database
+            Vector3 currentRelativeScale = fakeUMA.GetBoneScaleFactor(boneTransform);
+
+            // Calculate the scale factor to apply (relative to current)
+            Vector3 scaleFactorToApply = new Vector3(
+                currentRelativeScale.x != 0 ? requiredLocalScale.x / currentRelativeScale.x : 1f,
+                currentRelativeScale.y != 0 ? requiredLocalScale.y / currentRelativeScale.y : 1f,
+                currentRelativeScale.z != 0 ? requiredLocalScale.z / currentRelativeScale.z : 1f
+            );
+            
+            // Apply the calculated scale factor
+            fakeUMA.ScaleBoneIndependently(boneTransform, scaleFactorToApply);
+        }
+    }
+
+    /// <summary>
+    /// Calculates the cumulative scale of all parent transforms in the hierarchy.
+    /// This accounts for scale inheritance down the bone chain.
+    /// Essential for correct bone scaling when parent bones are already scaled.
+    /// </summary>
+    /// <param name="bone">The bone whose parent cumulative scale to calculate</param>
+    /// <returns>The cumulative scale vector of all parents</returns>
+    private Vector3 GetParentCumulativeScale(Transform bone)
+    {
+        if (bone == null || bone.parent == null)
+        {
+            return Vector3.one;
+        }
+        
+        Vector3 cumulativeScale = Vector3.one;
+        Transform current = bone.parent;
+        
+        // Traverse up the hierarchy and multiply all parent local scales
+        while (current != null)
+        {
+            cumulativeScale = Vector3.Scale(cumulativeScale, current.localScale);
+            current = current.parent;
+        }
+        
+        return cumulativeScale;
+    }
+
+    /// <summary>
+    /// Sorts bone mapping configurations in hierarchical order (parent before children).
+    /// Uses depth-first pre-order traversal to ensure parents are processed before their children.
+    /// This is CRITICAL for correct cumulative scale calculations in a single pass.
+    /// </summary>
+    private List<BoneMappingConfig> SortBonesInHierarchicalOrder(List<BoneMappingConfig> configs)
+    {
+        // Create a list with bone configs and their hierarchy depths
+        var configsWithDepth = new List<(BoneMappingConfig config, int depth)>();
+        
+        foreach (var config in configs)
+        {
+            Transform boneTransform = animator.GetBoneTransform(config.unityBone);
+            if (boneTransform != null)
+            {
+                int depth = GetBoneHierarchyDepth(boneTransform);
+                configsWithDepth.Add((config, depth));
+            }
+        }
+        
+        // Sort by depth (shallower/parent bones first)
+        configsWithDepth.Sort((a, b) => a.depth.CompareTo(b.depth));
+        
+        // Extract sorted configs
+        return configsWithDepth.Select(x => x.config).ToList();
+    }
+
+    /// <summary>
+    /// Calculates the hierarchy depth of a bone (distance from root).
+    /// Root has depth 0, its children have depth 1, etc.
+    /// </summary>
+    private int GetBoneHierarchyDepth(Transform bone)
+    {
+        int depth = 0;
+        Transform current = bone;
+        
+        // Count parent transforms until we reach root
+        while (current != null && current.parent != null)
+        {
+            depth++;
+            current = current.parent;
+        }
+        
+        return depth;
+    }
+
+    // ========================================================================================
+    // STATISTICAL THICKNESS SCALING SYSTEM
+    // ========================================================================================
+
+    /// <summary>
+    /// Estimates body build (thickness) factor from limb length proportions.
+    /// Uses statistical correlation: people with shorter limbs relative to height tend to be stockier.
+    /// </summary>
+    private float EstimateBodyBuildFactor()
+    {
+        if (!hasValidBody || trackedBody == null)
+        {
+            return 1.0f;
+        }
+
+        // Get user height (already measured)
+        float userHeight = _KinectUserMeasurements.height;
+        if (userHeight <= 0f)
+        {
+            return 1.0f;
+        }
+
+        var joints = trackedBody.Joints;
+
+        // Measure total arm length (shoulder to wrist)
+        float leftArmLength = MeasureDistance(joints, Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft) +
+                             MeasureDistance(joints, Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft);
+        float rightArmLength = MeasureDistance(joints, Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight) +
+                              MeasureDistance(joints, Kinect.JointType.ElbowRight, Kinect.JointType.WristRight);
+        float avgArmLength = (leftArmLength + rightArmLength) * 0.5f;
+
+        // Measure total leg length (hip to ankle)
+        float leftLegLength = MeasureDistance(joints, Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft) +
+                             MeasureDistance(joints, Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft);
+        float rightLegLength = MeasureDistance(joints, Kinect.JointType.HipRight, Kinect.JointType.KneeRight) +
+                              MeasureDistance(joints, Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight);
+        float avgLegLength = (leftLegLength + rightLegLength) * 0.5f;
+
+        // Validate measurements
+        if (avgArmLength <= 0f || avgLegLength <= 0f)
+        {
+            return 1.0f;
+        }
+
+        // Calculate limb-to-height ratios
+        float armRatio = avgArmLength / userHeight;
+        float legRatio = avgLegLength / userHeight;
+
+        // Statistical model:
+        // Average ratios from anthropometric data:
+        // - Arm length is typically ~40% of height
+        // - Leg length is typically ~50% of height
+        // 
+        // People with shorter limbs relative to height are typically stockier (higher BMI)
+        // People with longer limbs relative to height are typically thinner (lower BMI)
+
+        float expectedArmRatio = 0.40f;
+        float expectedLegRatio = 0.50f;
+
+        // Calculate deviation from expected ratios
+        float armDeviation = expectedArmRatio - armRatio;  // Positive = shorter arms
+        float legDeviation = expectedLegRatio - legRatio;  // Positive = shorter legs
+
+        // Combine deviations (weighted average, legs more indicative of build)
+        float combinedDeviation = (armDeviation * 0.4f + legDeviation * 0.6f);
+
+        // Convert deviation to build factor
+        // For every 5% deviation in ratios, adjust thickness by ~10%
+        // This creates a reasonable correlation without extreme scaling
+        float buildFactor = 1.0f + (combinedDeviation * 2.0f);
+
+        // Safety clamping: allow 30% variation in thickness
+        buildFactor = Mathf.Clamp(buildFactor, 0.7f, 1.3f);
+
+        return buildFactor;
+    }
+
+    /// <summary>
+    /// Apply exponential smoothing to the body build factor to reduce jitter.
+    /// </summary>
+    private float SmoothBodyBuildFactor(float rawBuildFactor)
+    {
+        // Apply exponential moving average
+        _SmoothedBuildFactor = Mathf.Lerp(_SmoothedBuildFactor, rawBuildFactor, thicknessSmoothingFactor);
+        return _SmoothedBuildFactor;
     }
 }
