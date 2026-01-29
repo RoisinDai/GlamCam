@@ -9,9 +9,8 @@ public class CarouselClothingManager : MonoBehaviour
     [Header("Avatar Root")]
     public GameObject clothedAvatar;
 
-    [Header("Category")]
-    // [Tooltip("Must match the child GameObject name under clothed_avatar")]
-    public string categoryName = "Tops";
+    [Header("Category (Logs Only)")]
+    public string categoryName = "";
 
     public enum ClothingCategoryType
     {
@@ -64,26 +63,7 @@ public class CarouselClothingManager : MonoBehaviour
 
         if (clothedAvatar == null) return;
 
-        Transform root;
-
-        // If no category folder exists yet, use clothed_avatar directly
-        if (string.IsNullOrEmpty(categoryName))
-        {
-            root = clothedAvatar.transform;
-            Debug.Log("[CarouselClothingManager] No categoryName set. Using clothed_avatar root.");
-        }
-        else
-        {
-            root = clothedAvatar.transform.Find(categoryName);
-            if (root == null)
-            {
-                Debug.LogWarning(
-                    $"[CarouselClothingManager] Category '{categoryName}' not found. Falling back to clothed_avatar root."
-                );
-                root = clothedAvatar.transform;
-            }
-        }
-
+        Transform root = clothedAvatar.transform;
         foreach (Transform child in root)
         {
             if (child == null) continue;
@@ -111,7 +91,7 @@ public class CarouselClothingManager : MonoBehaviour
         // If user selected "None" enter deselected state
         if (string.Equals(itemName, "None", System.StringComparison.OrdinalIgnoreCase))
         {
-            Debug.Log($"[CarouselClothingManager] [{categoryName}] Deselected (None).");
+            Debug.Log($"[CarouselClothingManager] [{GetCategoryLabel()}] Deselected (None).");
             return;
         }
 
@@ -119,11 +99,11 @@ public class CarouselClothingManager : MonoBehaviour
         if (garmentsByName.TryGetValue(itemName, out var selectedGarment) && selectedGarment != null)
         {
             selectedGarment.SetActive(true);
-            Debug.Log($"[CarouselClothingManager] [{categoryName}] Activated '{itemName}' (index {index}).");
+            Debug.Log($"[CarouselClothingManager] [{GetCategoryLabel()}] Activated '{itemName}' (index {index}).");
         }
         else
         {
-            Debug.LogWarning($"[CarouselClothingManager] [{categoryName}] Garment '{itemName}' not found.");
+            Debug.LogWarning($"[CarouselClothingManager] [{GetCategoryLabel()}] Garment '{itemName}' not found.");
         }
     }
 
@@ -133,5 +113,13 @@ public class CarouselClothingManager : MonoBehaviour
         {
             carousel.SelectionChanged -= OnCarouselSelectionChanged;
         }
+    }
+
+    private string GetCategoryLabel()
+    {
+        if (!string.IsNullOrEmpty(categoryName)) return categoryName;
+        if (carousel != null && !string.IsNullOrEmpty(carousel.resourcesFolder))
+            return carousel.resourcesFolder;
+        return "Unknown";
     }
 }
