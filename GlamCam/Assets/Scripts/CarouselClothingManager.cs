@@ -12,6 +12,9 @@ public class CarouselClothingManager : MonoBehaviour
     [Header("Category (Logs Only)")]
     public string categoryName = "";
 
+    [Header("Mixing Rules")]
+    public bool isBaseLayer = false;
+
     public enum ClothingCategoryType
     {
         Mixable,
@@ -24,6 +27,17 @@ public class CarouselClothingManager : MonoBehaviour
     // Internal
     private readonly Dictionary<string, GameObject> garmentsByName = new();
     private readonly List<GameObject> categoryGarments = new();
+    private static readonly List<CarouselClothingManager> Instances = new();
+
+    void OnEnable()
+    {
+        if (!Instances.Contains(this)) Instances.Add(this);
+    }
+
+    void OnDisable()
+    {
+        Instances.Remove(this);
+    }
 
     void Start()
     {
@@ -82,6 +96,19 @@ public class CarouselClothingManager : MonoBehaviour
         if (string.IsNullOrEmpty(itemName))
             return;
 
+        // Enforce mixing rules before applying selection
+        if (!IsNone(itemName))
+        {
+            if (categoryType == ClothingCategoryType.Exclusive)
+            {
+                ClearBaseLayers();
+            }
+            else if (isBaseLayer)
+            {
+                ClearExclusiveLayers();
+            }
+        }
+
         // Always turn OFF everything in this managed set first
         foreach (var g in categoryGarments)
         {
@@ -89,7 +116,7 @@ public class CarouselClothingManager : MonoBehaviour
         }
 
         // If user selected "None" enter deselected state
-        if (string.Equals(itemName, "None", System.StringComparison.OrdinalIgnoreCase))
+        if (IsNone(itemName))
         {
             Debug.Log($"[CarouselClothingManager] [{GetCategoryLabel()}] Deselected (None).");
             return;
@@ -112,6 +139,41 @@ public class CarouselClothingManager : MonoBehaviour
         if (carousel != null)
         {
             carousel.SelectionChanged -= OnCarouselSelectionChanged;
+        }
+    }
+
+    private static bool IsNone(string itemName)
+    {
+        return string.Equals(itemName, "None", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ClearBaseLayers()
+    {
+        foreach (var mgr in Instances)
+        {
+            if (mgr == null || mgr == this) continue;
+            if (!mgr.isBaseLayer) continue;
+            mgr.ResetToNone();
+        }
+    }
+
+    private void ClearExclusiveLayers()
+    {
+        foreach (var mgr in Instances)
+        {
+            if (mgr == null || mgr == this) continue;
+            if (mgr.categoryType != ClothingCategoryType.Exclusive) continue;
+            mgr.ResetToNone();
+        }
+    }
+
+    private void ResetToNone()
+    {
+        if (carousel == null) return;
+        if (IsNone(carousel.GetCurrentItemName())) return;
+        if (!carousel.SetItemByName("None"))
+        {
+            Debug.LogWarning($"[CarouselClothingManager] [{GetCategoryLabel()}] Unable to set to None.");
         }
     }
 

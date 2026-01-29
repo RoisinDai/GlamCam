@@ -90,22 +90,45 @@ public class CarouselSelector : MonoBehaviour
     public void Next()
     {
         if (_items.Count == 0) return;
-        _index = (_index + 1) % _items.Count;
-        RefreshIcon();
-        NotifySelectionChanged();
+        SetIndex((_index + 1) % _items.Count);
     }
 
     public void Prev()
     {
         if (_items.Count == 0) return;
-        _index = (_index - 1 + _items.Count) % _items.Count;
-        RefreshIcon();
-        NotifySelectionChanged();
+        SetIndex((_index - 1 + _items.Count) % _items.Count);
     }
 
     public int GetIndex() => _index;
     public Texture2D GetCurrentTexture() => (_items.Count == 0) ? null : _items[_index];
     public string GetCurrentItemName() => (_items.Count == 0) ? "" : _items[_index].name;
+    public int GetItemCount() => _items.Count;
+
+    public void SetIndex(int index, bool notify = true)
+    {
+        if (_items.Count == 0) return;
+        int clamped = Mathf.Clamp(index, 0, _items.Count - 1);
+        if (_index == clamped && !notify) return;
+        _index = clamped;
+        RefreshIcon();
+        if (notify) NotifySelectionChanged();
+    }
+
+    public bool SetItemByName(string itemName, bool notify = true)
+    {
+        if (string.IsNullOrEmpty(itemName) || _items.Count == 0) return false;
+        for (int i = 0; i < _items.Count; i++)
+        {
+            var tex = _items[i];
+            if (tex == null) continue;
+            if (string.Equals(tex.name, itemName, StringComparison.OrdinalIgnoreCase))
+            {
+                SetIndex(i, notify);
+                return true;
+            }
+        }
+        return false;
+    }
 
     private void LoadItems()
     {
