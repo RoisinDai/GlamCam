@@ -42,26 +42,26 @@ public class ClothingRulesCoordinator : MonoBehaviour
         // Dresses: exclusive
         if (sourceIsDress && !isNone)
         {
-            tops?.DeactivateAll();
-            bottoms?.DeactivateAll();
-            fullbodies?.DeactivateAll();
+            tops?.ClearCategoryAndResetUI();
+            bottoms?.ClearCategoryAndResetUI();
+            fullbodies?.ClearCategoryAndResetUI();
             return;
         }
 
         // Fullbodies: exclusive
         if (sourceIsFullbody && !isNone)
         {
-            tops?.DeactivateAll();
-            bottoms?.DeactivateAll();
-            dresses?.DeactivateAll();
+            tops?.ClearCategoryAndResetUI();
+            bottoms?.ClearCategoryAndResetUI();
+            dresses?.ClearCategoryAndResetUI();
             return;
         }
 
         // Tops/Bottoms: mixable, but selecting them should clear exclusives
         if ((sourceIsTop || sourceIsBottom) && !isNone)
         {
-            dresses?.DeactivateAll();
-            fullbodies?.DeactivateAll();
+            dresses?.ClearCategoryAndResetUI();
+            fullbodies?.ClearCategoryAndResetUI();
             return;
         }
 

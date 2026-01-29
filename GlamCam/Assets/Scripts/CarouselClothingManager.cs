@@ -56,6 +56,19 @@ public class CarouselClothingManager : MonoBehaviour
         }
     }
 
+    public void ResetToNoneUIOnly()
+    {
+        if (carousel == null) return;
+        // IMPORTANT: notify = false to avoid loops (rules coordinator called again)
+        carousel.TrySelectNone(notify: false);
+    }
+
+    public void ClearCategoryAndResetUI()
+    {
+        DeactivateAll();
+        ResetToNoneUIOnly();
+    }
+
     private void BuildCategoryLookup()
     {
 

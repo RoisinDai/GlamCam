@@ -105,6 +105,32 @@ public class CarouselSelector : MonoBehaviour
         NotifySelectionChanged();
     }
 
+    public bool TrySelectByName(string itemName, bool notify = true)
+    {
+        if (string.IsNullOrEmpty(itemName) || _items.Count == 0) return false;
+
+        for (int i = 0; i < _items.Count; i++)
+        {
+            var t = _items[i];
+            if (t == null) continue;
+
+            if (string.Equals(t.name, itemName, StringComparison.OrdinalIgnoreCase))
+            {
+                _index = i;
+                if (iconRenderer != null) RefreshIcon();
+                if (notify) NotifySelectionChanged();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Convenience
+    public bool TrySelectNone(bool notify = true)
+    {
+        return TrySelectByName("None", notify);
+    }
+
     public int GetIndex() => _index;
     public Texture2D GetCurrentTexture() => (_items.Count == 0) ? null : _items[_index];
     public string GetCurrentItemName() => (_items.Count == 0) ? "" : _items[_index].name;
