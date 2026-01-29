@@ -4,8 +4,8 @@ using UnityEngine;
 public class CarouselSelector : MonoBehaviour
 {
     [Header("Icon to display current item")]
-    public MeshRenderer iconRenderer;          
-    public string resourcesFolder = "Tops";  
+    public MeshRenderer iconRenderer;
+    public string resourcesFolder = "Tops";
     public int startIndex = 0;
 
     [Header("Debug")]
@@ -13,6 +13,10 @@ public class CarouselSelector : MonoBehaviour
 
     private List<Texture2D> _items = new List<Texture2D>();
     private int _index = 0;
+
+    // Event fired when selection changes
+    public delegate void OnSelectionChanged(int newIndex, string itemName);
+    public event OnSelectionChanged SelectionChanged;
 
     void Start()
     {
@@ -23,8 +27,15 @@ public class CarouselSelector : MonoBehaviour
             return;
         }
 
+        if (iconRenderer == null)
+        {
+            Debug.LogWarning("[CarouselSelector] iconRenderer not set.");
+            return;
+        }
+
         _index = Mathf.Clamp(startIndex, 0, _items.Count - 1);
         RefreshIcon();
+        NotifySelectionChanged();
     }
 
     public void Next()
@@ -32,6 +43,7 @@ public class CarouselSelector : MonoBehaviour
         if (_items.Count == 0) return;
         _index = (_index + 1) % _items.Count;
         RefreshIcon();
+        NotifySelectionChanged();
     }
 
     public void Prev()
@@ -39,10 +51,17 @@ public class CarouselSelector : MonoBehaviour
         if (_items.Count == 0) return;
         _index = (_index - 1 + _items.Count) % _items.Count;
         RefreshIcon();
+        NotifySelectionChanged();
     }
 
     public int GetIndex() => _index;
     public Texture2D GetCurrentTexture() => (_items.Count == 0) ? null : _items[_index];
+
+    /// <summary>
+    /// Returns the name of the currently selected item (texture name without extension).
+    /// This matches the GameObject names in the clothed avatar hierarchy.
+    /// </summary>
+    public string GetCurrentItemName() => (_items.Count == 0) ? "" : _items[_index].name;
 
     private void LoadItems()
     {
@@ -73,5 +92,11 @@ public class CarouselSelector : MonoBehaviour
 
         if (logChanges)
             Debug.Log($"[CarouselSelector] index={_index} texture={tex.name}");
+    }
+
+    private void NotifySelectionChanged()
+    {
+        string itemName = GetCurrentItemName();
+        SelectionChanged?.Invoke(_index, itemName);
     }
 }
