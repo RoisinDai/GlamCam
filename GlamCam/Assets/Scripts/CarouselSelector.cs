@@ -31,15 +31,38 @@ public class CarouselSelector : MonoBehaviour
             "sweater_fishermanMesh",
             "f_lusekoftaMesh",
         },
-        ["Hats"] = new[]
-        {
-            "beanie_01",
-            "cap_01",
-        },
         ["Bottoms"] = new[]
         {
-            "jeans_01",
-            "skirt_01",
+            "elvs_disco_pant_drufflesMesh",
+            "elvs_disco_pant_drufflesMesh",
+            "elvs_gored_elephantpant1Mesh",
+            "mariaskirtMesh",
+            "pleated_skirtelv1Mesh",
+        },
+        ["Dresses"] = new[]
+        {
+            "elvs_goddessdress8Mesh",
+            "elvs_mini_halterdressMesh",
+            "elvs_goddess_dress2Mesh",
+            "qipaoMesh",
+            "elvs_goddessdress1Mesh",
+        },
+        ["Fullbodies"] = new[]
+        {
+            "mars_suitMesh",
+            "rescueteam_jacket_maleMesh",
+        },
+        ["Hats"] = new[]
+        {
+            "tophat1Mesh",
+            "cl_don_quixote_hatMesh",
+            "pillow_manMesh",
+        },
+        ["Accessories"] = new[]
+        {
+            "tennisracketMesh",
+            "suitcaseMesh",
+            "bowMesh",
         },
     };
 
@@ -104,6 +127,10 @@ public class CarouselSelector : MonoBehaviour
         {
             if (t != null) byName[t.name] = t;
         }
+
+        // Removes any texture whose name == resourcesFolder
+        if (!string.IsNullOrEmpty(resourcesFolder))
+            byName.Remove(resourcesFolder);
 
         byName.Remove("None");
 
