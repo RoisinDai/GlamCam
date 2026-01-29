@@ -4038,6 +4038,13 @@ MonoBehaviour:
   controller: {fileID: 448271222}
   isClothesButton: 1
   cooldownSeconds: 0.5
+  clothesIconRenderer: {fileID: 951549828}
+  clothesNormalMat: {fileID: 2100000, guid: 16b6dac083bc6b848a5cdd71977300e4, type: 2}
+  clothesGlowMat: {fileID: 2100000, guid: fe2e25fe166de0a459a0c6b1a29b21f9, type: 2}
+  accessoriesIconRenderer: {fileID: 1465847440}
+  accessoriesNormalMat: {fileID: 2100000, guid: 576ff2555e65eae468bb7c0de5cc94ae, type: 2}
+  accessoriesGlowMat: {fileID: 2100000, guid: 850195c05ae3a9c41af8abba3ae800ac, type: 2}
+  defaultClothesSelected: 1
 --- !u!1 &1096057105
 GameObject:
   m_ObjectHideFlags: 0
@@ -4838,7 +4845,7 @@ GameObject:
   - component: {fileID: 1465847440}
   - component: {fileID: 1465847439}
   m_Layer: 0
-  m_Name: AccessoriesIcon
+  m_Name: AccessoriesBtnIcon
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6228,6 +6235,13 @@ MonoBehaviour:
   controller: {fileID: 448271222}
   isClothesButton: 0
   cooldownSeconds: 0.5
+  clothesIconRenderer: {fileID: 951549828}
+  clothesNormalMat: {fileID: 2100000, guid: 16b6dac083bc6b848a5cdd71977300e4, type: 2}
+  clothesGlowMat: {fileID: 2100000, guid: fe2e25fe166de0a459a0c6b1a29b21f9, type: 2}
+  accessoriesIconRenderer: {fileID: 1465847440}
+  accessoriesNormalMat: {fileID: 2100000, guid: 576ff2555e65eae468bb7c0de5cc94ae, type: 2}
+  accessoriesGlowMat: {fileID: 2100000, guid: 850195c05ae3a9c41af8abba3ae800ac, type: 2}
+  defaultClothesSelected: 1
 --- !u!1 &1814464579
 GameObject:
   m_ObjectHideFlags: 0
