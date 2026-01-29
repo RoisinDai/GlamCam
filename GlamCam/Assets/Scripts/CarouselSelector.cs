@@ -66,10 +66,12 @@ public class CarouselSelector : MonoBehaviour
         },
     };
 
-    void Start()
+    void Awake()
     {
         LoadItems();
-
+    }
+    void Start()
+    {
         if (_items.Count == 0)
         {
             Debug.LogWarning($"[CarouselSelector] No items loaded for '{resourcesFolder}'.");
@@ -90,57 +92,34 @@ public class CarouselSelector : MonoBehaviour
     public void Next()
     {
         if (_items.Count == 0) return;
-        SetIndex((_index + 1) % _items.Count);
+        _index = (_index + 1) % _items.Count;
+        RefreshIcon();
+        NotifySelectionChanged();
     }
 
     public void Prev()
     {
         if (_items.Count == 0) return;
-        SetIndex((_index - 1 + _items.Count) % _items.Count);
+        _index = (_index - 1 + _items.Count) % _items.Count;
+        RefreshIcon();
+        NotifySelectionChanged();
     }
 
     public int GetIndex() => _index;
     public Texture2D GetCurrentTexture() => (_items.Count == 0) ? null : _items[_index];
     public string GetCurrentItemName() => (_items.Count == 0) ? "" : _items[_index].name;
-    public int GetItemCount() => _items.Count;
 
-    public List<string> GetItemNames(bool includeNone = false)
+    // exposes the loaded item names for category-scoped lookup
+    public List<string> GetLoadedItemNames(bool includeNone = false)
     {
         var names = new List<string>();
-        foreach (var tex in _items)
+        foreach (var t in _items)
         {
-            if (tex == null) continue;
-            if (!includeNone && string.Equals(tex.name, "None", StringComparison.OrdinalIgnoreCase))
-                continue;
-            names.Add(tex.name);
+            if (t == null) continue;
+            if (!includeNone && string.Equals(t.name, "None", StringComparison.OrdinalIgnoreCase)) continue;
+            names.Add(t.name);
         }
         return names;
-    }
-
-    public void SetIndex(int index, bool notify = true)
-    {
-        if (_items.Count == 0) return;
-        int clamped = Mathf.Clamp(index, 0, _items.Count - 1);
-        if (_index == clamped && !notify) return;
-        _index = clamped;
-        RefreshIcon();
-        if (notify) NotifySelectionChanged();
-    }
-
-    public bool SetItemByName(string itemName, bool notify = true)
-    {
-        if (string.IsNullOrEmpty(itemName) || _items.Count == 0) return false;
-        for (int i = 0; i < _items.Count; i++)
-        {
-            var tex = _items[i];
-            if (tex == null) continue;
-            if (string.Equals(tex.name, itemName, StringComparison.OrdinalIgnoreCase))
-            {
-                SetIndex(i, notify);
-                return true;
-            }
-        }
-        return false;
     }
 
     private void LoadItems()

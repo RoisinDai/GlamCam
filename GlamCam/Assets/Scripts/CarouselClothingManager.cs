@@ -15,7 +15,7 @@ public class CarouselClothingManager : MonoBehaviour
     public enum ClothingCategoryType
     {
         Mixable,
-        Exclusive   // for future use (e.g. Dresses / Skirts)
+        Exclusive   // for future use
     }
 
     [Header("Category Behavior")]
@@ -58,17 +58,40 @@ public class CarouselClothingManager : MonoBehaviour
 
     private void BuildCategoryLookup()
     {
+
+        var loadedNames = carousel.GetLoadedItemNames(includeNone: false);
+        if (loadedNames.Count == 0)
+        {
+            Debug.LogWarning($"[CarouselClothingManager] [{GetCategoryLabel()}] Carousel has 0 loaded names. Check resourcesFolder or execution order.");
+        }
+
         garmentsByName.Clear();
         categoryGarments.Clear();
 
         if (clothedAvatar == null) return;
 
+        if (carousel == null)
+        {
+            Debug.LogError("[CarouselClothingManager] CarouselSelector missing; cannot build lookup.");
+            return;
+        }
+
+        // Only manage items that this carousel actually loads
+        var wantedNames = new HashSet<string>(
+            carousel.GetLoadedItemNames(includeNone: false),
+            System.StringComparer.OrdinalIgnoreCase
+        );
+
         Transform root = clothedAvatar.transform;
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        sb.AppendLine($"[CarouselClothingManager] Found children of '{root.name}':");
+        sb.AppendLine($"[CarouselClothingManager] [{GetCategoryLabel()}] Matching garments under '{root.name}':");
+
         foreach (Transform child in root)
         {
             if (child == null) continue;
+
+            if (!wantedNames.Contains(child.name))
+                continue;
 
             garmentsByName[child.name] = child.gameObject;
             categoryGarments.Add(child.gameObject);
@@ -76,7 +99,7 @@ public class CarouselClothingManager : MonoBehaviour
         }
 
         Debug.Log(sb.ToString());
-        Debug.Log($"[CarouselClothingManager] Loaded {categoryGarments.Count} garments from '{root.name}'.");
+        Debug.Log($"[CarouselClothingManager] [{GetCategoryLabel()}] Loaded {categoryGarments.Count} garments.");
     }
 
     private void OnCarouselSelectionChanged(int index, string itemName)
@@ -94,6 +117,7 @@ public class CarouselClothingManager : MonoBehaviour
         if (string.Equals(itemName, "None", System.StringComparison.OrdinalIgnoreCase))
         {
             Debug.Log($"[CarouselClothingManager] [{GetCategoryLabel()}] Deselected (None).");
+            ClothingRulesCoordinator.NotifyChanged(this, itemName);
             return;
         }
 
@@ -107,6 +131,9 @@ public class CarouselClothingManager : MonoBehaviour
         {
             Debug.LogWarning($"[CarouselClothingManager] [{GetCategoryLabel()}] Garment '{itemName}' not found.");
         }
+
+        // enforce cross-category rules (mix/exclusive/overlay)
+        ClothingRulesCoordinator.NotifyChanged(this, itemName);
     }
 
     void OnDestroy()
@@ -115,6 +142,25 @@ public class CarouselClothingManager : MonoBehaviour
         {
             carousel.SelectionChanged -= OnCarouselSelectionChanged;
         }
+    }
+
+    // used by rules coordinator
+    public void DeactivateAll()
+    {
+        foreach (var g in categoryGarments)
+        {
+            if (g != null) g.SetActive(false);
+        }
+    }
+
+    // optional helper
+    public bool HasAnyActive()
+    {
+        foreach (var g in categoryGarments)
+        {
+            if (g != null && g.activeSelf) return true;
+        }
+        return false;
     }
 
     private string GetCategoryLabel()
