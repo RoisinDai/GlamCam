@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -5,25 +6,50 @@ public class CarouselSelector : MonoBehaviour
 {
     [Header("Icon to display current item")]
     public MeshRenderer iconRenderer;
+
+    // Assets/Resources/<resourcesFolder>/
     public string resourcesFolder = "Tops";
     public int startIndex = 0;
 
     [Header("Debug")]
     public bool logChanges = true;
 
-    private List<Texture2D> _items = new List<Texture2D>();
+    private readonly List<Texture2D> _items = new();
     private int _index = 0;
 
-    // Event fired when selection changes
     public delegate void OnSelectionChanged(int newIndex, string itemName);
     public event OnSelectionChanged SelectionChanged;
+
+    private static readonly Dictionary<string, string[]> ORDER = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Tops"] = new[]
+        {
+            "knitted_sweater_01Mesh",
+            "elvs_butterflydiscotop1Mesh",
+            "vintagetopMesh",
+            "Polo_t-shirtMesh",
+            "sweater_fishermanMesh",
+            "f_lusekoftaMesh",
+        },
+        ["Hats"] = new[]
+        {
+            "beanie_01",
+            "cap_01",
+        },
+        ["Bottoms"] = new[]
+        {
+            "jeans_01",
+            "skirt_01",
+        },
+    };
 
     void Start()
     {
         LoadItems();
+
         if (_items.Count == 0)
         {
-            Debug.LogWarning($"[CarouselSelector] No textures found in Resources/{resourcesFolder}");
+            Debug.LogWarning($"[CarouselSelector] No items loaded for '{resourcesFolder}'.");
             return;
         }
 
@@ -56,37 +82,82 @@ public class CarouselSelector : MonoBehaviour
 
     public int GetIndex() => _index;
     public Texture2D GetCurrentTexture() => (_items.Count == 0) ? null : _items[_index];
-
-    /// <summary>
-    /// Returns the name of the currently selected item (texture name without extension).
-    /// This matches the GameObject names in the clothed avatar hierarchy.
-    /// </summary>
     public string GetCurrentItemName() => (_items.Count == 0) ? "" : _items[_index].name;
 
     private void LoadItems()
     {
         _items.Clear();
-        var loaded = Resources.LoadAll<Texture2D>(resourcesFolder);
-        if (loaded != null) _items.AddRange(loaded);
 
-        // stable ordering by name (so it doesn't shuffle between runs)
-        _items.Sort((a, b) => string.Compare(a.name, b.name, System.StringComparison.OrdinalIgnoreCase));
+        // Always include None first if it exists
+        AddIfExists("None");
+
+        // Load everything from folder
+        var loaded = Resources.LoadAll<Texture2D>(resourcesFolder);
+        if (loaded == null || loaded.Length == 0)
+        {
+            Debug.LogWarning($"[CarouselSelector] No textures found in Assets/Resources/{resourcesFolder}/");
+            return;
+        }
+
+        var byName = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
+        foreach (var t in loaded)
+        {
+            if (t != null) byName[t.name] = t;
+        }
+
+        byName.Remove("None");
+
+        // Use hardcoded order if defined, else alphabetical
+        if (ORDER.TryGetValue(resourcesFolder, out var wantedOrder) && wantedOrder != null && wantedOrder.Length > 0)
+        {
+            foreach (var name in wantedOrder)
+            {
+                if (string.IsNullOrWhiteSpace(name)) continue;
+
+                if (byName.TryGetValue(name, out var tex))
+                {
+                    _items.Add(tex);
+                    byName.Remove(name); // so we can append remaining ones
+                }
+                else if (logChanges)
+                {
+                    Debug.LogWarning($"[CarouselSelector] '{resourcesFolder}': missing '{name}'");
+                }
+            }
+
+            // Append any remaining textures (so new assets still show up)
+            AppendAlphabetical(byName.Values);
+        }
+        else
+        {
+            AppendAlphabetical(byName.Values);
+        }
+
+        if (logChanges)
+        {
+            Debug.Log($"[CarouselSelector] Loaded {_items.Count} items for '{resourcesFolder}' (including None if found).");
+        }
+    }
+
+    private void AddIfExists(string resourceName)
+    {
+        var tex = Resources.Load<Texture2D>(resourceName);
+        if (tex != null) _items.Add(tex);
+        else Debug.LogWarning($"[CarouselSelector] {resourceName}.png not found at Assets/Resources/{resourceName}.png");
+    }
+
+    private void AppendAlphabetical(IEnumerable<Texture2D> textures)
+    {
+        var list = new List<Texture2D>(textures);
+        list.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.OrdinalIgnoreCase));
+        _items.AddRange(list);
     }
 
     private void RefreshIcon()
     {
-        if (iconRenderer == null)
-        {
-            Debug.LogWarning("[CarouselSelector] iconRenderer not set.");
-            return;
-        }
-
-        Texture2D tex = _items[_index];
-
-        // Use renderer.material to avoid editing shared material.
+        var tex = _items[_index];
         var mat = iconRenderer.material;
 
-        // Built-in commonly uses mainTexture; URP uses _BaseMap
         mat.mainTexture = tex;
         if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
 
@@ -96,7 +167,6 @@ public class CarouselSelector : MonoBehaviour
 
     private void NotifySelectionChanged()
     {
-        string itemName = GetCurrentItemName();
-        SelectionChanged?.Invoke(_index, itemName);
+        SelectionChanged?.Invoke(_index, GetCurrentItemName());
     }
 }

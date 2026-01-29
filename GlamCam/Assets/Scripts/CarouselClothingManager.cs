@@ -97,40 +97,34 @@ public class CarouselClothingManager : MonoBehaviour
         );
     }
 
-    /// <summary>
-    /// Called when the carousel selection changes.
-    /// </summary>
     private void OnCarouselSelectionChanged(int index, string itemName)
     {
         if (string.IsNullOrEmpty(itemName))
-        {
-            Debug.LogWarning(
-                $"[CarouselClothingManager] Empty item name at index {index}."
-            );
             return;
-        }
 
-        if (!garmentsByName.TryGetValue(itemName, out GameObject selectedGarment))
-        {
-            Debug.LogWarning(
-                $"[CarouselClothingManager] Garment '{itemName}' not found in category '{categoryName}'."
-            );
-            return;
-        }
-
-        // Deactivate all garments in this category
+        // Always turn OFF everything in this managed set first
         foreach (var g in categoryGarments)
         {
-            if (g != null)
-                g.SetActive(false);
+            if (g != null) g.SetActive(false);
         }
 
-        // Activate selected garment
-        selectedGarment.SetActive(true);
+        // If user selected "None" enter deselected state
+        if (string.Equals(itemName, "None", System.StringComparison.OrdinalIgnoreCase))
+        {
+            Debug.Log($"[CarouselClothingManager] [{categoryName}] Deselected (None).");
+            return;
+        }
 
-        Debug.Log(
-            $"[CarouselClothingManager] [{categoryName}] Activated '{itemName}' (index {index})."
-        );
+        // Otherwise turn ON the selected garment if it exists
+        if (garmentsByName.TryGetValue(itemName, out var selectedGarment) && selectedGarment != null)
+        {
+            selectedGarment.SetActive(true);
+            Debug.Log($"[CarouselClothingManager] [{categoryName}] Activated '{itemName}' (index {index}).");
+        }
+        else
+        {
+            Debug.LogWarning($"[CarouselClothingManager] [{categoryName}] Garment '{itemName}' not found.");
+        }
     }
 
     void OnDestroy()
