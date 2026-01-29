@@ -10,6 +10,7 @@ public class CarouselArrowButton : MonoBehaviour
     private Collider _collider;
     private HandCursorFollower _handCursor;
     private bool _wasFistInside = false;
+    private HoverScale _hoverScale;
 
     void Start()
     {
@@ -29,22 +30,29 @@ public class CarouselArrowButton : MonoBehaviour
         {
             Debug.LogWarning("[CarouselArrowButton] HandCursorFollower not found.");
         }
+
+        _hoverScale = GetComponent<HoverScale>();
     }
 
     void Update()
     {
         if (_handCursor == null || _collider == null || selector == null) return;
 
-        // Check if cursor is inside this button's collider
         Vector3 handPos = _handCursor.transform.position;
-        bool isCursorInside = _collider.bounds.Contains(handPos);
 
-        // Check if hand is closed (fist)
+        // Reliable "inside" check
+        Vector3 closest = _collider.ClosestPoint(handPos);
+        float dist = Vector3.Distance(closest, handPos);
+        bool isCursorInside = dist <= 0.02f; // <-- tune this
+
+        // Hover scale
+        if (_hoverScale != null)
+            _hoverScale.SetHover(isCursorInside);
+
+        // Click logic (fist)
         bool isFistClosed = _handCursor.GetIsFistClosed();
-
         bool isFistInsideNow = isCursorInside && isFistClosed;
 
-        // Fire selection on transition from not-fist to fist (while inside)
         if (isFistInsideNow && !_wasFistInside)
         {
             if (Time.time >= _nextAllowedTime)
