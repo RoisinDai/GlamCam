@@ -34,6 +34,8 @@ public class HandCursorFollower : MonoBehaviour
     public Material fistClosedMaterial;
     private bool _isFistClosed = false;
 
+    public bool GetIsFistClosed() => _isFistClosed;
+
     void Start()
     {
         if (bodySourceManager == null)
