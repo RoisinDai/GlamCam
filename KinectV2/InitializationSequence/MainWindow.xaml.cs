@@ -1127,40 +1127,12 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                     StringBuilder output = new StringBuilder();
                     StringBuilder error = new StringBuilder();
 
-                    // Create log file path - write to output directory for easier access
-                    string logFile = Path.Combine(outputDir, $"makehuman_generation_{DateTime.Now:yyyyMMdd_HHmmss}.log");
-                    StreamWriter logWriter = null;
-                    
-                    try
-                    {
-                        logWriter = new StreamWriter(logFile, true) { AutoFlush = true };
-                        logWriter.WriteLine($"=== MakeHuman Generation Log - {DateTime.Now} ===");
-                        logWriter.WriteLine($"Command: {pythonExe} {arguments}");
-                        logWriter.WriteLine($"Working Directory: {makehumanProjectRoot}");
-                        logWriter.WriteLine("========================================\n");
-                        
-                        // Update UI with log file location
-                        this.Dispatcher.Invoke(() => {
-                            this.StatusText = $"Generating model... (log: {Path.GetFileName(logFile)})";
-                        });
-                    }
-                    catch (Exception logEx)
-                    {
-                        // If log file creation fails, continue without logging
-                        this.Dispatcher.Invoke(() => {
-                            this.StatusText = $"Generating model... (Warning: Could not create log file: {logEx.Message})";
-                        });
-                    }
-
                     process.OutputDataReceived += (sender, e) =>
                     {
                         if (!string.IsNullOrEmpty(e.Data))
                         {
                             output.AppendLine(e.Data);
-                            if (logWriter != null)
-                            {
-                                try { logWriter.WriteLine($"[OUTPUT] {e.Data}"); } catch { }
-                            }
+                            Console.WriteLine($"[MAKEHUMAN OUTPUT] {e.Data}");
                         }
                     };
 
@@ -1169,10 +1141,7 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                         if (!string.IsNullOrEmpty(e.Data))
                         {
                             error.AppendLine(e.Data);
-                            if (logWriter != null)
-                            {
-                                try { logWriter.WriteLine($"[ERROR] {e.Data}"); } catch { }
-                            }
+                            Console.WriteLine($"[MAKEHUMAN ERROR] {e.Data}");
                         }
                     };
 
@@ -1182,19 +1151,6 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
 
                     // Wait for completion with timeout (5 minutes)
                     bool completed = process.WaitForExit(300000);
-
-                    // Close log writer with final info
-                    if (logWriter != null)
-                    {
-                        try
-                        {
-                            logWriter.WriteLine($"\n=== Process completed at {DateTime.Now} ===");
-                            logWriter.WriteLine($"Exit code: {(completed ? process.ExitCode.ToString() : "TIMEOUT")}");
-                            logWriter.Close();
-                            logWriter.Dispose();
-                        }
-                        catch { }
-                    }
 
                     if (!completed)
                     {
@@ -1218,52 +1174,44 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                     {
                         this.StatusText = "Model generated successfully!";
 
-                        // If this was automatic generation, close the window after a short delay
-                        if (this.modelGenerationInProgress)
-                        {
-                            MessageBox.Show(
-                                string.Format(
-                                    CultureInfo.CurrentCulture,
-                                    "Model generated successfully!\n\nFile: {0}\n\nLog file: {1}\n\nThis window will close automatically.",
-                                    modelFile,
-                                    logFile),
-                                "Success",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information);
+                        // Log success to console
+                        Console.WriteLine("========================================");
+                        Console.WriteLine("[SUCCESS] Model generated successfully!");
+                        Console.WriteLine($"  Model file: {modelFile}");
+                        Console.WriteLine("========================================");
 
-                            // Close the window after a short delay
-                            var closeTimer = new System.Windows.Threading.DispatcherTimer();
-                            closeTimer.Interval = TimeSpan.FromSeconds(2);
-                            closeTimer.Tick += (s, e) =>
-                            {
-                                closeTimer.Stop();
-                                this.Close();
-                            };
-                            closeTimer.Start();
-                        }
-                        else
+                        // Close the window automatically after a short delay
+                        var closeTimer = new System.Windows.Threading.DispatcherTimer();
+                        closeTimer.Interval = TimeSpan.FromSeconds(2);
+                        closeTimer.Tick += (s, e) =>
                         {
-                            MessageBox.Show(
-                                string.Format(
-                                    CultureInfo.CurrentCulture,
-                                    "Model generated successfully!\n\nFile: {0}\n\nLog file: {1}\n\nYou can now close this window and run the main application.",
-                                    modelFile,
-                                    logFile),
-                                "Success",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information);
-                        }
+                            closeTimer.Stop();
+                            Console.WriteLine("[INFO] Closing application...");
+                            this.Close();
+                        };
+                        closeTimer.Start();
                     }
                     else
                     {
                         this.StatusText = "Warning: Model file not found";
-                        MessageBox.Show(
-                            "The MakeHuman script completed, but the model file was not found at the expected location.\n\n" +
-                            "Expected: " + modelFile + "\n\n" +
-                            "Please check the script output for errors.",
-                            "Model File Not Found",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning);
+
+                        // Log warning to console
+                        Console.WriteLine("========================================");
+                        Console.WriteLine("[WARNING] Model file not found!");
+                        Console.WriteLine($"  Expected: {modelFile}");
+                        Console.WriteLine("  Please check the script output for errors.");
+                        Console.WriteLine("========================================");
+
+                        // Close the window after a short delay even on failure
+                        var closeTimer = new System.Windows.Threading.DispatcherTimer();
+                        closeTimer.Interval = TimeSpan.FromSeconds(3);
+                        closeTimer.Tick += (s, e) =>
+                        {
+                            closeTimer.Stop();
+                            Console.WriteLine("[INFO] Closing application...");
+                            this.Close();
+                        };
+                        closeTimer.Start();
                     }
                 }
             }
@@ -1271,11 +1219,24 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             {
                 this.StatusText = "Error generating model";
                 this.modelGenerationInProgress = false;
-                MessageBox.Show(
-                    "Failed to generate model:\n\n" + ex.Message + "\n\n" + ex.StackTrace,
-                    "Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+
+                // Log error to console
+                Console.WriteLine("========================================");
+                Console.WriteLine("[ERROR] Failed to generate model!");
+                Console.WriteLine($"  Error: {ex.Message}");
+                Console.WriteLine($"  Stack trace: {ex.StackTrace}");
+                Console.WriteLine("========================================");
+
+                // Close the window after a short delay even on error
+                var closeTimer = new System.Windows.Threading.DispatcherTimer();
+                closeTimer.Interval = TimeSpan.FromSeconds(3);
+                closeTimer.Tick += (s, e) =>
+                {
+                    closeTimer.Stop();
+                    Console.WriteLine("[INFO] Closing application after error...");
+                    this.Close();
+                };
+                closeTimer.Start();
             }
             finally
             {
