@@ -141,6 +141,16 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         private bool modelGenerationInProgress = false;
 
         /// <summary>
+        /// Counter for consecutive frames where T-pose is detected
+        /// </summary>
+        private int tPoseFrameCount = 0;
+
+        /// <summary>
+        /// Number of consecutive T-pose frames required before capturing (2 seconds at ~30fps)
+        /// </summary>
+        private const int REQUIRED_TPOSE_FRAMES = 60;
+
+        /// <summary>
         /// Initializes a new instance of the MainWindow class.
         /// </summary>
         public MainWindow()
@@ -649,33 +659,183 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                 }
             }
 
-            // Display all measurements
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Height: {0:F3} m ({1:F1} cm)", measurements.height, measurements.height * 100));
-            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", measurements.upperArmLength, measurements.lowerArmLength));
-            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", measurements.upperLegLength, measurements.lowerLegLength));
-            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Nape to Waist: {0:F3} m | Shoulder Dist: {1:F3} m", measurements.napeToWaist, measurements.shoulderDist));
-            sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Waist to Hip: {0:F3} m | Neck Height: {1:F3} m", measurements.waistToHip, measurements.neckHeight));
-            
-            if (widthInMeters > 0)
+            // Check if we have valid measurements
+            bool hasValidMeasurements = measurements.height > 0 &&
+                measurements.upperArmLength > 0 &&
+                measurements.lowerArmLength > 0 &&
+                measurements.upperLegLength > 0 &&
+                measurements.lowerLegLength > 0;
+
+            // Check T-pose and update counter
+            bool isInTPose = hasValidMeasurements && this.IsInTPose(this.trackedBody);
+
+            if (!this.measurementsCaptured && !this.modelGenerationInProgress)
             {
-                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "SpineMid Width (from silhouette): {0:F3} m ({1:F1} cm)", widthInMeters, widthInMeters * 100));
+                if (isInTPose)
+                {
+                    this.tPoseFrameCount++;
+                }
+                else
+                {
+                    this.tPoseFrameCount = 0; // Reset if not in T-pose
+                }
+            }
+
+            // Display measurements or T-pose instructions
+            StringBuilder sb = new StringBuilder();
+
+            if (!this.measurementsCaptured && !this.modelGenerationInProgress)
+            {
+                // Show T-pose status and countdown
+                if (isInTPose && this.tPoseFrameCount < REQUIRED_TPOSE_FRAMES)
+                {
+                    // Calculate progress percentage
+                    double progressPercent = (double)this.tPoseFrameCount / REQUIRED_TPOSE_FRAMES * 100;
+                    double secondsRemaining = (REQUIRED_TPOSE_FRAMES - this.tPoseFrameCount) / 30.0; // Assuming ~30fps
+
+                    sb.AppendLine("✓ T-POSE DETECTED!");
+                    sb.AppendLine();
+                    sb.AppendLine("HOLD STEADY...");
+                    sb.AppendLine();
+                    sb.AppendLine(string.Format("Progress: {0:F0}%", progressPercent));
+                    sb.AppendLine(string.Format("Time remaining: {0:F1}s", secondsRemaining));
+                    sb.AppendLine();
+                    sb.AppendLine("Keep your arms extended");
+                    sb.AppendLine("and body upright!");
+                }
+                else if (!isInTPose)
+                {
+                    // Show T-pose instructions
+                    sb.AppendLine("PLEASE STAND IN T-POSE");
+                    sb.AppendLine();
+                    sb.AppendLine("Instructions:");
+                    sb.AppendLine("• Face the camera");
+                    sb.AppendLine("• Stand upright");
+                    sb.AppendLine("• Arms straight out to sides");
+                    sb.AppendLine("• Legs slightly apart");
+                    sb.AppendLine();
+
+                    if (hasValidMeasurements)
+                    {
+                        sb.AppendLine("Body detected! Extend your arms...");
+                    }
+                    else
+                    {
+                        sb.AppendLine("Waiting for body detection...");
+                    }
+                }
+
+                // Show current measurements below instructions
+                if (hasValidMeasurements)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("--- Current Measurements ---");
+                    sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Height: {0:F3} m ({1:F1} cm)", measurements.height, measurements.height * 100));
+                    sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", measurements.upperArmLength, measurements.lowerArmLength));
+                    sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", measurements.upperLegLength, measurements.lowerLegLength));
+                }
+            }
+            else
+            {
+                // After capture, show all measurements normally
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Height: {0:F3} m ({1:F1} cm)", measurements.height, measurements.height * 100));
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", measurements.upperArmLength, measurements.lowerArmLength));
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", measurements.upperLegLength, measurements.lowerLegLength));
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Nape to Waist: {0:F3} m | Shoulder Dist: {1:F3} m", measurements.napeToWaist, measurements.shoulderDist));
+                sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Waist to Hip: {0:F3} m | Neck Height: {1:F3} m", measurements.waistToHip, measurements.neckHeight));
+
+                if (widthInMeters > 0)
+                {
+                    sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "SpineMid Width (from silhouette): {0:F3} m ({1:F1} cm)", widthInMeters, widthInMeters * 100));
+                }
             }
 
             this.MeasurementText.Text = sb.ToString();
 
-            // Automatically capture and generate when we have valid Kinect measurements
+            // Automatically capture and generate when T-pose is held for required frames
             if (!this.measurementsCaptured && !this.modelGenerationInProgress &&
-                measurements.height > 0 &&
-                measurements.upperArmLength > 0 &&
-                measurements.lowerArmLength > 0 &&
-                measurements.upperLegLength > 0 &&
-                measurements.lowerLegLength > 0)
+                this.tPoseFrameCount >= REQUIRED_TPOSE_FRAMES)
             {
                 double? widthForLog = widthInMeters > 0 ? (double?)widthInMeters : null;
                 LogMeasurementsToConsole(measurements, widthForLog, "Kinect");
                 this.CaptureMeasurementsAndGenerate();
             }
+        }
+
+        /// <summary>
+        /// Validates if the tracked body is in a proper T-pose
+        /// </summary>
+        /// <param name="body">The tracked body to validate</param>
+        /// <returns>True if body is in T-pose, false otherwise</returns>
+        private bool IsInTPose(Body body)
+        {
+            if (body == null || !body.IsTracked)
+            {
+                return false;
+            }
+
+            var joints = body.Joints;
+
+            // Check that all critical joints are tracked
+            JointType[] criticalJoints = new JointType[]
+            {
+                JointType.Head, JointType.Neck, JointType.SpineShoulder,
+                JointType.ShoulderLeft, JointType.ShoulderRight,
+                JointType.ElbowLeft, JointType.ElbowRight,
+                JointType.WristLeft, JointType.WristRight,
+                JointType.SpineMid, JointType.SpineBase,
+                JointType.HipLeft, JointType.HipRight,
+                JointType.KneeLeft, JointType.KneeRight,
+                JointType.AnkleLeft, JointType.AnkleRight
+            };
+
+            foreach (var jointType in criticalJoints)
+            {
+                if (joints[jointType].TrackingState == TrackingState.NotTracked)
+                {
+                    return false;
+                }
+            }
+
+            // Check arm extension (T-pose)
+            // Left arm should be extended horizontally
+            var shoulderLeft = joints[JointType.ShoulderLeft].Position;
+            var elbowLeft = joints[JointType.ElbowLeft].Position;
+            var wristLeft = joints[JointType.WristLeft].Position;
+
+            // Right arm should be extended horizontally
+            var shoulderRight = joints[JointType.ShoulderRight].Position;
+            var elbowRight = joints[JointType.ElbowRight].Position;
+            var wristRight = joints[JointType.WristRight].Position;
+
+            // Check that elbows and wrists are roughly at shoulder level (Y coordinate)
+            // Allow 0.2m tolerance (about 8 inches)
+            const float yTolerance = 0.2f;
+
+            bool leftArmExtended =
+                Math.Abs(elbowLeft.Y - shoulderLeft.Y) < yTolerance &&
+                Math.Abs(wristLeft.Y - shoulderLeft.Y) < yTolerance &&
+                wristLeft.X < elbowLeft.X && // Wrist should be further left than elbow
+                elbowLeft.X < shoulderLeft.X; // Elbow should be further left than shoulder
+
+            bool rightArmExtended =
+                Math.Abs(elbowRight.Y - shoulderRight.Y) < yTolerance &&
+                Math.Abs(wristRight.Y - shoulderRight.Y) < yTolerance &&
+                wristRight.X > elbowRight.X && // Wrist should be further right than elbow
+                elbowRight.X > shoulderRight.X; // Elbow should be further right than shoulder
+
+            // Check that body is upright (spine should be mostly vertical)
+            var spineBase = joints[JointType.SpineBase].Position;
+            var spineShoulder = joints[JointType.SpineShoulder].Position;
+
+            // Horizontal offset should be small compared to vertical height
+            float spineHorizontalOffset = Math.Abs(spineShoulder.X - spineBase.X);
+            float spineVerticalHeight = Math.Abs(spineShoulder.Y - spineBase.Y);
+
+            bool bodyUpright = spineVerticalHeight > 0.3f && // Reasonable torso height
+                               spineHorizontalOffset / spineVerticalHeight < 0.3f; // Not leaning too much
+
+            return leftArmExtended && rightArmExtended && bodyUpright;
         }
 
         /// <summary>
