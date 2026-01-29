@@ -78,16 +78,17 @@ public class FbxImportHandler : AssetPostprocessor
     {
         if (!ShouldProcess()) return;
 
-        // Create animator controller for the model
-        CreateAnimatorController(model);
+        // Defer animator controller creation until after import process completes
+        string assetPathCopy = assetPath; // Capture the path before deferring
+        EditorApplication.delayCall += () => CreateAnimatorController(assetPathCopy);
     }
 
     // Creates an AnimatorController asset for the imported model
-    void CreateAnimatorController(GameObject model)
+    void CreateAnimatorController(string fbxAssetPath)
     {
         // Derive the controller path from the FBX path
-        string directory = Path.GetDirectoryName(assetPath);
-        string modelName = Path.GetFileNameWithoutExtension(assetPath);
+        string directory = Path.GetDirectoryName(fbxAssetPath);
+        string modelName = Path.GetFileNameWithoutExtension(fbxAssetPath);
         // Use forward slashes for Unity asset paths
         string controllerPath = $"{directory}/{modelName}.controller".Replace("\\", "/");
         
