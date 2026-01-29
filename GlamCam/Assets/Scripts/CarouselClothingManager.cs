@@ -12,17 +12,12 @@ public class CarouselClothingManager : MonoBehaviour
     [Header("Category (Logs Only)")]
     public string categoryName = "";
 
-    [Header("Mixing Rules")]
-    public bool isBaseLayer = false;
-
-    public enum ClothingCategoryType
+    public enum LayerGroup
     {
-        Mixable,
-        Exclusive   // for future use (e.g. Dresses / Skirts)
+        Base,       // Tops, Bottoms
+        Exclusive,  // Dresses, Fullbodies
+        Overlay     // Hats, Accessories
     }
-
-    [Header("Category Behavior")]
-    public ClothingCategoryType categoryType = ClothingCategoryType.Mixable;
 
     // Internal
     private readonly Dictionary<string, GameObject> garmentsByName = new();
@@ -76,19 +71,29 @@ public class CarouselClothingManager : MonoBehaviour
         categoryGarments.Clear();
 
         if (clothedAvatar == null) return;
+        if (carousel == null)
+        {
+            Debug.LogError("[CarouselClothingManager] carousel not assigned.");
+            return;
+        }
 
-        Transform root = clothedAvatar.transform;
-        foreach (Transform child in root)
+        var allowed = new HashSet<string>(
+            carousel.GetItemNames(includeNone: false),
+            System.StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (Transform child in clothedAvatar.transform)
         {
             if (child == null) continue;
 
-            garmentsByName[child.name] = child.gameObject;
-            categoryGarments.Add(child.gameObject);
+            if (allowed.Contains(child.name))
+            {
+                garmentsByName[child.name] = child.gameObject;
+                categoryGarments.Add(child.gameObject);
+            }
         }
 
-        Debug.Log(
-            $"[CarouselClothingManager] Loaded {categoryGarments.Count} garments from '{root.name}'."
-        );
+        Debug.Log($"[CarouselClothingManager] [{GetCategoryLabel()}] Managing {categoryGarments.Count} garments.");
     }
 
     private void OnCarouselSelectionChanged(int index, string itemName)
@@ -99,14 +104,16 @@ public class CarouselClothingManager : MonoBehaviour
         // Enforce mixing rules before applying selection
         if (!IsNone(itemName))
         {
-            if (categoryType == ClothingCategoryType.Exclusive)
+            var group = GetGroup();
+            if (group == LayerGroup.Exclusive)
             {
-                ClearBaseLayers();
+                ClearByGroup(LayerGroup.Base);
             }
-            else if (isBaseLayer)
+            else if (group == LayerGroup.Base)
             {
-                ClearExclusiveLayers();
+                ClearByGroup(LayerGroup.Exclusive);
             }
+            // Overlay clears nothing
         }
 
         // Always turn OFF everything in this managed set first
@@ -147,23 +154,16 @@ public class CarouselClothingManager : MonoBehaviour
         return string.Equals(itemName, "None", System.StringComparison.OrdinalIgnoreCase);
     }
 
-    private void ClearBaseLayers()
+    private void ClearByGroup(LayerGroup target)
     {
         foreach (var mgr in Instances)
         {
             if (mgr == null || mgr == this) continue;
-            if (!mgr.isBaseLayer) continue;
-            mgr.ResetToNone();
-        }
-    }
-
-    private void ClearExclusiveLayers()
-    {
-        foreach (var mgr in Instances)
-        {
-            if (mgr == null || mgr == this) continue;
-            if (mgr.categoryType != ClothingCategoryType.Exclusive) continue;
-            mgr.ResetToNone();
+            if (mgr.carousel == null) continue;
+            if (mgr.GetGroup() == target)
+            {
+                mgr.ResetToNone();
+            }
         }
     }
 
@@ -183,5 +183,22 @@ public class CarouselClothingManager : MonoBehaviour
         if (carousel != null && !string.IsNullOrEmpty(carousel.resourcesFolder))
             return carousel.resourcesFolder;
         return "Unknown";
+    }
+
+    private LayerGroup GetGroup()
+    {
+        string folder = carousel != null ? carousel.resourcesFolder : "";
+        if (string.IsNullOrEmpty(folder)) return LayerGroup.Overlay;
+
+        if (folder.Equals("Tops", System.StringComparison.OrdinalIgnoreCase)) return LayerGroup.Base;
+        if (folder.Equals("Bottoms", System.StringComparison.OrdinalIgnoreCase)) return LayerGroup.Base;
+
+        if (folder.Equals("Dresses", System.StringComparison.OrdinalIgnoreCase)) return LayerGroup.Exclusive;
+        if (folder.Equals("Fullbodies", System.StringComparison.OrdinalIgnoreCase)) return LayerGroup.Exclusive;
+
+        if (folder.Equals("Hats", System.StringComparison.OrdinalIgnoreCase)) return LayerGroup.Overlay;
+        if (folder.Equals("Accessories", System.StringComparison.OrdinalIgnoreCase)) return LayerGroup.Overlay;
+
+        return LayerGroup.Overlay;
     }
 }

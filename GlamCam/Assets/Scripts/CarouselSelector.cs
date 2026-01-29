@@ -104,6 +104,19 @@ public class CarouselSelector : MonoBehaviour
     public string GetCurrentItemName() => (_items.Count == 0) ? "" : _items[_index].name;
     public int GetItemCount() => _items.Count;
 
+    public List<string> GetItemNames(bool includeNone = false)
+    {
+        var names = new List<string>();
+        foreach (var tex in _items)
+        {
+            if (tex == null) continue;
+            if (!includeNone && string.Equals(tex.name, "None", StringComparison.OrdinalIgnoreCase))
+                continue;
+            names.Add(tex.name);
+        }
+        return names;
+    }
+
     public void SetIndex(int index, bool notify = true)
     {
         if (_items.Count == 0) return;
