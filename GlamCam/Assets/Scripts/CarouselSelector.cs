@@ -153,7 +153,7 @@ public class CarouselSelector : MonoBehaviour
         _items.Clear();
 
         // Always include None first if it exists
-        AddIfExists("None");
+        AddNoneIfExistsInFolder();
 
         // Load everything from folder
         var loaded = Resources.LoadAll<Texture2D>(resourcesFolder);
@@ -207,11 +207,17 @@ public class CarouselSelector : MonoBehaviour
         }
     }
 
-    private void AddIfExists(string resourceName)
+    private void AddNoneIfExistsInFolder()
     {
-        var tex = Resources.Load<Texture2D>(resourceName);
-        if (tex != null) _items.Add(tex);
-        else Debug.LogWarning($"[CarouselSelector] {resourceName}.png not found at Assets/Resources/{resourceName}.png");
+        if (string.IsNullOrEmpty(resourcesFolder)) return;
+
+        string path = $"{resourcesFolder}/None";
+        var tex = Resources.Load<Texture2D>(path);
+
+        if (tex != null)
+            _items.Add(tex);
+        else if (logChanges)
+            Debug.LogWarning($"[CarouselSelector] None.png not found at Assets/Resources/{path}.png");
     }
 
     private void AppendAlphabetical(IEnumerable<Texture2D> textures)
