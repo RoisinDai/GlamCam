@@ -29,6 +29,11 @@ public class HandCursorFollower : MonoBehaviour
     private int _colorWidth = 1920;
     private int _colorHeight = 1080;
 
+    [Header("Fist Detection")]
+    public Material defaultMaterial;
+    public Material fistClosedMaterial;
+    private bool _isFistClosed = false;
+
     void Start()
     {
         if (bodySourceManager == null)
@@ -94,6 +99,10 @@ public class HandCursorFollower : MonoBehaviour
 
         SetCursorActive(true);
 
+        var handRightState = body.HandRightState;
+        bool isFist = (handRightState == Kinect.HandState.Closed);
+        UpdateFistState(isFist);
+
         if (_coordinateMapper == null || avatarCamera == null)
         {
             SetCursorActive(false);
@@ -157,6 +166,25 @@ public class HandCursorFollower : MonoBehaviour
             _canvasGroup.alpha = visible ? 1f : 0f;
             _canvasGroup.blocksRaycasts = visible;
             _canvasGroup.interactable = visible;
+        }
+    }
+
+    private void UpdateFistState(bool isFist)
+    {
+        if (_isFistClosed == isFist) return;
+        _isFistClosed = isFist;
+
+        if (_renderers == null || _renderers.Length == 0) return;
+
+        Material matToUse = isFist ? fistClosedMaterial : defaultMaterial;
+        if (matToUse == null) return;
+
+        foreach (var r in _renderers)
+        {
+            if (r != null)
+            {
+                r.material = matToUse;
+            }
         }
     }
 
