@@ -24,45 +24,45 @@ public class CarouselSelector : MonoBehaviour
     {
         ["Tops"] = new[]
         {
-            "knitted_sweater_01Mesh",
-            "elvs_butterflydiscotop1Mesh",
-            "vintagetopMesh",
-            "Polo_t-shirtMesh",
-            "sweater_fishermanMesh",
             "f_lusekoftaMesh",
+            "sweater_fishermanMesh",
+            "Polo_t-shirtMesh",
+            "vintagetopMesh",
+            "elvs_butterflydiscotop1Mesh",
+            "knitted_sweater_01Mesh",
         },
         ["Bottoms"] = new[]
         {
-            "elvs_disco_pant_drufflesMesh",
-            "elvs_disco_pant_drufflesMesh",
-            "elvs_gored_elephantpant1Mesh",
-            "mariaskirtMesh",
             "pleated_skirtelv1Mesh",
+            "mariaskirtMesh",
+            "elvs_gored_elephantpant1Mesh",
+            "elvs_disco_pant_drufflesMesh",
+            "m_trousers_02Mesh",
         },
         ["Dresses"] = new[]
         {
-            "elvs_goddessdress8Mesh",
-            "elvs_mini_halterdressMesh",
-            "elvs_goddess_dress2Mesh",
-            "qipaoMesh",
             "elvs_goddessdress1Mesh",
+            "qipaoMesh",
+            "elvs_goddess_dress2Mesh",
+            "elvs_mini_halterdressMesh",
+            "elvs_goddessdress8Mesh",
         },
         ["Fullbodies"] = new[]
         {
-            "mars_suitMesh",
             "rescueteam_jacket_maleMesh",
+            "mars_suitMesh",
         },
         ["Hats"] = new[]
         {
-            "tophat1Mesh",
-            "cl_don_quixote_hatMesh",
             "pillow_manMesh",
+            "cl_don_quixote_hatMesh",
+            "tophat1Mesh",
         },
         ["Accessories"] = new[]
         {
-            "tennisracketMesh",
             "suitcaseMesh",
             "bowMesh",
+            "tennisracketMesh",
         },
     };
 
