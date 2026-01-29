@@ -611,7 +611,16 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
         {
             if (this.trackedBody == null || !this.trackedBody.IsTracked)
             {
-                this.MeasurementText.Text = "No body tracked";
+                if (!this.measurementsCaptured && !this.modelGenerationInProgress)
+                {
+                    this.MeasurementText.Text = "PLEASE STAND IN T-POSE\n\n" +
+                        "Instructions:\n" +
+                        "• Face the camera\n" +
+                        "• Stand upright\n" +
+                        "• Arms straight out to sides\n" +
+                        "• Legs slightly apart\n\n" +
+                        "Waiting for body detection...";
+                }
                 return;
             }
 
@@ -997,7 +1006,12 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             this.measurementsCaptured = true;
             this.modelGenerationInProgress = true;
 
-            this.StatusText = "Body tracked! Generating model...";
+            this.StatusText = "✓ Measurements captured! Generating your 3D model...";
+
+            // Update measurement display to show generation status
+            this.MeasurementText.Text = "✓ MEASUREMENTS CAPTURED!\n\n" +
+                "Generating your 3D model...\n\n" +
+                "Please wait, this may take 1-2 minutes.";
 
             // Wait a brief moment to ensure measurements are stable
             await Task.Delay(500);
@@ -1174,6 +1188,11 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                     {
                         this.StatusText = "Model generated successfully!";
 
+                        // Update measurement display to show success
+                        this.MeasurementText.Text = "✓ SUCCESS!\n\n" +
+                            "Your 3D model has been generated!\n\n" +
+                            "Closing in 2 seconds...";
+
                         // Log success to console
                         Console.WriteLine("========================================");
                         Console.WriteLine("[SUCCESS] Model generated successfully!");
@@ -1194,6 +1213,12 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                     else
                     {
                         this.StatusText = "Warning: Model file not found";
+
+                        // Update measurement display to show warning
+                        this.MeasurementText.Text = "⚠ WARNING\n\n" +
+                            "Model file was not found.\n\n" +
+                            "Please check the console output for errors.\n\n" +
+                            "Closing in 3 seconds...";
 
                         // Log warning to console
                         Console.WriteLine("========================================");
@@ -1219,6 +1244,13 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
             {
                 this.StatusText = "Error generating model";
                 this.modelGenerationInProgress = false;
+
+                // Update measurement display to show error
+                this.MeasurementText.Text = "✗ ERROR\n\n" +
+                    "Failed to generate model.\n\n" +
+                    $"Error: {ex.Message}\n\n" +
+                    "Check console for details.\n\n" +
+                    "Closing in 3 seconds...";
 
                 // Log error to console
                 Console.WriteLine("========================================");
