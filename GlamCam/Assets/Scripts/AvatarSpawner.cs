@@ -43,7 +43,7 @@ public class AvatarSpawner : MonoBehaviour
             // Skip this object if it's already in the scene.
             if (GameObject.Find(modelPrefab.name) != null) continue;
 
-            // Spawn the model in the scene and get the Animator component
+            // Spawn the model in the scene and get the instance
             GameObject avatarInstance = SpawnModelInScene(modelPrefab);
 
             // Perform setup of the model now that it is in the scene
@@ -61,23 +61,8 @@ public class AvatarSpawner : MonoBehaviour
         // For now, move the model to the origin but we can look to change this if needed
         modelInstance.transform.position = Vector3.zero;
 
-        // Disable all child meshes, except for the base avatar mesh named BASE_AVATAR_GAMEOBJECT_NAME
-        var meshRenderers = modelInstance.GetComponentsInChildren<MeshRenderer>(true);
-        foreach (var meshRenderer in meshRenderers)
-        {
-            if (meshRenderer.gameObject.name != BASE_AVATAR_GAMEOBJECT_NAME)
-            {
-                meshRenderer.gameObject.SetActive(false);
-            }
-        }
-        var skinnedMeshRenderers = modelInstance.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-        foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
-        {
-            if (skinnedMeshRenderer.gameObject.name != BASE_AVATAR_GAMEOBJECT_NAME)
-            {
-                skinnedMeshRenderer.gameObject.SetActive(false);
-            }
-        }
+        // Deactivate the model instance
+        modelInstance.SetActive(false);
 
         // Set the base avatar's material to the Invisible Mask, which allows us to perform segmentation (NOT THE CLOTHES)
         // The goal of this material is to make the base avatar invisible in the scene, but still obscure the clothed avatar where it makes sense.
