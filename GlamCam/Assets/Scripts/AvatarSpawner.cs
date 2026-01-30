@@ -24,6 +24,14 @@ public class AvatarSpawner : MonoBehaviour
     static void OnAfterSceneLoad()
     {
 #if UNITY_EDITOR
+        // Create or find the parent GameObject for all clothed avatars
+        GameObject clothedAvatarsParent = GameObject.Find("ClothedAvatars");
+        if (clothedAvatarsParent == null)
+        {
+            clothedAvatarsParent = new GameObject("ClothedAvatars");
+            Debug.Log("[AvatarSpawner] Created ClothedAvatars parent GameObject.");
+        }
+
         // Find all FBX files in the clothed avatar directory.
         Debug.Log($"[AvatarSpawner] Looking for clothed avatar models in {CLOTHED_AVATAR_DIRECTORY}");
         string [] modelGuids = AssetDatabase.FindAssets("t:Model", new [] {CLOTHED_AVATAR_DIRECTORY});
@@ -44,18 +52,19 @@ public class AvatarSpawner : MonoBehaviour
             if (GameObject.Find(modelPrefab.name) != null) continue;
 
             // Spawn the model in the scene and get the instance
-            GameObject avatarInstance = SpawnModelInScene(modelPrefab);
+            GameObject avatarInstance = SpawnModelInScene(modelPrefab, clothedAvatarsParent);
 
             // Perform setup of the model now that it is in the scene
             Animator avatarAnimator = SetupAnimatorComponent(avatarInstance, assetPath);
             AddAvatarControllerScriptToSpawnedAvatar(avatarInstance, avatarAnimator);
         }
+#endif
     }
 
     // Spawns a model in the scene and returns the game object.
-    private static GameObject SpawnModelInScene(GameObject modelPrefab)
+    private static GameObject SpawnModelInScene(GameObject modelPrefab, GameObject parent)
     {
-        GameObject modelInstance = Object.Instantiate(modelPrefab);
+        GameObject modelInstance = Object.Instantiate(modelPrefab, parent.transform);
         modelInstance.name = modelPrefab.name; // removes "(Clone) from the instance's name
 
         // For now, move the model to the origin but we can look to change this if needed
@@ -149,5 +158,4 @@ public class AvatarSpawner : MonoBehaviour
 
         Debug.Log($"[AvatarSpawner] Added AvatarController script to: {avatarInstance.name}");
     }
-#endif
 }
