@@ -6,9 +6,6 @@ public class CarouselClothingManager : MonoBehaviour
     [Header("Carousel")]
     public CarouselSelector carousel;
 
-    [Header("Avatar Root")]
-    public GameObject clothedAvatar;
-
     [Header("Category (Logs Only)")]
     public string categoryName = "";
 
@@ -27,17 +24,6 @@ public class CarouselClothingManager : MonoBehaviour
 
     void Start()
     {
-        // Auto-find clothed_avatar if not assigned
-        if (clothedAvatar == null)
-        {
-            clothedAvatar = GameObject.Find("clothed_avatar");
-            if (clothedAvatar == null)
-            {
-                Debug.LogError("[CarouselClothingManager] clothed_avatar not found in scene.");
-                return;
-            }
-        }
-
         BuildCategoryLookup();
 
         if (carousel != null)
@@ -81,8 +67,6 @@ public class CarouselClothingManager : MonoBehaviour
         garmentsByName.Clear();
         categoryGarments.Clear();
 
-        if (clothedAvatar == null) return;
-
         if (carousel == null)
         {
             Debug.LogError("[CarouselClothingManager] CarouselSelector missing; cannot build lookup.");
@@ -95,20 +79,35 @@ public class CarouselClothingManager : MonoBehaviour
             System.StringComparer.OrdinalIgnoreCase
         );
 
-        Transform root = clothedAvatar.transform;
+        // Collect the gameObjects corresponding to the wantedNames
+        // Note that the gameObjects are the same as the clothing name (ex:elvs_goddess_dress2)
         System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        sb.AppendLine($"[CarouselClothingManager] [{GetCategoryLabel()}] Matching garments under '{root.name}':");
+        sb.AppendLine($"[CarouselClothingManager] [{GetCategoryLabel()}] Collecting clothed avatar game objects from wantedNames:");
 
-        foreach (Transform child in root)
+        // Find the ClothedAvatars parent GameObject
+        GameObject clothedAvatarsParent = GameObject.Find("ClothedAvatars");
+        if (clothedAvatarsParent == null)
         {
-            if (child == null) continue;
+            Debug.LogError($"[CarouselClothingManager] [{GetCategoryLabel()}] ClothedAvatars parent GameObject not found in scene.");
+            return;
+        }
 
-            if (!wantedNames.Contains(child.name))
-                continue;
-
-            garmentsByName[child.name] = child.gameObject;
-            categoryGarments.Add(child.gameObject);
-            sb.AppendLine($"- {child.name}");
+        // Collecting those that match wanted names as children of ClothedAvatars
+        foreach (string clothingName in wantedNames)
+        {
+            Transform childTransform = clothedAvatarsParent.transform.Find(clothingName);
+            if (childTransform != null)
+            {
+                var clothedAvatar = childTransform.gameObject;
+                // Found the garment, add it to the lookup
+                garmentsByName[clothingName] = clothedAvatar;
+                categoryGarments.Add(clothedAvatar);
+                sb.AppendLine($"- {clothingName}");
+            }
+            else
+            {
+                Debug.LogWarning($"[CarouselClothingManager] [{GetCategoryLabel()}] Wanted garment '{clothingName}' not found as child of ClothedAvatars.");
+            }
         }
 
         Debug.Log(sb.ToString());

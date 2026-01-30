@@ -591,8 +591,9 @@ public class AvatarController : MonoBehaviour
         // 5. Apply uniform scaling ONCE (this is now mostly handled by continuous bone scaling)
         if (UniformScaleFactor < 0f && _AvatarMeasurements.height > 0f)
         {
-            UniformScaleFactor =
-                _KinectUserMeasurements.height / _AvatarMeasurements.height;
+            // UniformScaleFactor =
+            // _KinectUserMeasurements.height / _AvatarMeasurements.height;
+            UniformScaleFactor = 10.0f;
 
             ClothedBaseAvatar.transform.localScale =
                 Vector3.one * UniformScaleFactor;
@@ -664,6 +665,8 @@ public class AvatarController : MonoBehaviour
         Vector3 delta = (kinectShoulderAvg - modelShoulderAvg);
 
         Vector3 avatarPosition = ClothedBaseAvatar.transform.position;
+        
+        Debug.Log($"Translated avatar to {UniformScaleFactor:F3}");
         ClothedBaseAvatar.transform.position = new Vector3(avatarPosition.x, avatarPosition.y + delta.y + 0.5f, avatarPosition.z); // Small offset from experimental results
     }
 
