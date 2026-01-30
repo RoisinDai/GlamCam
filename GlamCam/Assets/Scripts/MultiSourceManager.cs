@@ -6,7 +6,11 @@ using Windows.Kinect;
 public class MultiSourceManager : MonoBehaviour {
     public int ColorWidth { get; private set; }
     public int ColorHeight { get; private set; }
-    
+
+    // Measurement status (polled by AvatarController and UI)
+    public bool IsMeasured { get; private set; } = false;
+    public float MeasuredSpineMidWidth { get; private set; } = -1f;
+
     private KinectSensor _Sensor;
     private MultiSourceFrameReader _Reader;
     private CoordinateMapper _Mapper;
@@ -18,7 +22,12 @@ public class MultiSourceManager : MonoBehaviour {
     // Body tracking
     private Body[] _BodyData;
     private Body _TrackedBody;
-    private bool _HasCapturedSilhouette = false;
+
+    // T-pose detection state
+    private float _TPoseHoldTimer = 0f;
+    private const float TPOSE_HOLD_DURATION = 1.0f;
+    private const float TPOSE_ARM_EXTENSION_MIN = 0.3f; // minimum horizontal arm spread (meters)
+    private const float TPOSE_ANGLE_RATIO_MAX = 0.3f;   // max |deltaY/deltaX| (~17° from horizontal)
     
     // For color-to-depth mapping (Body Mask)
     private DepthSpacePoint[] _ColorMappedToDepthPoints;
@@ -139,27 +148,23 @@ public class MultiSourceManager : MonoBehaviour {
             }
         }
         
-        // Test: Measure height and width when we have a tracked body
-        if (_TrackedBody != null && _TrackedBody.IsTracked)
+        // T-pose detection and one-shot measurement
+        if (!IsMeasured && _TrackedBody != null && _TrackedBody.IsTracked)
         {
-            // Capture silhouette only once (first time body is detected)
-            if (!_HasCapturedSilhouette)
+            if (DetectTPose())
             {
-                _HasCapturedSilhouette = true;
-                CaptureSilhouette();
+                _TPoseHoldTimer += Time.deltaTime;
+
+                if (_TPoseHoldTimer >= TPOSE_HOLD_DURATION)
+                {
+                    MeasuredSpineMidWidth = MeasureSpineMidWidth();
+                    IsMeasured = true;
+                }
             }
-            
-            // Height measurement (from skeleton)
-            var joints = _TrackedBody.Joints;
-            Vector3 head = GetVector3FromJoint(joints[JointType.Head]);
-            Vector3 footL = GetVector3FromJoint(joints[JointType.FootLeft]);
-            Vector3 footR = GetVector3FromJoint(joints[JointType.FootRight]);
-            float height = head.y - ((footL.y + footR.y) * 0.5f);
-            
-            // Width measurement (from silhouette)
-            float width = MeasureSpineMidWidth();
-            
-            Debug.Log($"=== Body Measurements (meters) === Height: {height:F3} m | SpineMid Width: {width:F3} m");
+            else
+            {
+                _TPoseHoldTimer = 0f;
+            }
         }
     }
     
@@ -373,9 +378,73 @@ public class MultiSourceManager : MonoBehaviour {
     }
     
     // =====================================================
+    // T-Pose Detection and Measurement
+    // =====================================================
+
+    /// <summary>
+    /// Re-triggers the T-pose measurement cycle.
+    /// Call this from UI to re-measure.
+    /// </summary>
+    public void StartMeasurement()
+    {
+        IsMeasured = false;
+        MeasuredSpineMidWidth = -1f;
+        _TPoseHoldTimer = 0f;
+    }
+
+    /// <summary>
+    /// Detects whether the tracked body is in a T-pose.
+    /// Checks that both arms are extended horizontally.
+    /// </summary>
+    private bool DetectTPose()
+    {
+        if (_TrackedBody == null || !_TrackedBody.IsTracked)
+            return false;
+
+        var joints = _TrackedBody.Joints;
+
+        Vector3 shoulderL = GetVector3FromJoint(joints[JointType.ShoulderLeft]);
+        Vector3 shoulderR = GetVector3FromJoint(joints[JointType.ShoulderRight]);
+        Vector3 elbowL = GetVector3FromJoint(joints[JointType.ElbowLeft]);
+        Vector3 elbowR = GetVector3FromJoint(joints[JointType.ElbowRight]);
+        Vector3 wristL = GetVector3FromJoint(joints[JointType.WristLeft]);
+        Vector3 wristR = GetVector3FromJoint(joints[JointType.WristRight]);
+
+        // Check left arm
+        float leftArmDeltaX = Mathf.Abs(wristL.x - shoulderL.x);
+        float leftArmDeltaY = Mathf.Abs(wristL.y - shoulderL.y);
+        float leftElbowDeltaX = Mathf.Abs(elbowL.x - shoulderL.x);
+        float leftElbowDeltaY = Mathf.Abs(elbowL.y - shoulderL.y);
+
+        // Check right arm
+        float rightArmDeltaX = Mathf.Abs(wristR.x - shoulderR.x);
+        float rightArmDeltaY = Mathf.Abs(wristR.y - shoulderR.y);
+        float rightElbowDeltaX = Mathf.Abs(elbowR.x - shoulderR.x);
+        float rightElbowDeltaY = Mathf.Abs(elbowR.y - shoulderR.y);
+
+        // Arms must be spread out horizontally
+        if (leftArmDeltaX < TPOSE_ARM_EXTENSION_MIN || rightArmDeltaX < TPOSE_ARM_EXTENSION_MIN)
+            return false;
+
+        // Wrists must be roughly horizontal relative to shoulders
+        if (leftArmDeltaY / leftArmDeltaX > TPOSE_ANGLE_RATIO_MAX)
+            return false;
+        if (rightArmDeltaY / rightArmDeltaX > TPOSE_ANGLE_RATIO_MAX)
+            return false;
+
+        // Elbows must also be roughly horizontal
+        if (leftElbowDeltaX > 0.01f && leftElbowDeltaY / leftElbowDeltaX > TPOSE_ANGLE_RATIO_MAX)
+            return false;
+        if (rightElbowDeltaX > 0.01f && rightElbowDeltaY / rightElbowDeltaX > TPOSE_ANGLE_RATIO_MAX)
+            return false;
+
+        return true;
+    }
+
+    // =====================================================
     // Body Width Measurement Methods
     // =====================================================
-    
+
     /// <summary>
     /// Gets the current tracked body (if any).
     /// </summary>
