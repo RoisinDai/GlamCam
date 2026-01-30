@@ -724,16 +724,6 @@ namespace Microsoft.Samples.Kinect.SilhouetteBasics
                         sb.AppendLine("Waiting for body detection...");
                     }
                 }
-
-                // Show current measurements below instructions
-                if (hasValidMeasurements)
-                {
-                    sb.AppendLine();
-                    sb.AppendLine("--- Current Measurements ---");
-                    sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Height: {0:F3} m ({1:F1} cm)", measurements.height, measurements.height * 100));
-                    sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Arm: {0:F3} m | Lower Arm: {1:F3} m", measurements.upperArmLength, measurements.lowerArmLength));
-                    sb.AppendLine(string.Format(CultureInfo.CurrentCulture, "Upper Leg: {0:F3} m | Lower Leg: {1:F3} m", measurements.upperLegLength, measurements.lowerLegLength));
-                }
             }
             else
             {
