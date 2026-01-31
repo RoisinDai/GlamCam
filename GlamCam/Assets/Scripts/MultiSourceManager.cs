@@ -10,6 +10,7 @@ public class MultiSourceManager : MonoBehaviour {
     // Measurement status (polled by AvatarController and UI)
     public bool IsMeasured { get; private set; } = false;
     public float MeasuredSpineMidWidth { get; private set; } = -1f;
+    public float MeasuredHeight { get; private set; } = -1f;
 
     private KinectSensor _Sensor;
     private MultiSourceFrameReader _Reader;
@@ -98,9 +99,12 @@ public class MultiSourceManager : MonoBehaviour {
         }
     }
     
-    void Update () 
+    void Update ()
     {
-        if (_Reader != null) 
+        // Nothing to do once measured — AvatarController uses BodySourceManager for tracking
+        if (IsMeasured) return;
+
+        if (_Reader != null)
         {
             var frame = _Reader.AcquireLatestFrame();
             if (frame != null)
@@ -158,6 +162,7 @@ public class MultiSourceManager : MonoBehaviour {
                 if (_TPoseHoldTimer >= TPOSE_HOLD_DURATION)
                 {
                     MeasuredSpineMidWidth = MeasureSpineMidWidth();
+                    MeasuredHeight = MeasureUserHeight();
                     IsMeasured = true;
                 }
             }
@@ -175,7 +180,23 @@ public class MultiSourceManager : MonoBehaviour {
     {
         return new Vector3(joint.Position.X, joint.Position.Y, joint.Position.Z);
     }
-    
+
+    /// <summary>
+    /// Measures the user's height from Head to the average of both feet (in meters).
+    /// Called once during T-pose when the user is standing upright.
+    /// </summary>
+    private float MeasureUserHeight()
+    {
+        var joints = _TrackedBody.Joints;
+        Vector3 head = GetVector3FromJoint(joints[JointType.Head]);
+        Vector3 footLeft = GetVector3FromJoint(joints[JointType.FootLeft]);
+        Vector3 footRight = GetVector3FromJoint(joints[JointType.FootRight]);
+
+        float height = head.y - ((footLeft.y + footRight.y) * 0.5f);
+        Debug.Log($"[MultiSourceManager] Measured user height: {height:F3}m");
+        return height;
+    }
+
     // GUI buttons for visualization
     void OnGUI()
     {
@@ -389,6 +410,7 @@ public class MultiSourceManager : MonoBehaviour {
     {
         IsMeasured = false;
         MeasuredSpineMidWidth = -1f;
+        MeasuredHeight = -1f;
         _TPoseHoldTimer = 0f;
     }
 
