@@ -165,8 +165,9 @@ public class MultiSourceManager : MonoBehaviour {
                     MeasuredSpineMidWidth = MeasureSpineMidWidth();
                     MeasuredHeight = MeasureUserHeight();
                     IsMeasured = true;
-                    float heightMeters = MeasuredHeight / KINECT_TO_UNITY_SCALE;
-                    float widthMeters = MeasuredSpineMidWidth / KINECT_TO_UNITY_SCALE;
+                    // Divide by 10 since the measured height is in decimeters
+                    float heightMeters = MeasuredHeight / 10f;
+                    float widthMeters = MeasuredSpineMidWidth / 10f;
                     Debug.Log($"[MultiSourceManager] Measurement complete. Height={MeasuredHeight:F3} units ({heightMeters:F3}m) Width={MeasuredSpineMidWidth:F3} units ({widthMeters:F3}m) IsMeasured={IsMeasured}");
                 }
             }
