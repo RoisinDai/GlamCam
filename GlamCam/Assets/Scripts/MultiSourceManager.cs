@@ -190,12 +190,12 @@ public class MultiSourceManager : MonoBehaviour {
     private float MeasureUserHeight()
     {
         var joints = _TrackedBody.Joints;
-        Vector3 head = GetVector3FromJoint(joints[JointType.Head]);
-        Vector3 footLeft = GetVector3FromJoint(joints[JointType.FootLeft]);
-        Vector3 footRight = GetVector3FromJoint(joints[JointType.FootRight]);
+        Vector3 head = BodySourceView.GetVector3FromJoint(joints[JointType.Head]);
+        Vector3 footLeft = BodySourceView.GetVector3FromJoint(joints[JointType.FootLeft]);
+        Vector3 footRight = BodySourceView.GetVector3FromJoint(joints[JointType.FootRight]);
 
         float height = head.y - ((footLeft.y + footRight.y) * 0.5f);
-        Debug.Log($"[MultiSourceManager] Measured user height: {height:F3}m");
+        Debug.Log($"[MultiSourceManager] Measured user height: {height:F3} units");
         return height;
     }
     
@@ -361,10 +361,11 @@ public class MultiSourceManager : MonoBehaviour {
         
         // Convert pixels to meters
         float widthInMeters = PixelsToMeters(widthInPixels, depthMm);
+        float widthInUnits = widthInMeters * 10f;
         
-        Debug.Log($"MeasureWidthAtJoint: center=({centerX},{centerY}), pixels={widthInPixels}, depth={depthMm}mm, width={widthInMeters:F3}m");
+        Debug.Log($"MeasureWidthAtJoint: center=({centerX},{centerY}), pixels={widthInPixels}, depth={depthMm}mm, width={widthInMeters:F3}m, width={widthInUnits:F3} units");
         
-        return widthInMeters;
+        return widthInUnits;
     }
     
     /// <summary>

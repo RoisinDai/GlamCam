@@ -605,7 +605,7 @@ public class AvatarController : MonoBehaviour
         if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f)
         {
             UniformScaleFactor =
-                _MultiSourceManager.MeasuredHeight / _AvatarMeasurements.height;
+                _KinectUserMeasurements.height / _AvatarMeasurements.height;
 
             ClothedBaseAvatar.transform.localScale =
                 Vector3.one * UniformScaleFactor;
