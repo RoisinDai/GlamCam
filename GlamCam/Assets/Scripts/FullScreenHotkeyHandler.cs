@@ -62,6 +62,7 @@ public static class FullscreenGameView
             ShowToolbarProperty?.SetValue(instance, False);
 
             var desktopResolution = new Vector2(Screen.currentResolution.width, Screen.currentResolution.height);
+            Debug.Log($"[FullscreenGameView] Setting Game View to fullscreen with resolution {desktopResolution.x}x{desktopResolution.y}");
             var fullscreenRect = new Rect(Vector2.zero, desktopResolution);
             instance.ShowPopup();
             instance.position = fullscreenRect;

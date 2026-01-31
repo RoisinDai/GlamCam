@@ -6,13 +6,7 @@ public class HandCursorFollower : MonoBehaviour
     public GameObject bodySourceManager;
 
     public bool useClosestTrackedBody = true;
-
-    public Vector3 positionOffset = Vector3.zero;
-
-    public Camera avatarCamera;
-
-    public float depthFromCamera = 2f;
-
+    public float depthFromCamera = 16f;
     public bool smoothMovement = true;
 
     [Range(0.01f, 1f)]
@@ -24,10 +18,6 @@ public class HandCursorFollower : MonoBehaviour
     private bool _wasVisible = true;
     private Renderer[] _renderers;
     private CanvasGroup _canvasGroup;
-    private Kinect.KinectSensor _sensor;
-    private Kinect.CoordinateMapper _coordinateMapper;
-    private int _colorWidth = 1920;
-    private int _colorHeight = 1080;
 
     [Header("Fist Detection")]
     public Material defaultMaterial;
@@ -55,27 +45,6 @@ public class HandCursorFollower : MonoBehaviour
         if (_bodyManager == null)
         {
             Debug.LogWarning("[HandCursorFollower] BodySourceManager not found. Assign it in the inspector.");
-        }
-
-        if (avatarCamera == null)
-        {
-            avatarCamera = Camera.main;
-        }
-
-        _sensor = Kinect.KinectSensor.GetDefault();
-        if (_sensor != null)
-        {
-            _coordinateMapper = _sensor.CoordinateMapper;
-            var desc = _sensor.ColorFrameSource?.FrameDescription;
-            if (desc != null)
-            {
-                _colorWidth = desc.Width;
-                _colorHeight = desc.Height;
-            }
-        }
-        else
-        {
-            Debug.LogWarning("[HandCursorFollower] Kinect sensor not found.");
         }
 
         _renderers = GetComponentsInChildren<Renderer>(true);
@@ -109,38 +78,9 @@ public class HandCursorFollower : MonoBehaviour
         bool isFist = (handRightState == Kinect.HandState.Closed);
         UpdateFistState(isFist);
 
-        if (_coordinateMapper == null || avatarCamera == null)
-        {
-            SetCursorActive(false);
-            return;
-        }
-
-        var cameraPoint = new Kinect.CameraSpacePoint
-        {
-            X = handJoint.Position.X,
-            Y = handJoint.Position.Y,
-            Z = handJoint.Position.Z
-        };
-
-        Kinect.ColorSpacePoint colorPoint = _coordinateMapper.MapCameraPointToColorSpace(cameraPoint);
-        if (float.IsNaN(colorPoint.X) || float.IsNaN(colorPoint.Y) ||
-            float.IsInfinity(colorPoint.X) || float.IsInfinity(colorPoint.Y))
-        {
-            SetCursorActive(false);
-            return;
-        }
-
-        if (colorPoint.X < 0 || colorPoint.Y < 0 || colorPoint.X > _colorWidth || colorPoint.Y > _colorHeight)
-        {
-            SetCursorActive(false);
-            return;
-        }
-
-        float screenX = (colorPoint.X / _colorWidth) * Screen.width;
-        float screenY = (1f - (colorPoint.Y / _colorHeight)) * Screen.height;
-        Vector3 screenPos = new Vector3(screenX, screenY, depthFromCamera);
-
-        Vector3 targetPos = avatarCamera.ScreenToWorldPoint(screenPos) + positionOffset;
+        // Use the same coordinate transformation as BodySourceView
+        Vector3 targetPos = BodySourceView.GetVector3FromJoint(handJoint);
+        targetPos.z = depthFromCamera; // Override with the same distance as the UI
 
         if (smoothMovement)
         {
