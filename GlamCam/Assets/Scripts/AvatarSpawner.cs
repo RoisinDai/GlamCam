@@ -22,9 +22,9 @@ public class AvatarSpawner : MonoBehaviour
     const string AVATAR_CONTROLLER_SCRIPT = "AvatarController";
 
     // The name of the base avatar used for segmentation. The top-level game object that is spawned.
-    const string SEGMENTATION_AVATAR_TOP_LEVEL_NAME = "base_human_avatar_for_segmentation";
+    const string SEGMENTATION_AVATAR_TOP_LEVEL_NAME = "base_avatar_for_segmentation";
 
-    // The name of the base avatar mesh used for segmentation. A child of the base_human_avatar_for_segmentation game object that is spawned.
+    // The name of the base avatar mesh used for segmentation. A child of the base_avatar_for_segmentation game object that is spawned.
     const string SEGMENTATION_AVATAR_MESH_NAME = "base_avatar_for_segmentationMesh";
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)] // Run after scene loads, but before Start() is called on any object.
@@ -90,30 +90,30 @@ public class AvatarSpawner : MonoBehaviour
         // The goal of this material is to make the base avatar invisible in the scene, but still obscure the clothed avatar where it makes sense.
         // For example, the inside of a hat should be obscured by the avatar's head, the collar of a shirt should be obscured by the avatar's neck, etc.
         // NOTE: We do this for the base avatar for segmentation (which has skin under shirt and pants missing) and not the base avatar of the clothed_avatar itself to avoid clipping.
-        print("[Keegan Debug]: modelInstance.name = " + modelInstance.name);
+        Debug.Log("[Keegan Debug]: modelInstance.name = " + modelInstance.name);
         if (modelInstance.name == SEGMENTATION_AVATAR_TOP_LEVEL_NAME) {
             Material invisibleMaskMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/InvisibleMask.mat");
             if (invisibleMaskMaterial != null)
             {
-                Transform meshTransform = modelInstance.transform.Find("clothed_avatarMesh");
+                Transform meshTransform = modelInstance.transform.Find(SEGMENTATION_AVATAR_MESH_NAME);
                 if (meshTransform != null)
                 {
                     var meshRenderer = meshTransform.GetComponent<MeshRenderer>();
                     if (meshRenderer != null)
                     {
                         meshRenderer.sharedMaterial = invisibleMaskMaterial;
-                        Debug.Log("[AvatarSpawner] Set Invisible Mask material on MeshRenderer of 'clothed_avatarMesh'.");
+                        Debug.Log("[AvatarSpawner] Set Invisible Mask material on MeshRenderer of '" + SEGMENTATION_AVATAR_MESH_NAME + "'.");
                     }
                     var skinnedMeshRenderer = meshTransform.GetComponent<SkinnedMeshRenderer>();
                     if (skinnedMeshRenderer != null)
                     {
                         skinnedMeshRenderer.sharedMaterial = invisibleMaskMaterial;
-                        Debug.Log("[AvatarSpawner] Set Invisible Mask material on SkinnedMeshRenderer of 'clothed_avatarMesh'.");
+                        Debug.Log("[AvatarSpawner] Set Invisible Mask material on SkinnedMeshRenderer of '" + SEGMENTATION_AVATAR_MESH_NAME + "'.");
                     }
                 }
                 else
                 {
-                    Debug.LogWarning("[AvatarSpawner] Child named 'clothed_avatarMesh' not found in model instance.");
+                    Debug.LogWarning("[AvatarSpawner] Child named '" + SEGMENTATION_AVATAR_MESH_NAME + "' not found in model instance.");
                 }
             }
             else
