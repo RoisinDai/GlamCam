@@ -9,6 +9,10 @@ public class ClothingRulesCoordinator : MonoBehaviour
     public CarouselClothingManager hats;
     public CarouselClothingManager accessories;
 
+    [Header("Pill Nav (for reset)")]
+    public PillToggleButton clothesPillButton;
+    public SelectorVisibilityController selectorVisibility;
+
     private static ClothingRulesCoordinator _instance;
 
     void Awake()
@@ -66,5 +70,28 @@ public class ClothingRulesCoordinator : MonoBehaviour
         }
 
         // If something becomes None, do nothing special.
+    }
+
+    /// <summary>
+    /// Clears all clothing across all categories and resets UI to "None".
+    /// Also resets the pill nav to Clothes view.
+    /// Call this when resetting to init state.
+    /// </summary>
+    public static void ClearAllClothing()
+    {
+        if (_instance == null) return;
+
+        _instance.tops?.ClearCategoryAndResetUI();
+        _instance.bottoms?.ClearCategoryAndResetUI();
+        _instance.dresses?.ClearCategoryAndResetUI();
+        _instance.fullbodies?.ClearCategoryAndResetUI();
+        _instance.hats?.ClearCategoryAndResetUI();
+        _instance.accessories?.ClearCategoryAndResetUI();
+
+        // Reset pill nav to Clothes view (both visuals and selector visibility)
+        _instance.clothesPillButton?.ResetToClothes();
+        _instance.selectorVisibility?.ShowClothes();
+
+        Debug.Log("[ClothingRulesCoordinator] All clothing cleared and pill reset to Clothes.");
     }
 }

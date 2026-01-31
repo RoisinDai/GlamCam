@@ -32,6 +32,7 @@ public class InitializationStateMachine : MonoBehaviour
     private GameObject _topImage, _bottomImage, _dressImage, _fullbodyImage, _hatImage, _accessoriesImage;
 
     private GameObject _pillBg;
+    private GameObject _divider;
     private GameObject _clearAllBtn;
     private GameObject _resetBtn;
 
@@ -129,6 +130,9 @@ public class InitializationStateMachine : MonoBehaviour
             _transitionCoroutine = null;
         }
 
+        // Clear all clothing on the avatar
+        ClothingRulesCoordinator.ClearAllClothing();
+
         EnterInitState();
     }
 
@@ -149,8 +153,9 @@ public class InitializationStateMachine : MonoBehaviour
         SetActive(_hatImage, visible);
         SetActive(_accessoriesImage, visible);
 
-        // PillNav child: PillBG
+        // PillNav children: PillBG, Divider
         SetActive(_pillBg, visible);
+        SetActive(_divider, visible);
 
         // Buttons
         SetActive(_clearAllBtn, visible);
@@ -184,8 +189,9 @@ public class InitializationStateMachine : MonoBehaviour
         _accessoriesLeftArrow = FindGo(mainRig, "UIRig/AccessoriesSelector/LeftArrow");
         _accessoriesImage = FindGo(mainRig, "UIRig/AccessoriesSelector/AccessoryImage");
 
-        // PillNav child: PillBG
+        // PillNav children: PillBG, Divider
         _pillBg = FindGo(mainRig, "PillNav/PillBG");
+        _divider = FindGo(mainRig, "PillNav/Divider");
 
         // Buttons
         _clearAllBtn = FindGo(mainRig, "ClearAllBtn");

@@ -80,4 +80,14 @@ public class PillToggleButton : MonoBehaviour
         if (accessoriesIconRenderer != null && accessoriesNormalMat != null && accessoriesGlowMat != null)
             accessoriesIconRenderer.material = clothesSelected ? accessoriesNormalMat : accessoriesGlowMat;
     }
+
+    /// <summary>
+    /// Resets the pill to show Clothes selected. Called on reset.
+    /// </summary>
+    public void ResetToClothes()
+    {
+        ApplySelectionVisuals(true);
+        if (controller != null)
+            controller.ShowClothes();
+    }
 }
