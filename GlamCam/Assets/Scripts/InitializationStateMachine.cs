@@ -25,9 +25,22 @@ public class InitializationStateMachine : MonoBehaviour
     private State _currentState = State.Init;
     private Coroutine _transitionCoroutine;
 
+    // Cached references to Main UI pieces we want to toggle
+    private GameObject _uiRig;
+
+    private GameObject _topLeftArrow, _bottomLeftArrow, _dressLeftArrow, _fullbodyLeftArrow, _hatLeftArrow, _accessoriesLeftArrow;
+    private GameObject _topImage, _bottomImage, _dressImage, _fullbodyImage, _hatImage, _accessoriesImage;
+
+    private GameObject _pillBg;
+    private GameObject _clearAllBtn;
+    private GameObject _resetBtn;
+
     private void Start()
     {
-        // Safety: auto-find MultiSourceManager if not assigned
+        // MainRig should always be active for this approach
+        if (mainRig != null) mainRig.SetActive(true);
+
+        // Auto-find MultiSourceManager if not assigned
         if (multiSourceManager == null)
         {
             multiSourceManager = FindObjectOfType<MultiSourceManager>();
@@ -35,6 +48,7 @@ public class InitializationStateMachine : MonoBehaviour
                 Debug.LogWarning("[InitializationStateMachine] MultiSourceManager not found.");
         }
 
+        CacheMainUiReferences();
         EnterInitState();
     }
 
@@ -43,7 +57,6 @@ public class InitializationStateMachine : MonoBehaviour
         if (_currentState != State.Init) return;
         if (multiSourceManager == null) return;
 
-        // Poll measurement readiness
         if (multiSourceManager.IsMeasured)
         {
             BeginTransition();
@@ -53,7 +66,6 @@ public class InitializationStateMachine : MonoBehaviour
     private void BeginTransition()
     {
         if (_transitionCoroutine != null) return;
-
         _transitionCoroutine = StartCoroutine(TransitionRoutine());
     }
 
@@ -74,7 +86,10 @@ public class InitializationStateMachine : MonoBehaviour
 
         SetActive(initRig, true);
         SetActive(transitionRig, false);
-        SetActive(mainRig, false);
+
+        // MainRig stays ON, but we hide the Main phase UI pieces
+        SetMainUiVisible(false);
+
         SetActive(handCursor, false);
     }
 
@@ -84,7 +99,10 @@ public class InitializationStateMachine : MonoBehaviour
 
         SetActive(initRig, false);
         SetActive(transitionRig, true);
-        SetActive(mainRig, false);
+
+        // Still keep Main UI pieces hidden during transition
+        SetMainUiVisible(false);
+
         SetActive(handCursor, false);
     }
 
@@ -94,11 +112,14 @@ public class InitializationStateMachine : MonoBehaviour
 
         SetActive(initRig, false);
         SetActive(transitionRig, false);
-        SetActive(mainRig, true);
+
+        // Show Main phase UI pieces now
+        SetMainUiVisible(true);
+
         SetActive(handCursor, true);
     }
 
-    // public api
+    // Public API
     public void ResetToInit()
     {
         // Stop any in-flight transition
@@ -111,10 +132,80 @@ public class InitializationStateMachine : MonoBehaviour
         EnterInitState();
     }
 
-    // helper
+    private void SetMainUiVisible(bool visible)
+    {
+        // Toggle the LeftArrow + Image objects inside each selector
+        SetActive(_topLeftArrow, visible);
+        SetActive(_bottomLeftArrow, visible);
+        SetActive(_dressLeftArrow, visible);
+        SetActive(_fullbodyLeftArrow, visible);
+        SetActive(_hatLeftArrow, visible);
+        SetActive(_accessoriesLeftArrow, visible);
+
+        SetActive(_topImage, visible);
+        SetActive(_bottomImage, visible);
+        SetActive(_dressImage, visible);
+        SetActive(_fullbodyImage, visible);
+        SetActive(_hatImage, visible);
+        SetActive(_accessoriesImage, visible);
+
+        // PillNav child: PillBG
+        SetActive(_pillBg, visible);
+
+        // Buttons
+        SetActive(_clearAllBtn, visible);
+        SetActive(_resetBtn, visible);
+    }
+
+    private void CacheMainUiReferences()
+    {
+        if (mainRig == null) return;
+
+        // MainRig/UIRig
+        _uiRig = FindGo(mainRig, "UIRig");
+
+        // Selectors
+        // Each selector: LeftArrow (always hidden) + XImage (toggled)
+        _topLeftArrow = FindGo(mainRig, "UIRig/TopSelector/LeftArrow");
+        _topImage = FindGo(mainRig, "UIRig/TopSelector/TopImage");
+
+        _bottomLeftArrow = FindGo(mainRig, "UIRig/BottomSelector/LeftArrow");
+        _bottomImage = FindGo(mainRig, "UIRig/BottomSelector/BottomImage");
+
+        _dressLeftArrow = FindGo(mainRig, "UIRig/DressSelector/LeftArrow");
+        _dressImage = FindGo(mainRig, "UIRig/DressSelector/DressImage");
+
+        _fullbodyLeftArrow = FindGo(mainRig, "UIRig/FullbodySelector/LeftArrow");
+        _fullbodyImage = FindGo(mainRig, "UIRig/FullbodySelector/FullbodyImage");
+
+        _hatLeftArrow = FindGo(mainRig, "UIRig/HatSelector/LeftArrow");
+        _hatImage = FindGo(mainRig, "UIRig/HatSelector/HatImage");
+
+        _accessoriesLeftArrow = FindGo(mainRig, "UIRig/AccessoriesSelector/LeftArrow");
+        _accessoriesImage = FindGo(mainRig, "UIRig/AccessoriesSelector/AccessoryImage");
+
+        // PillNav child: PillBG
+        _pillBg = FindGo(mainRig, "PillNav/PillBG");
+
+        // Buttons
+        _clearAllBtn = FindGo(mainRig, "ClearAllBtn");
+        _resetBtn = FindGo(mainRig, "ResetBtn");
+    }
+
+    private GameObject FindGo(GameObject root, string path)
+    {
+        if (root == null) return null;
+        var t = root.transform.Find(path);
+        if (t == null)
+        {
+            Debug.LogWarning($"[InitializationStateMachine] Missing path under '{root.name}': {path}");
+            return null;
+        }
+        return t.gameObject;
+    }
+
     private void SetActive(GameObject go, bool active)
     {
-        if (go != null)
-            go.SetActive(active);
+        if (go != null) go.SetActive(active);
     }
 }
