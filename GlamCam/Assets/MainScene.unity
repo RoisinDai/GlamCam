@@ -3203,6 +3203,56 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 860802834}
   m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &908141542
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 908141544}
+  - component: {fileID: 908141543}
+  m_Layer: 0
+  m_Name: InitStateMachineGO
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &908141543
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 908141542}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62b4c3b2026d7064a957b5859b65753a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  initRig: {fileID: 1174051703}
+  transitionRig: {fileID: 1153367089}
+  mainRig: {fileID: 647770535}
+  handCursor: {fileID: 41033544}
+  multiSourceManager: {fileID: 1322628561}
+  transitionSeconds: 2
+--- !u!4 &908141544
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 908141542}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 2}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &922389659
 GameObject:
   m_ObjectHideFlags: 0
@@ -5338,6 +5388,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1793313927}
   - component: {fileID: 1793313928}
+  - component: {fileID: 1793313929}
   m_Layer: 0
   m_Name: ResetBtn
   m_TagString: Untagged
@@ -5382,6 +5433,20 @@ SphereCollider:
   serializedVersion: 3
   m_Radius: 0.46
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &1793313929
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1793313926}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ed36abbb35bad94dbdcf4f1c6a7d49a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  stateMachine: {fileID: 908141543}
+  avatarObjectName: clothed_avatar
 --- !u!1 &1806149801
 GameObject:
   m_ObjectHideFlags: 0
@@ -6102,3 +6167,4 @@ SceneRoots:
   - {fileID: 963570437}
   - {fileID: 41033549}
   - {fileID: 1322628562}
+  - {fileID: 908141544}
