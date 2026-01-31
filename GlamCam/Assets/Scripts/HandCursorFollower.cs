@@ -32,7 +32,11 @@ public class HandCursorFollower : MonoBehaviour
     [Header("Fist Detection")]
     public Material defaultMaterial;
     public Material fistClosedMaterial;
+    [Range(0.05f, 0.5f)]
+    public float fistDebounceTime = 0.15f;
     private bool _isFistClosed = false;
+    private bool _rawFistState = false;
+    private float _fistDebounceTimer = 0f;
 
     public bool GetIsFistClosed() => _isFistClosed;
 
@@ -173,9 +177,29 @@ public class HandCursorFollower : MonoBehaviour
 
     private void UpdateFistState(bool isFist)
     {
-        if (_isFistClosed == isFist) return;
-        _isFistClosed = isFist;
+        if (isFist)
+        {
+            // Closed detected – commit immediately
+            _fistDebounceTimer = 0f;
+            if (_isFistClosed) return;
+            _isFistClosed = true;
+            ApplyFistMaterial(true);
+            return;
+        }
 
+        // Open detected – only commit after debounce
+        if (!_isFistClosed) { _fistDebounceTimer = 0f; return; }
+
+        _fistDebounceTimer += Time.deltaTime;
+        if (_fistDebounceTimer < fistDebounceTime) return;
+
+        _isFistClosed = false;
+        _fistDebounceTimer = 0f;
+        ApplyFistMaterial(false);
+    }
+
+    private void ApplyFistMaterial(bool isFist)
+    {
         if (_renderers == null || _renderers.Length == 0) return;
 
         Material matToUse = isFist ? fistClosedMaterial : defaultMaterial;
@@ -184,9 +208,7 @@ public class HandCursorFollower : MonoBehaviour
         foreach (var r in _renderers)
         {
             if (r != null)
-            {
                 r.material = matToUse;
-            }
         }
     }
 
