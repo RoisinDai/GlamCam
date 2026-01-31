@@ -85,7 +85,7 @@ public class MultiSourceManager : MonoBehaviour {
             
             // For Body Mask - mapping color pixels to depth space
             _ColorMappedToDepthPoints = new DepthSpacePoint[colorFrameDesc.Width * colorFrameDesc.Height];
-            
+
             if (!_Sensor.IsOpen)
             {
                 _Sensor.Open();
@@ -130,6 +130,7 @@ public class MultiSourceManager : MonoBehaviour {
                                 bodyFrame.GetAndRefreshBodyData(_BodyData);
                                 
                                 // Get first tracked body
+                                // TODO: Get the closest tracked body to the camera
                                 _TrackedBody = _BodyData.FirstOrDefault(b => b != null && b.IsTracked);
                                 
                                 bodyFrame.Dispose();
@@ -196,207 +197,6 @@ public class MultiSourceManager : MonoBehaviour {
         float height = head.y - ((footLeft.y + footRight.y) * 0.5f);
         Debug.Log($"[MultiSourceManager] Measured user height: {height:F3}m");
         return height;
-    }
-
-    // GUI buttons for visualization
-    void OnGUI()
-    {
-        if (GUI.Button(new Rect(10, 10, 200, 50), "Capture Body Mask"))
-        {
-            Debug.Log("Button clicked - capturing body mask...");
-            CaptureBodyMask();
-        }
-        
-        if (GUI.Button(new Rect(10, 70, 200, 50), "Capture Silhouette"))
-        {
-            Debug.Log("Button clicked - capturing silhouette...");
-            CaptureSilhouette();
-        }
-    }
-    
-    /// <summary>
-    /// Captures raw BodyIndexFrame as a simple silhouette image.
-    /// White = body, Black = background. Resolution: 512×424.
-    /// </summary>
-    private void CaptureSilhouette()
-    {
-        if (_BodyIndexData == null)
-        {
-            Debug.LogError("CaptureSilhouette: _BodyIndexData is null");
-            return;
-        }
-        
-        // Create texture at depth resolution
-        Texture2D texture = new Texture2D(DEPTH_WIDTH, DEPTH_HEIGHT, TextureFormat.RGBA32, false);
-        Color32[] pixels = new Color32[DEPTH_WIDTH * DEPTH_HEIGHT];
-        
-        int bodyPixelCount = 0;
-        
-        for (int i = 0; i < _BodyIndexData.Length; i++)
-        {
-            if (_BodyIndexData[i] != 255)
-            {
-                // Body pixel - WHITE
-                pixels[i] = new Color32(255, 255, 255, 255);
-                bodyPixelCount++;
-            }
-            else
-            {
-                // Background - BLACK
-                pixels[i] = new Color32(0, 0, 0, 255);
-            }
-        }
-        
-        texture.SetPixels32(pixels);
-        texture.Apply();
-        
-        Debug.Log($"CaptureSilhouette: Found {bodyPixelCount} body pixels");
-        
-        // Save to Desktop
-        try
-        {
-            byte[] pngData = texture.EncodeToPNG();
-            string path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Desktop) + "/Silhouette.png";
-            System.IO.File.WriteAllBytes(path, pngData);
-            Debug.Log($"CaptureSilhouette: Saved to {path}");
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"CaptureSilhouette: Failed - {e.Message}");
-        }
-        
-        Destroy(texture);
-    }
-    
-    /// <summary>
-    /// Captures Body Mask - color image with background removed (Lab 05 approach).
-    /// Maps color pixels to depth space and checks BodyIndex to keep only body pixels.
-    /// </summary>
-    private void CaptureBodyMask()
-    {
-        Debug.Log("CaptureBodyMask: Starting capture...");
-        
-        // Checkpoint 1: Check frame data
-        if (_ColorData == null)
-        {
-            Debug.LogError("CaptureBodyMask: _ColorData is null - no color frame received");
-            return;
-        }
-        if (_DepthData == null)
-        {
-            Debug.LogError("CaptureBodyMask: _DepthData is null - no depth frame received");
-            return;
-        }
-        if (_BodyIndexData == null)
-        {
-            Debug.LogError("CaptureBodyMask: _BodyIndexData is null - no body index frame received");
-            return;
-        }
-        Debug.Log("CaptureBodyMask: All frame data available");
-        
-        // Checkpoint 2: Check mapper
-        if (_Mapper == null)
-        {
-            Debug.LogError("CaptureBodyMask: CoordinateMapper not available");
-            return;
-        }
-        Debug.Log("CaptureBodyMask: CoordinateMapper ready");
-        
-        // Map color frame to depth space
-        _Mapper.MapColorFrameToDepthSpace(_DepthData, _ColorMappedToDepthPoints);
-        
-        // Create output texture at color resolution
-        Texture2D texture = new Texture2D(ColorWidth, ColorHeight, TextureFormat.RGBA32, false);
-        Color32[] colors = new Color32[ColorWidth * ColorHeight];
-        
-        int bodyPixelCount = 0;
-        
-        // For each color pixel, check if it corresponds to a body
-        for (int colorIndex = 0; colorIndex < _ColorMappedToDepthPoints.Length; colorIndex++)
-        {
-            float colorMappedToDepthX = _ColorMappedToDepthPoints[colorIndex].X;
-            float colorMappedToDepthY = _ColorMappedToDepthPoints[colorIndex].Y;
-            
-            bool isBody = false;
-            
-            // Check if this color pixel maps to a valid depth point
-            if (!float.IsNegativeInfinity(colorMappedToDepthX) && 
-                !float.IsNegativeInfinity(colorMappedToDepthY))
-            {
-                int depthX = (int)(colorMappedToDepthX + 0.5f);
-                int depthY = (int)(colorMappedToDepthY + 0.5f);
-                
-                // Check bounds
-                if (depthX >= 0 && depthX < DEPTH_WIDTH && 
-                    depthY >= 0 && depthY < DEPTH_HEIGHT)
-                {
-                    int depthIndex = (depthY * DEPTH_WIDTH) + depthX;
-                    
-                    // Check if this pixel is a body (not 0xff/255)
-                    if (_BodyIndexData[depthIndex] != 255)
-                    {
-                        isBody = true;
-                        bodyPixelCount++;
-                    }
-                }
-            }
-            
-            if (isBody)
-            {
-                // Keep the original color (RGBA format: R, G, B, A)
-                int byteIndex = colorIndex * 4;
-                colors[colorIndex] = new Color32(
-                    _ColorData[byteIndex],     // R
-                    _ColorData[byteIndex + 1], // G
-                    _ColorData[byteIndex + 2], // B
-                    255                         // A (fully opaque)
-                );
-            }
-            else
-            {
-                // Background - make black/transparent
-                colors[colorIndex] = new Color32(0, 0, 0, 255);
-            }
-        }
-        
-        texture.SetPixels32(colors);
-        texture.Apply();
-        
-        Debug.Log($"CaptureBodyMask: Processed image - {bodyPixelCount} body pixels found");
-        
-        // Debug: Check sample color values
-        int sampleCount = 0;
-        for (int i = 0; i < colors.Length && sampleCount < 5; i++)
-        {
-            if (colors[i].r > 0 || colors[i].g > 0 || colors[i].b > 0)
-            {
-                Debug.Log($"Sample body pixel {sampleCount}: R={colors[i].r} G={colors[i].g} B={colors[i].b}");
-                sampleCount++;
-            }
-        }
-        if (sampleCount == 0)
-        {
-            // Check raw color data
-            Debug.Log($"No colored pixels found! Checking raw _ColorData...");
-            Debug.Log($"_ColorData length: {_ColorData.Length}");
-            Debug.Log($"Sample raw bytes [0-11]: {_ColorData[0]}, {_ColorData[1]}, {_ColorData[2]}, {_ColorData[3]}, {_ColorData[4]}, {_ColorData[5]}, {_ColorData[6]}, {_ColorData[7]}, {_ColorData[8]}, {_ColorData[9]}, {_ColorData[10]}, {_ColorData[11]}");
-        }
-        
-        // Checkpoint 3: Save to Desktop
-        try
-        {
-            byte[] pngData = texture.EncodeToPNG();
-            string path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.Desktop) + "/BodyMask_Capture.png";
-            Debug.Log($"CaptureBodyMask: Saving to {path}");
-            System.IO.File.WriteAllBytes(path, pngData);
-            Debug.Log($"CaptureBodyMask: SUCCESS! File saved to {path}");
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"CaptureBodyMask: Failed to save file - {e.Message}");
-        }
-        
-        Destroy(texture);
     }
     
     // =====================================================
