@@ -398,12 +398,16 @@ public class AvatarController : MonoBehaviour
     private HumanoidMeasurements _AvatarMeasurements = new();
 
     // Scaling factor variables
+    private const float AVATAR_WIDTH_HEIGHT_RATIO = 0.1791f; // avatar SpineMid width / height (30.15cm / 168.33cm)
     private float UniformScaleFactor = -1f;
     private ExtensionFactors _ExtensionFactors = new();
     private bool hasValidBody = false;
 
     // Non-uniform bone scaling system
     public FakeUMA fakeUMA;
+
+    // MultiSourceManager reference (for T-pose width measurement)
+    private MultiSourceManager _MultiSourceManager;
 
     // ========================================================================================
     // SMOOTHED CONTINUOUS BONE SCALING SYSTEM
@@ -454,6 +458,9 @@ public class AvatarController : MonoBehaviour
             Debug.LogError(ClothedBaseAvatar.name + " BodySourceManager component not found.");
         }
 
+        // Find MultiSourceManager for T-pose width measurement
+        _MultiSourceManager = FindObjectOfType<MultiSourceManager>();
+
         // Get the measurements of the ClothedBaseAvatar
         GetAvatarHeight();
 
@@ -482,6 +489,9 @@ public class AvatarController : MonoBehaviour
 
     void Update()
     {
+        // Gate: pause avatar tracking while waiting for T-pose measurement
+        if (_MultiSourceManager != null && !_MultiSourceManager.IsMeasured) return;
+
         hasValidBody = false;
 
         if (_BodyManager == null) return;
@@ -499,14 +509,14 @@ public class AvatarController : MonoBehaviour
             // Debug.Log("Animator has been disabled for manual bone control.");
         }
 
-        // Cache joints we need later
+        // Cache joints for use in this frame
         var joints = trackedBody.Joints;
 
-        // Height measurement (data only)
-        Vector3 head = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.Head]);
-        Vector3 footL = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootLeft]);
-        Vector3 footR = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.FootRight]);
-        _KinectUserMeasurements.height = head.y - ((footL.y + footR.y) * 0.5f);
+        // Use T-pose height from MultiSourceManager (needed by EstimateBodyBuildFactor)
+        if (_MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f)
+        {
+            _KinectUserMeasurements.height = _MultiSourceManager.MeasuredHeight;
+        }
 
         hasValidBody = true;
     }
@@ -568,6 +578,9 @@ public class AvatarController : MonoBehaviour
 
     void LateUpdate()
     {
+        // Gate: pause avatar tracking while waiting for T-pose measurement
+        if (_MultiSourceManager != null && !_MultiSourceManager.IsMeasured) return;
+
         if (!hasValidBody || trackedBody == null) return;
 
         // Phase 5.3: Execution order
@@ -588,16 +601,16 @@ public class AvatarController : MonoBehaviour
         Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
         ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
 
-        // 5. Apply uniform scaling ONCE (this is now mostly handled by continuous bone scaling)
-        if (UniformScaleFactor < 0f && _AvatarMeasurements.height > 0f)
+        // 5. Apply uniform scaling ONCE using T-pose height from MultiSourceManager
+        if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f)
         {
             UniformScaleFactor =
-                _KinectUserMeasurements.height / _AvatarMeasurements.height;
+                _MultiSourceManager.MeasuredHeight / _AvatarMeasurements.height;
 
             ClothedBaseAvatar.transform.localScale =
                 Vector3.one * UniformScaleFactor;
 
-            Debug.Log($"UniformScaleFactor set to {UniformScaleFactor:F3}");
+            Debug.Log($"UniformScaleFactor set to {UniformScaleFactor:F3} (T-pose height: {_MultiSourceManager.MeasuredHeight:F3}m, avatar height: {_AvatarMeasurements.height:F3})");
         }
 
         // 6. Optional: shoulder-based translation correction
@@ -1368,75 +1381,20 @@ public class AvatarController : MonoBehaviour
     // ========================================================================================
 
     /// <summary>
-    /// Estimates body build (thickness) factor from limb length proportions.
-    /// Uses statistical correlation: people with shorter limbs relative to height tend to be stockier.
+    /// Calculates body build (thickness) factor from T-pose SpineMid width measurement.
+    /// Compares the user's actual torso width against the avatar's expected width at that height.
     /// </summary>
     private float EstimateBodyBuildFactor()
     {
-        if (!hasValidBody || trackedBody == null)
+        if (_MultiSourceManager == null || _MultiSourceManager.MeasuredSpineMidWidth <= 0f
+            || _MultiSourceManager.MeasuredHeight <= 0f)
         {
             return 1.0f;
         }
 
-        // Get user height (already measured)
-        float userHeight = _KinectUserMeasurements.height;
-        if (userHeight <= 0f)
-        {
-            return 1.0f;
-        }
-
-        var joints = trackedBody.Joints;
-
-        // Measure total arm length (shoulder to wrist)
-        float leftArmLength = MeasureDistance(joints, Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft) +
-                             MeasureDistance(joints, Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft);
-        float rightArmLength = MeasureDistance(joints, Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight) +
-                              MeasureDistance(joints, Kinect.JointType.ElbowRight, Kinect.JointType.WristRight);
-        float avgArmLength = (leftArmLength + rightArmLength) * 0.5f;
-
-        // Measure total leg length (hip to ankle)
-        float leftLegLength = MeasureDistance(joints, Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft) +
-                             MeasureDistance(joints, Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft);
-        float rightLegLength = MeasureDistance(joints, Kinect.JointType.HipRight, Kinect.JointType.KneeRight) +
-                              MeasureDistance(joints, Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight);
-        float avgLegLength = (leftLegLength + rightLegLength) * 0.5f;
-
-        // Validate measurements
-        if (avgArmLength <= 0f || avgLegLength <= 0f)
-        {
-            return 1.0f;
-        }
-
-        // Calculate limb-to-height ratios
-        float armRatio = avgArmLength / userHeight;
-        float legRatio = avgLegLength / userHeight;
-
-        // Statistical model:
-        // Average ratios from anthropometric data:
-        // - Arm length is typically ~40% of height
-        // - Leg length is typically ~50% of height
-        // 
-        // People with shorter limbs relative to height are typically stockier (higher BMI)
-        // People with longer limbs relative to height are typically thinner (lower BMI)
-
-        float expectedArmRatio = 0.40f;
-        float expectedLegRatio = 0.50f;
-
-        // Calculate deviation from expected ratios
-        float armDeviation = expectedArmRatio - armRatio;  // Positive = shorter arms
-        float legDeviation = expectedLegRatio - legRatio;  // Positive = shorter legs
-
-        // Combine deviations (weighted average, legs more indicative of build)
-        float combinedDeviation = (armDeviation * 0.4f + legDeviation * 0.6f);
-
-        // Convert deviation to build factor
-        // For every 5% deviation in ratios, adjust thickness by ~10%
-        // This creates a reasonable correlation without extreme scaling
-        float buildFactor = 1.0f + (combinedDeviation * 2.0f);
-
-        // Safety clamping: allow 30% variation in thickness
+        float expectedWidth = AVATAR_WIDTH_HEIGHT_RATIO * _MultiSourceManager.MeasuredHeight;
+        float buildFactor = _MultiSourceManager.MeasuredSpineMidWidth / expectedWidth;
         buildFactor = Mathf.Clamp(buildFactor, 0.7f, 1.3f);
-
         return buildFactor;
     }
 
@@ -1448,5 +1406,36 @@ public class AvatarController : MonoBehaviour
         // Apply exponential moving average
         _SmoothedBuildFactor = Mathf.Lerp(_SmoothedBuildFactor, rawBuildFactor, thicknessSmoothingFactor);
         return _SmoothedBuildFactor;
+    }
+
+    // ========================================================================================
+    // RESTART
+    // ========================================================================================
+
+    /// <summary>
+    /// Resets all runtime measurement and scaling state so a new user can be calibrated.
+    /// Called by UI "Restart" button. Does NOT re-initialize infrastructure (FakeUMA, bone configs, etc.).
+    /// </summary>
+    public void Restart()
+    {
+        // Reset uniform scaling
+        UniformScaleFactor = -1f;
+        ClothedBaseAvatar.transform.localScale = Vector3.one;
+
+        // Reset all bone scales to original FBX values
+        fakeUMA.ResetAllBoneScales();
+
+        // Clear smoothed measurement history
+        _SmoothedKinectBoneLengths.Clear();
+        _SmoothedBuildFactor = 1.0f;
+
+        // Clear user measurements
+        _KinectUserMeasurements = new HumanoidMeasurements();
+
+        // Re-trigger T-pose measurement
+        if (_MultiSourceManager != null)
+        {
+            _MultiSourceManager.StartMeasurement();
+        }
     }
 }
