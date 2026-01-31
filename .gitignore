@@ -28,6 +28,7 @@ packages/*.nupkg
 # Others
 *.log
 *.tmp
+*.vsconfig
 
 # OpenCV library files
 opencv/
