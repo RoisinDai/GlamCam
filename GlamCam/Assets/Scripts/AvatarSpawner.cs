@@ -18,10 +18,20 @@ public class AvatarSpawner : MonoBehaviour
     // We need to add this as a component to the clothed avatar model after it is spawned.
     const string AVATAR_CONTROLLER_SCRIPT = "AvatarController";
 
+    const string BASE_AVATAR_GAMEOBJECT_NAME = "base_avatarMesh";
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)] // Run after scene loads, but before Start() is called on any object.
     static void OnAfterSceneLoad()
     {
 #if UNITY_EDITOR
+        // Create or find the parent GameObject for all clothed avatars
+        GameObject clothedAvatarsParent = GameObject.Find("ClothedAvatars");
+        if (clothedAvatarsParent == null)
+        {
+            clothedAvatarsParent = new GameObject("ClothedAvatars");
+            Debug.Log("[AvatarSpawner] Created ClothedAvatars parent GameObject.");
+        }
+
         // Find all FBX files in the clothed avatar directory.
         Debug.Log($"[AvatarSpawner] Looking for clothed avatar models in {CLOTHED_AVATAR_DIRECTORY}");
         string [] modelGuids = AssetDatabase.FindAssets("t:Model", new [] {CLOTHED_AVATAR_DIRECTORY});
@@ -41,41 +51,27 @@ public class AvatarSpawner : MonoBehaviour
             // Skip this object if it's already in the scene.
             if (GameObject.Find(modelPrefab.name) != null) continue;
 
-            // Spawn the model in the scene and get the Animator component
-            GameObject avatarInstance = SpawnModelInScene(modelPrefab);
+            // Spawn the model in the scene and get the instance
+            GameObject avatarInstance = SpawnModelInScene(modelPrefab, clothedAvatarsParent);
 
             // Perform setup of the model now that it is in the scene
             Animator avatarAnimator = SetupAnimatorComponent(avatarInstance, assetPath);
             AddAvatarControllerScriptToSpawnedAvatar(avatarInstance, avatarAnimator);
         }
+#endif
     }
 
     // Spawns a model in the scene and returns the game object.
-    private static GameObject SpawnModelInScene(GameObject modelPrefab)
+    private static GameObject SpawnModelInScene(GameObject modelPrefab, GameObject parent)
     {
-        GameObject modelInstance = Object.Instantiate(modelPrefab);
+        GameObject modelInstance = Object.Instantiate(modelPrefab, parent.transform);
         modelInstance.name = modelPrefab.name; // removes "(Clone) from the instance's name
 
         // For now, move the model to the origin but we can look to change this if needed
         modelInstance.transform.position = Vector3.zero;
 
-        // Disable all child meshes, except for the base avatar mesh named "clothed_avatarMesh"
-        var meshRenderers = modelInstance.GetComponentsInChildren<MeshRenderer>(true);
-        foreach (var meshRenderer in meshRenderers)
-        {
-            if (meshRenderer.gameObject.name != "clothed_avatarMesh")
-            {
-                meshRenderer.gameObject.SetActive(false);
-            }
-        }
-        var skinnedMeshRenderers = modelInstance.GetComponentsInChildren<SkinnedMeshRenderer>(true);
-        foreach (var skinnedMeshRenderer in skinnedMeshRenderers)
-        {
-            if (skinnedMeshRenderer.gameObject.name != "clothed_avatarMesh")
-            {
-                skinnedMeshRenderer.gameObject.SetActive(false);
-            }
-        }
+        // Deactivate the model instance
+        modelInstance.SetActive(false);
 
         // Set the base avatar's material to the Invisible Mask, which allows us to perform segmentation (NOT THE CLOTHES)
         // The goal of this material is to make the base avatar invisible in the scene, but still obscure the clothed avatar where it makes sense.
@@ -83,25 +79,25 @@ public class AvatarSpawner : MonoBehaviour
         Material invisibleMaskMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/InvisibleMask.mat");
         if (invisibleMaskMaterial != null)
         {
-            Transform meshTransform = modelInstance.transform.Find("clothed_avatarMesh");
+            Transform meshTransform = modelInstance.transform.Find(BASE_AVATAR_GAMEOBJECT_NAME);
             if (meshTransform != null)
             {
                 var meshRenderer = meshTransform.GetComponent<MeshRenderer>();
                 if (meshRenderer != null)
                 {
                     meshRenderer.sharedMaterial = invisibleMaskMaterial;
-                    Debug.Log("[AvatarSpawner] Set Invisible Mask material on MeshRenderer of 'clothed_avatarMesh'.");
+                    Debug.Log($"[AvatarSpawner] Set Invisible Mask material on MeshRenderer of '{BASE_AVATAR_GAMEOBJECT_NAME}'.");
                 }
                 var skinnedMeshRenderer = meshTransform.GetComponent<SkinnedMeshRenderer>();
                 if (skinnedMeshRenderer != null)
                 {
                     skinnedMeshRenderer.sharedMaterial = invisibleMaskMaterial;
-                    Debug.Log("[AvatarSpawner] Set Invisible Mask material on SkinnedMeshRenderer of 'clothed_avatarMesh'.");
+                    Debug.Log($"[AvatarSpawner] Set Invisible Mask material on SkinnedMeshRenderer of '{BASE_AVATAR_GAMEOBJECT_NAME}'.");
                 }
             }
             else
             {
-                Debug.LogWarning("[AvatarSpawner] Child named 'clothed_avatarMesh' not found in model instance.");
+                Debug.LogWarning($"[AvatarSpawner] Child named '{BASE_AVATAR_GAMEOBJECT_NAME}' not found in model instance.");
             }
         }
         else
@@ -162,5 +158,4 @@ public class AvatarSpawner : MonoBehaviour
 
         Debug.Log($"[AvatarSpawner] Added AvatarController script to: {avatarInstance.name}");
     }
-#endif
 }

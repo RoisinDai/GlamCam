@@ -24,45 +24,45 @@ public class CarouselSelector : MonoBehaviour
     {
         ["Tops"] = new[]
         {
-            "f_lusekoftaMesh",
-            "sweater_fishermanMesh",
-            "Polo_t-shirtMesh",
-            "vintagetopMesh",
-            "elvs_butterflydiscotop1Mesh",
-            "knitted_sweater_01Mesh",
+            "f_lusekofta",
+            "sweater_fisherman",
+            "Polo_t-shirt",
+            "vintagetop",
+            "elvs_butterflydiscotop1",
+            "knitted_sweater_01",
         },
         ["Bottoms"] = new[]
         {
-            "pleated_skirtelv1Mesh",
-            "mariaskirtMesh",
-            "elvs_gored_elephantpant1Mesh",
-            "elvs_disco_pant_drufflesMesh",
-            "m_trousers_02Mesh",
+            "pleated_skirtelv1",
+            "mariaskirt",
+            "elvs_gored_elephantpant1",
+            "elvs_disco_pant_druffles",
+            "m_trousers_02",
         },
         ["Dresses"] = new[]
         {
-            "elvs_goddessdress1Mesh",
-            "qipaoMesh",
-            "elvs_goddess_dress2Mesh",
-            "elvs_mini_halterdressMesh",
-            "elvs_goddessdress8Mesh",
+            "elvs_goddessdress1",
+            "qipao",
+            "elvs_goddess_dress2",
+            "elvs_mini_halterdress",
+            "elvs_goddessdress8",
         },
         ["Fullbodies"] = new[]
         {
-            "rescueteam_jacket_maleMesh",
-            "mars_suitMesh",
+            "rescueteam_jacket_male",
+            "mars_suit",
         },
         ["Hats"] = new[]
         {
-            "pillow_manMesh",
-            "cl_don_quixote_hatMesh",
-            "tophat1Mesh",
+            "pillow_man",
+            "cl_don_quixote_hat",
+            "tophat1",
         },
         ["Accessories"] = new[]
         {
-            "suitcaseMesh",
-            "bowMesh",
-            "tennisracketMesh",
+            "suitcase",
+            "bow",
+            "tennisracket",
         },
     };
 
