@@ -19,8 +19,6 @@ public class HandCursorFollower : MonoBehaviour
     private CanvasGroup _canvasGroup;
 
     [Header("Fist Detection")]
-    public Material defaultMaterial;
-    public Material fistClosedMaterial;
     [Range(0.05f, 0.5f)]
     public float fistDebounceTime = 0.15f;
     private bool _isFistClosed = false;
@@ -121,7 +119,6 @@ public class HandCursorFollower : MonoBehaviour
             _fistDebounceTimer = 0f;
             if (_isFistClosed) return;
             _isFistClosed = true;
-            ApplyFistMaterial(true);
             return;
         }
 
@@ -133,21 +130,6 @@ public class HandCursorFollower : MonoBehaviour
 
         _isFistClosed = false;
         _fistDebounceTimer = 0f;
-        ApplyFistMaterial(false);
-    }
-
-    private void ApplyFistMaterial(bool isFist)
-    {
-        if (_renderers == null || _renderers.Length == 0) return;
-
-        Material matToUse = isFist ? fistClosedMaterial : defaultMaterial;
-        if (matToUse == null) return;
-
-        foreach (var r in _renderers)
-        {
-            if (r != null)
-                r.material = matToUse;
-        }
     }
 
     private Kinect.Body GetFirstTrackedBody(Kinect.Body[] bodies)
