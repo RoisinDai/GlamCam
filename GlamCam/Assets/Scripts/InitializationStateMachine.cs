@@ -15,6 +15,7 @@ public class InitializationStateMachine : MonoBehaviour
     public GameObject transitionRig;
     public GameObject mainRig;
     public GameObject handCursor;
+    public GameObject handCursorLeft;
 
     [Header("Measurement Source")]
     public MultiSourceManager multiSourceManager;
@@ -92,6 +93,7 @@ public class InitializationStateMachine : MonoBehaviour
         SetMainUiVisible(false);
 
         SetActive(handCursor, false);
+        SetActive(handCursorLeft, false);
     }
 
     private void EnterTransitionState()
@@ -105,6 +107,7 @@ public class InitializationStateMachine : MonoBehaviour
         SetMainUiVisible(false);
 
         SetActive(handCursor, false);
+        SetActive(handCursorLeft, false);
     }
 
     private void EnterMainState()
@@ -118,6 +121,7 @@ public class InitializationStateMachine : MonoBehaviour
         SetMainUiVisible(true);
 
         SetActive(handCursor, true);
+        SetActive(handCursorLeft, true);
     }
 
     // Public API

@@ -135,9 +135,8 @@ public class MultiSourceManager : MonoBehaviour {
                                 bodyIndexFrame.CopyFrameDataToArray(_BodyIndexData);
                                 bodyFrame.GetAndRefreshBodyData(_BodyData);
                                 
-                                // Get first tracked body
-                                // TODO: Get the closest tracked body to the camera
-                                _TrackedBody = _BodyData.FirstOrDefault(b => b != null && b.IsTracked);
+                                // Get the closest tracked body to the camera
+                                _TrackedBody = GetClosestTrackedBody(_BodyData);
                                 
                                 bodyFrame.Dispose();
                                 bodyFrame = null;
@@ -330,6 +329,47 @@ public class MultiSourceManager : MonoBehaviour {
     public Body GetTrackedBody()
     {
         return _TrackedBody;
+    }
+
+    /// <summary>
+    /// Selects the tracked body closest to the Kinect camera based on average torso Z depth.
+    /// Matches the same logic used by AvatarController.GetClosestTrackedBody().
+    /// </summary>
+    private Body GetClosestTrackedBody(Body[] bodies)
+    {
+        Body closestBody = null;
+        float closestZ = float.MaxValue;
+
+        foreach (var body in bodies)
+        {
+            if (body == null || !body.IsTracked) continue;
+
+            var joints = body.Joints;
+            float avgZ = 0f;
+            int count = 0;
+
+            var torsoJoints = new[] { JointType.SpineBase, JointType.SpineMid, JointType.SpineShoulder };
+            foreach (var jt in torsoJoints)
+            {
+                if (joints[jt].TrackingState != TrackingState.NotTracked)
+                {
+                    avgZ += joints[jt].Position.Z;
+                    count++;
+                }
+            }
+
+            if (count > 0)
+            {
+                avgZ /= count;
+                if (avgZ < closestZ)
+                {
+                    closestZ = avgZ;
+                    closestBody = body;
+                }
+            }
+        }
+
+        return closestBody;
     }
     
     /// <summary>
