@@ -584,8 +584,6 @@ public class AvatarController : MonoBehaviour
         if (!hasValidBody || trackedBody == null) return;
 
         // Phase 5.3: Execution order
-        // 1. First, update bone scaling based on Kinect measurements
-        UpdateContinuousBoneScaling();
 
         // 2. Then, apply forward kinematics (bone rotations)
         ApplyForwardKinematics(trackedBody);
@@ -609,6 +607,9 @@ public class AvatarController : MonoBehaviour
 
             ClothedBaseAvatar.transform.localScale =
                 Vector3.one * UniformScaleFactor;
+
+            // 1. Update bone scaling based on Kinect measurements
+            UpdateContinuousBoneScaling();
 
             Debug.Log($"UniformScaleFactor set to {UniformScaleFactor:F3} (T-pose height: {_MultiSourceManager.MeasuredHeight:F3}m, avatar height: {_AvatarMeasurements.height:F3})");
         }
@@ -677,7 +678,7 @@ public class AvatarController : MonoBehaviour
         Vector3 delta = (kinectShoulderAvg - modelShoulderAvg);
 
         Vector3 avatarPosition = ClothedBaseAvatar.transform.position;
-        ClothedBaseAvatar.transform.position = new Vector3(avatarPosition.x, avatarPosition.y + delta.y + 0.5f, avatarPosition.z); // Small offset from experimental results
+        ClothedBaseAvatar.transform.position = new Vector3(avatarPosition.x, avatarPosition.y + delta.y, avatarPosition.z); // Small offset from experimental results
     }
 
     private void RotateAvatarBasedOnShoulders(Kinect.Joint leftShoulder, Kinect.Joint rightShoulder)
@@ -1282,6 +1283,7 @@ public class AvatarController : MonoBehaviour
 
             // Phase 4.1: Calculate DESIRED world scale factor
             float desiredLengthScale = CalculateBoneScaleFactor(kinectLength, avatarLength);
+            // if 
 
             // Get the bone transform
             Transform boneTransform = animator.GetBoneTransform(config.unityBone);
