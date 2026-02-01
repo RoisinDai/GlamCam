@@ -6,7 +6,6 @@ public class HandCursorFollower : MonoBehaviour
     public GameObject bodySourceManager;
 
     public bool useClosestTrackedBody = true;
-    public float depthFromCamera = 16f;
     public bool smoothMovement = true;
 
     [Range(0.01f, 1f)]
