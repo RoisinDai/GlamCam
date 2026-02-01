@@ -34,7 +34,7 @@ public class MultiSourceManager : MonoBehaviour {
     private float _TPoseHoldTimer = 0f;
     private const float TPOSE_HOLD_DURATION = 1.0f;
     private const float TPOSE_ARM_EXTENSION_MIN = 0.3f; // minimum horizontal arm spread (meters)
-    private const float TPOSE_ANGLE_RATIO_MAX = 0.3f;   // max |deltaY/deltaX| (~17° from horizontal)
+    private const float TPOSE_ANGLE_RATIO_MAX = 0.4f;   // max |deltaY/deltaX| (~22° from horizontal)
     
     // For color-to-depth mapping (Body Mask)
     private DepthSpacePoint[] _ColorMappedToDepthPoints;
