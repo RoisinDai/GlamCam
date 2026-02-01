@@ -9,7 +9,7 @@ public class CarouselArrowButton : MonoBehaviour
     [Header("Raycast Settings")]
     public Camera avatarCamera;
     public float maxRayDistance = 30f;
-    public LayerMask uiLayerMask = LayerMask.GetMask("UI3D");
+    public LayerMask uiLayerMask;
 
     private float _nextAllowedTime = 0f;
     private Collider _collider;
@@ -21,6 +21,7 @@ public class CarouselArrowButton : MonoBehaviour
 
     void Start()
     {
+        uiLayerMask = LayerMask.GetMask("UI3D");
         _collider = GetComponent<Collider>();
         if (_collider == null)
         {
