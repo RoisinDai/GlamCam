@@ -584,8 +584,6 @@ public class AvatarController : MonoBehaviour
         if (!hasValidBody || trackedBody == null) return;
 
         // Phase 5.3: Execution order
-        // 1. First, update bone scaling based on Kinect measurements
-        UpdateContinuousBoneScaling();
 
         // 2. Then, apply forward kinematics (bone rotations)
         ApplyForwardKinematics(trackedBody);
@@ -602,13 +600,16 @@ public class AvatarController : MonoBehaviour
         ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
 
         // 5. Apply uniform scaling ONCE using T-pose height from MultiSourceManager
-        if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f)
+        if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f && _MultiSourceManager.MeasuredSpineMidWidth > 0f)
         {
             UniformScaleFactor =
                 _KinectUserMeasurements.height / _AvatarMeasurements.height;
 
             ClothedBaseAvatar.transform.localScale =
                 Vector3.one * UniformScaleFactor;
+
+            // 1. Update bone scaling based on Kinect measurements
+            UpdateContinuousBoneScaling();
 
             Debug.Log($"UniformScaleFactor set to {UniformScaleFactor:F3} (T-pose height: {_MultiSourceManager.MeasuredHeight:F3}m, avatar height: {_AvatarMeasurements.height:F3})");
         }
@@ -677,7 +678,7 @@ public class AvatarController : MonoBehaviour
         Vector3 delta = (kinectShoulderAvg - modelShoulderAvg);
 
         Vector3 avatarPosition = ClothedBaseAvatar.transform.position;
-        ClothedBaseAvatar.transform.position = new Vector3(avatarPosition.x, avatarPosition.y + delta.y + 0.5f, avatarPosition.z); // Small offset from experimental results
+        ClothedBaseAvatar.transform.position = new Vector3(avatarPosition.x, avatarPosition.y + delta.y, avatarPosition.z); // Small offset from experimental results
     }
 
     private void RotateAvatarBasedOnShoulders(Kinect.Joint leftShoulder, Kinect.Joint rightShoulder)
@@ -1156,6 +1157,37 @@ public class AvatarController : MonoBehaviour
         return 0f;
     }
 
+    /// <summary>
+    /// Returns the fixed T-pose bone length (in raw meters) for a given Unity bone.
+    /// Maps bilateral bones (left/right) to the averaged T-pose measurement from MultiSourceManager.
+    /// </summary>
+    private float GetTPoseBoneLength(HumanBodyBones bone)
+    {
+        if (_MultiSourceManager == null) return -1f;
+
+        switch (bone)
+        {
+            case HumanBodyBones.LeftUpperArm:
+            case HumanBodyBones.RightUpperArm:
+                return _MultiSourceManager.MeasuredUpperArmLength;
+
+            case HumanBodyBones.LeftLowerArm:
+            case HumanBodyBones.RightLowerArm:
+                return _MultiSourceManager.MeasuredLowerArmLength;
+
+            case HumanBodyBones.LeftUpperLeg:
+            case HumanBodyBones.RightUpperLeg:
+                return _MultiSourceManager.MeasuredUpperLegLength;
+
+            case HumanBodyBones.LeftLowerLeg:
+            case HumanBodyBones.RightLowerLeg:
+                return _MultiSourceManager.MeasuredLowerLegLength;
+
+            default:
+                return -1f;
+        }
+    }
+
     // ========================================================================================
     // PHASE 4: SCALE FACTOR CALCULATION
     // ========================================================================================
@@ -1236,13 +1268,8 @@ public class AvatarController : MonoBehaviour
                 continue;
             }
 
-            // Phase 3: Measure smoothed Kinect bone length
-            float kinectLength = MeasureSmoothedKinectBoneLength(
-                trackedBody, 
-                config.startJoint, 
-                config.endJoint, 
-                config.unityBone
-            );
+            // Use fixed T-pose bone length from MultiSourceManager (no per-frame Kinect jitter)
+            float kinectLength = GetTPoseBoneLength(config.unityBone);
 
             if (kinectLength <= 0f)
             {
@@ -1256,6 +1283,7 @@ public class AvatarController : MonoBehaviour
 
             // Phase 4.1: Calculate DESIRED world scale factor
             float desiredLengthScale = CalculateBoneScaleFactor(kinectLength, avatarLength);
+            // if 
 
             // Get the bone transform
             Transform boneTransform = animator.GetBoneTransform(config.unityBone);
@@ -1394,7 +1422,6 @@ public class AvatarController : MonoBehaviour
 
         float expectedWidth = AVATAR_WIDTH_HEIGHT_RATIO * _MultiSourceManager.MeasuredHeight;
         float buildFactor = _MultiSourceManager.MeasuredSpineMidWidth / expectedWidth;
-        buildFactor = Mathf.Clamp(buildFactor, 0.7f, 1.3f);
         return buildFactor;
     }
 

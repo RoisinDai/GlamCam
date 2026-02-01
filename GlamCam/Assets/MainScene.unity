@@ -1703,7 +1703,7 @@ MonoBehaviour:
   isNext: 0
   cooldownSeconds: 0.35
   avatarCamera: {fileID: 300744147}
-  maxRayDistance: 20
+  maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
@@ -2806,7 +2806,7 @@ MonoBehaviour:
   isNext: 0
   cooldownSeconds: 0.35
   avatarCamera: {fileID: 300744147}
-  maxRayDistance: 20
+  maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
@@ -2897,7 +2897,7 @@ MonoBehaviour:
   isNext: 0
   cooldownSeconds: 0.35
   avatarCamera: {fileID: 300744147}
-  maxRayDistance: 20
+  maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
@@ -3195,7 +3195,7 @@ MonoBehaviour:
   isNext: 0
   cooldownSeconds: 0.35
   avatarCamera: {fileID: 300744147}
-  maxRayDistance: 20
+  maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
@@ -3718,7 +3718,7 @@ MonoBehaviour:
   accessoriesGlowMat: {fileID: 2100000, guid: 850195c05ae3a9c41af8abba3ae800ac, type: 2}
   defaultClothesSelected: 1
   avatarCamera: {fileID: 300744147}
-  maxRayDistance: 20
+  maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
@@ -4655,7 +4655,7 @@ MonoBehaviour:
   isNext: 0
   cooldownSeconds: 0.35
   avatarCamera: {fileID: 300744147}
-  maxRayDistance: 10
+  maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
@@ -5426,7 +5426,7 @@ MonoBehaviour:
   avatarObjectName: clothed_avatar
   cooldownSeconds: 0.5
   avatarCamera: {fileID: 300744147}
-  maxRayDistance: 20
+  maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
@@ -5509,7 +5509,7 @@ MonoBehaviour:
   accessoriesGlowMat: {fileID: 2100000, guid: 850195c05ae3a9c41af8abba3ae800ac, type: 2}
   defaultClothesSelected: 1
   avatarCamera: {fileID: 300744147}
-  maxRayDistance: 20
+  maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
@@ -5564,7 +5564,7 @@ MonoBehaviour:
   isNext: 0
   cooldownSeconds: 0.35
   avatarCamera: {fileID: 300744147}
-  maxRayDistance: 20
+  maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
@@ -5872,7 +5872,7 @@ MonoBehaviour:
   accessories: {fileID: 922389661}
   cooldownSeconds: 0.5
   avatarCamera: {fileID: 300744147}
-  maxRayDistance: 20
+  maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
