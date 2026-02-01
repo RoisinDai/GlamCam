@@ -199,166 +199,6 @@ Transform:
   - {fileID: 659539807}
   m_Father: {fileID: 1979849423}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &41033544
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 41033549}
-  - component: {fileID: 41033548}
-  - component: {fileID: 41033547}
-  - component: {fileID: 41033546}
-  - component: {fileID: 41033545}
-  - component: {fileID: 41033550}
-  m_Layer: 0
-  m_Name: HandCursor
-  m_TagString: HandCursor
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!54 &41033545
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 41033544}
-  serializedVersion: 5
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
---- !u!135 &41033546
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 41033544}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
---- !u!23 &41033547
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 41033544}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2100000, guid: 9b7cd88c0815a614e8acaabb577f39e5, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!33 &41033548
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 41033544}
-  m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
---- !u!4 &41033549
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 41033544}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 16}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &41033550
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 41033544}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cbfbeadff3a26e34f8b5908436257221, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  bodySourceManager: {fileID: 1698423884}
-  useClosestTrackedBody: 1
-  positionOffset: {x: 0, y: 0, z: 0}
-  avatarCamera: {fileID: 300744147}
-  depthFromCamera: 16
-  smoothMovement: 1
-  smoothing: 0.4
-  hideWhenNotTracked: 1
-  defaultMaterial: {fileID: 2100000, guid: 9b7cd88c0815a614e8acaabb577f39e5, type: 2}
-  fistClosedMaterial: {fileID: 2100000, guid: 20d30caf635966747b5a61beacc02856, type: 2}
-  fistDebounceTime: 0.15
 --- !u!1 &62046092
 GameObject:
   m_ObjectHideFlags: 0
@@ -1824,7 +1664,7 @@ GameObject:
   - component: {fileID: 557342824}
   - component: {fileID: 557342823}
   - component: {fileID: 557342825}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: LeftArrow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1840,7 +1680,7 @@ Transform:
   m_GameObject: {fileID: 557342821}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.215, y: 0, z: 0}
+  m_LocalPosition: {x: -0.21, y: 0, z: 0}
   m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1862,6 +1702,11 @@ MonoBehaviour:
   selector: {fileID: 776061567}
   isNext: 0
   cooldownSeconds: 0.35
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 20
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!65 &557342824
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2282,8 +2127,8 @@ Transform:
   m_GameObject: {fileID: 647770535}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 16}
-  m_LocalScale: {x: 10, y: 10, z: 10}
+  m_LocalPosition: {x: 0, y: 0, z: 2}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1318231825}
@@ -2798,8 +2643,8 @@ Transform:
   m_GameObject: {fileID: 739525872}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.1, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -0.057, y: 0, z: 0}
+  m_LocalScale: {x: 0.95, y: 0.95, z: 0.95}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2060992272}
@@ -2922,7 +2767,7 @@ GameObject:
   - component: {fileID: 790169149}
   - component: {fileID: 790169148}
   - component: {fileID: 790169150}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: LeftArrow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2938,7 +2783,7 @@ Transform:
   m_GameObject: {fileID: 790169146}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.215, y: 0, z: 0}
+  m_LocalPosition: {x: -0.21, y: 0, z: 0}
   m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2960,6 +2805,11 @@ MonoBehaviour:
   selector: {fileID: 1539245896}
   isNext: 0
   cooldownSeconds: 0.35
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 20
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!65 &790169149
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3008,8 +2858,7 @@ GameObject:
   - component: {fileID: 837172497}
   - component: {fileID: 837172496}
   - component: {fileID: 837172499}
-  - component: {fileID: 837172498}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: LeftArrow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3025,7 +2874,7 @@ Transform:
   m_GameObject: {fileID: 837172494}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.215, y: 0, z: 0}
+  m_LocalPosition: {x: -0.21, y: 0, z: 0}
   m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3047,6 +2896,11 @@ MonoBehaviour:
   selector: {fileID: 2060992273}
   isNext: 0
   cooldownSeconds: 0.35
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 20
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!65 &837172497
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3068,18 +2922,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!114 &837172498
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 837172494}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eb9339284fc4dca47983a43a546554d6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &837172499
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3092,7 +2934,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43ab33f4319dcd34e97f47d7a262de99, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 0}
+  target: {fileID: 1096057106}
   hoverScale: 1.3
   speed: 12
 --- !u!1 &860802834
@@ -3236,7 +3078,7 @@ MonoBehaviour:
   initRig: {fileID: 1174051703}
   transitionRig: {fileID: 1153367089}
   mainRig: {fileID: 647770535}
-  handCursor: {fileID: 41033544}
+  handCursor: {fileID: 0}
   multiSourceManager: {fileID: 1322628561}
   transitionSeconds: 2
 --- !u!4 &908141544
@@ -3314,7 +3156,7 @@ GameObject:
   - component: {fileID: 936918026}
   - component: {fileID: 936918025}
   - component: {fileID: 936918027}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: LeftArrow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3330,7 +3172,7 @@ Transform:
   m_GameObject: {fileID: 936918023}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.215, y: 0, z: 0}
+  m_LocalPosition: {x: -0.21, y: 0, z: 0}
   m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3352,6 +3194,11 @@ MonoBehaviour:
   selector: {fileID: 1479894929}
   isNext: 0
   cooldownSeconds: 0.35
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 20
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!65 &936918026
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3702,7 +3549,7 @@ GameObject:
   - component: {fileID: 1062628097}
   - component: {fileID: 1062628098}
   - component: {fileID: 1062628099}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: ClothesBtn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -3769,6 +3616,11 @@ MonoBehaviour:
   accessoriesNormalMat: {fileID: 2100000, guid: 576ff2555e65eae468bb7c0de5cc94ae, type: 2}
   accessoriesGlowMat: {fileID: 2100000, guid: 850195c05ae3a9c41af8abba3ae800ac, type: 2}
   defaultClothesSelected: 1
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 20
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!1 &1096057105
 GameObject:
   m_ObjectHideFlags: 0
@@ -3951,8 +3803,8 @@ Transform:
   m_GameObject: {fileID: 1153367089}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 16}
-  m_LocalScale: {x: 8, y: 8, z: 8}
+  m_LocalPosition: {x: 0, y: 0, z: 2}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 860802835}
@@ -3983,8 +3835,8 @@ Transform:
   m_GameObject: {fileID: 1174051703}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 16}
-  m_LocalScale: {x: 8, y: 8, z: 8}
+  m_LocalPosition: {x: 0, y: 0, z: 2}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 133676667}
@@ -4663,7 +4515,7 @@ GameObject:
   - component: {fileID: 1497141240}
   - component: {fileID: 1497141239}
   - component: {fileID: 1497141241}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: LeftArrow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -4679,7 +4531,7 @@ Transform:
   m_GameObject: {fileID: 1497141237}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.215, y: 0, z: 0}
+  m_LocalPosition: {x: -0.21, y: 0, z: 0}
   m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4701,6 +4553,11 @@ MonoBehaviour:
   selector: {fileID: 153785435}
   isNext: 0
   cooldownSeconds: 0.35
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 10
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!65 &1497141240
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -4788,6 +4645,164 @@ MonoBehaviour:
   resourcesFolder: Dresses
   startIndex: 0
   logChanges: 1
+--- !u!1 &1613145669
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1613145675}
+  - component: {fileID: 1613145674}
+  - component: {fileID: 1613145673}
+  - component: {fileID: 1613145672}
+  - component: {fileID: 1613145671}
+  - component: {fileID: 1613145670}
+  m_Layer: 0
+  m_Name: HandCursor
+  m_TagString: HandCursor
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1613145670
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1613145669}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cbfbeadff3a26e34f8b5908436257221, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bodySourceManager: {fileID: 1698423884}
+  useClosestTrackedBody: 1
+  depthFromCamera: 16
+  smoothMovement: 1
+  smoothing: 0.4
+  hideWhenNotTracked: 1
+  defaultMaterial: {fileID: 2100000, guid: 942f14bba9a2f87449333efc93aaf276, type: 2}
+  fistClosedMaterial: {fileID: 2100000, guid: 0ec5bdf1d82454b40989d25c3652bc59, type: 2}
+  fistDebounceTime: 0.15
+--- !u!54 &1613145671
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1613145669}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
+--- !u!135 &1613145672
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1613145669}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 0.5
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!23 &1613145673
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1613145669}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 942f14bba9a2f87449333efc93aaf276, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &1613145674
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1613145669}
+  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &1613145675
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1613145669}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 16}
+  m_LocalScale: {x: 0.8, y: 0.8, z: 0.8}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1619384460
 GameObject:
   m_ObjectHideFlags: 0
@@ -4922,8 +4937,8 @@ Transform:
   m_GameObject: {fileID: 1681657733}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.496, y: 0, z: 0}
-  m_LocalScale: {x: 0.5745432, y: 0.6842396, z: 0.5}
+  m_LocalPosition: {x: -0.5, y: -0.005, z: 0}
+  m_LocalScale: {x: 0.55, y: 0.57, z: 0.55}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1789550442}
@@ -5282,7 +5297,7 @@ GameObject:
   - component: {fileID: 1793313927}
   - component: {fileID: 1793313928}
   - component: {fileID: 1793313929}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: ResetBtn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5298,8 +5313,8 @@ Transform:
   m_GameObject: {fileID: 1793313926}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.496, y: -0.33, z: 0}
-  m_LocalScale: {x: 0.15, y: 0.15, z: 0.15}
+  m_LocalPosition: {x: -0.5, y: -0.33, z: 0}
+  m_LocalScale: {x: 0.13, y: 0.13, z: 0.13}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 582213447}
@@ -5341,6 +5356,11 @@ MonoBehaviour:
   stateMachine: {fileID: 908141543}
   avatarObjectName: clothed_avatar
   cooldownSeconds: 0.5
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 20
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!1 &1806149801
 GameObject:
   m_ObjectHideFlags: 0
@@ -5352,7 +5372,7 @@ GameObject:
   - component: {fileID: 1806149802}
   - component: {fileID: 1806149803}
   - component: {fileID: 1806149804}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: AccessoriesBtn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5419,6 +5439,11 @@ MonoBehaviour:
   accessoriesNormalMat: {fileID: 2100000, guid: 576ff2555e65eae468bb7c0de5cc94ae, type: 2}
   accessoriesGlowMat: {fileID: 2100000, guid: 850195c05ae3a9c41af8abba3ae800ac, type: 2}
   defaultClothesSelected: 1
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 20
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!1 &1814464579
 GameObject:
   m_ObjectHideFlags: 0
@@ -5431,7 +5456,7 @@ GameObject:
   - component: {fileID: 1814464582}
   - component: {fileID: 1814464581}
   - component: {fileID: 1814464583}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: LeftArrow
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5447,7 +5472,7 @@ Transform:
   m_GameObject: {fileID: 1814464579}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.215, y: 0, z: 0}
+  m_LocalPosition: {x: -0.21, y: 0, z: 0}
   m_LocalScale: {x: 0.2, y: 0.2, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -5469,6 +5494,11 @@ MonoBehaviour:
   selector: {fileID: 1979849424}
   isNext: 0
   cooldownSeconds: 0.35
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 20
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!65 &1814464582
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -5709,7 +5739,7 @@ GameObject:
   - component: {fileID: 1987815456}
   - component: {fileID: 1987815457}
   - component: {fileID: 1987815458}
-  m_Layer: 0
+  m_Layer: 3
   m_Name: ClearAllBtn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -5725,8 +5755,8 @@ Transform:
   m_GameObject: {fileID: 1987815454}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.496, y: 0.334, z: 0}
-  m_LocalScale: {x: 0.15, y: 0.15, z: 0.15}
+  m_LocalPosition: {x: -0.5, y: 0.3, z: 0}
+  m_LocalScale: {x: 0.13, y: 0.13, z: 0.13}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 224078266}
@@ -5771,8 +5801,12 @@ MonoBehaviour:
   fullbodies: {fileID: 1100093238}
   hats: {fileID: 19601563}
   accessories: {fileID: 922389661}
-  pressDistance: 0.04
   cooldownSeconds: 0.5
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 20
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
 --- !u!114 &1987815458
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6017,7 +6051,7 @@ SceneRoots:
   - {fileID: 1988608401}
   - {fileID: 75230359}
   - {fileID: 963570437}
-  - {fileID: 41033549}
   - {fileID: 1322628562}
   - {fileID: 908141544}
   - {fileID: 2031938107}
+  - {fileID: 1613145675}

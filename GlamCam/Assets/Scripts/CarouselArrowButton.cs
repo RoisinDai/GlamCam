@@ -6,6 +6,11 @@ public class CarouselArrowButton : MonoBehaviour
     public bool isNext = true;          // RightArrow=true, LeftArrow=false
     public float cooldownSeconds = 0.35f;
 
+    [Header("Raycast Settings")]
+    public Camera avatarCamera;
+    public float maxRayDistance = 20f;
+    public LayerMask uiLayerMask = LayerMask.GetMask("UI3D");
+
     private float _nextAllowedTime = 0f;
     private Collider _collider;
     private HandCursorFollower _handCursor;
@@ -32,26 +37,53 @@ public class CarouselArrowButton : MonoBehaviour
         }
 
         _hoverScale = GetComponent<HoverScale>();
+
+        // Auto-find AvatarCamera if not assigned
+        if (avatarCamera == null)
+        {
+            GameObject camObj = GameObject.Find("AvatarCamera");
+            if (camObj != null)
+                avatarCamera = camObj.GetComponent<Camera>();
+            if (avatarCamera == null)
+                avatarCamera = Camera.main;
+        }
     }
 
     void Update()
     {
         if (_handCursor == null || _collider == null || selector == null) return;
 
-        Vector3 handPos = _handCursor.transform.position;
+        // Ray origin = hand cursor position
+        Vector3 origin = _handCursor.transform.position;
 
-        // Reliable "inside" check
-        Vector3 closest = _collider.ClosestPoint(handPos);
-        float dist = Vector3.Distance(closest, handPos);
-        bool isCursorInside = dist <= 0.02f; // <-- tune this
+        // Ray direction = from hand toward camera/UI
+        Vector3 direction = Vector3.zero;
+        if (avatarCamera != null)
+        {
+            direction = (avatarCamera.transform.position - origin).normalized;
+        }
 
-        // Hover scale
+        // Cast the ray
+        bool isPointingAtThisButton = false;
+        if (direction != Vector3.zero)
+        {
+            RaycastHit hit;
+            bool didHit = Physics.Raycast(origin, direction, out hit, maxRayDistance, uiLayerMask);
+
+            // Check if this ray hit OUR button's collider
+            isPointingAtThisButton = didHit && hit.collider == _collider;
+
+            // Debug: visualize the ray in Scene view
+            Debug.DrawRay(origin, direction * maxRayDistance, isPointingAtThisButton ? Color.green : Color.red);
+        }
+
+        // Hover scale feedback
         if (_hoverScale != null)
-            _hoverScale.SetHover(isCursorInside);
+            _hoverScale.SetHover(isPointingAtThisButton);
 
-        // Click logic (fist)
+        // Click logic (fist while pointing at button)
         bool isFistClosed = _handCursor.GetIsFistClosed();
-        bool isFistInsideNow = isCursorInside && isFistClosed;
+        bool isFistInsideNow = isPointingAtThisButton && isFistClosed;
 
         if (isFistInsideNow && !_wasFistInside)
         {

@@ -11,8 +11,12 @@ public class ClearAllClothingButton : MonoBehaviour
     public CarouselClothingManager accessories;
 
     [Header("Interaction")]
-    public float pressDistance = 0.04f;
     public float cooldownSeconds = 0.5f;
+
+    [Header("Raycast Settings")]
+    public Camera avatarCamera;
+    public float maxRayDistance = 20f;
+    public LayerMask uiLayerMask = LayerMask.GetMask("UI3D");
 
     private float _nextAllowedTime = 0f;
     private Collider _collider;
@@ -37,26 +41,47 @@ public class ClearAllClothingButton : MonoBehaviour
 
         if (_handCursor == null)
             Debug.LogWarning("[ClearAllClothingButton] HandCursorFollower not found (tag: HandCursor).");
+
+        // Auto-find AvatarCamera if not assigned
+        if (avatarCamera == null)
+        {
+            GameObject camObj = GameObject.Find("AvatarCamera");
+            if (camObj != null)
+                avatarCamera = camObj.GetComponent<Camera>();
+            if (avatarCamera == null)
+                avatarCamera = Camera.main;
+        }
     }
 
     void Update()
     {
         if (_handCursor == null || _collider == null) return;
 
-        Vector3 handPos = _handCursor.transform.position;
+        // Raycast from hand toward camera
+        Vector3 origin = _handCursor.transform.position;
+        Vector3 direction = Vector3.zero;
+        if (avatarCamera != null)
+        {
+            direction = (avatarCamera.transform.position - origin).normalized;
+        }
 
-        // Reliable inside check for sphere/box/etc.
-        Vector3 closest = _collider.ClosestPoint(handPos);
-        float dist = Vector3.Distance(closest, handPos);
-        bool isInside = dist <= pressDistance;
+        bool isPointingAtThisButton = false;
+        if (direction != Vector3.zero)
+        {
+            RaycastHit hit;
+            bool didHit = Physics.Raycast(origin, direction, out hit, maxRayDistance, uiLayerMask);
+            isPointingAtThisButton = didHit && hit.collider == _collider;
+
+            Debug.DrawRay(origin, direction * maxRayDistance, isPointingAtThisButton ? Color.green : Color.red);
+        }
 
         // Hover grow
         if (_hoverScale != null)
-            _hoverScale.SetHover(isInside);
+            _hoverScale.SetHover(isPointingAtThisButton);
 
         // Fist press detection
         bool isFistClosed = _handCursor.GetIsFistClosed();
-        bool isFistInsideNow = isInside && isFistClosed;
+        bool isFistInsideNow = isPointingAtThisButton && isFistClosed;
 
         // Trigger once per press
         if (isFistInsideNow && !_wasFistInside && Time.time >= _nextAllowedTime)

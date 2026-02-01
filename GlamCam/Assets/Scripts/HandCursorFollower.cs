@@ -80,7 +80,6 @@ public class HandCursorFollower : MonoBehaviour
 
         // Use the same coordinate transformation as BodySourceView
         Vector3 targetPos = BodySourceView.GetVector3FromJoint(handJoint);
-        targetPos.z = depthFromCamera; // Override with the same distance as the UI
 
         if (smoothMovement)
         {

@@ -18,10 +18,16 @@ public class PillToggleButton : MonoBehaviour
     [Header("Default Selected")]
     public bool defaultClothesSelected = true;
 
+    [Header("Raycast Settings")]
+    public Camera avatarCamera;
+    public float maxRayDistance = 20f;
+    public LayerMask uiLayerMask = LayerMask.GetMask("UI3D");
+
     private float _nextAllowedTime;
     private Collider _collider;
     private HandCursorFollower _handCursor;
     private bool _wasFistInside = false;
+    private HoverScale _hoverScale;
 
     void Start()
     {
@@ -36,6 +42,18 @@ public class PillToggleButton : MonoBehaviour
         if (_handCursor == null)
             Debug.LogWarning("[PillToggleButton] HandCursorFollower not found.");
 
+        _hoverScale = GetComponent<HoverScale>();
+
+        // Auto-find AvatarCamera if not assigned
+        if (avatarCamera == null)
+        {
+            GameObject camObj = GameObject.Find("AvatarCamera");
+            if (camObj != null)
+                avatarCamera = camObj.GetComponent<Camera>();
+            if (avatarCamera == null)
+                avatarCamera = Camera.main;
+        }
+
         // Apply default selection visuals ONCE
         ApplySelectionVisuals(defaultClothesSelected);
     }
@@ -44,11 +62,30 @@ public class PillToggleButton : MonoBehaviour
     {
         if (_handCursor == null || _collider == null || controller == null) return;
 
-        Vector3 handPos = _handCursor.transform.position;
-        bool isCursorInside = _collider.bounds.Contains(handPos);
+        // Raycast from hand toward camera
+        Vector3 origin = _handCursor.transform.position;
+        Vector3 direction = Vector3.zero;
+        if (avatarCamera != null)
+        {
+            direction = (avatarCamera.transform.position - origin).normalized;
+        }
+
+        bool isPointingAtThisButton = false;
+        if (direction != Vector3.zero)
+        {
+            RaycastHit hit;
+            bool didHit = Physics.Raycast(origin, direction, out hit, maxRayDistance, uiLayerMask);
+            isPointingAtThisButton = didHit && hit.collider == _collider;
+
+            Debug.DrawRay(origin, direction * maxRayDistance, isPointingAtThisButton ? Color.green : Color.red);
+        }
+
+        // Hover scale feedback
+        if (_hoverScale != null)
+            _hoverScale.SetHover(isPointingAtThisButton);
 
         bool isFistClosed = _handCursor.GetIsFistClosed();
-        bool isFistInsideNow = isCursorInside && isFistClosed;
+        bool isFistInsideNow = isPointingAtThisButton && isFistClosed;
 
         if (isFistInsideNow && !_wasFistInside)
         {
