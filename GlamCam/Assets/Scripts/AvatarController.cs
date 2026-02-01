@@ -600,7 +600,7 @@ public class AvatarController : MonoBehaviour
         ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
 
         // 5. Apply uniform scaling ONCE using T-pose height from MultiSourceManager
-        if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f)
+        if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f && _MultiSourceManager.MeasuredSpineMidWidth > 0f)
         {
             UniformScaleFactor =
                 _KinectUserMeasurements.height / _AvatarMeasurements.height;
@@ -1422,7 +1422,6 @@ public class AvatarController : MonoBehaviour
 
         float expectedWidth = AVATAR_WIDTH_HEIGHT_RATIO * _MultiSourceManager.MeasuredHeight;
         float buildFactor = _MultiSourceManager.MeasuredSpineMidWidth / expectedWidth;
-        buildFactor = Mathf.Clamp(buildFactor, 0.7f, 1.3f);
         return buildFactor;
     }
 
