@@ -13,7 +13,7 @@ public class ResetButton : MonoBehaviour
 
     [Header("Raycast Settings")]
     public Camera avatarCamera;
-    public float maxRayDistance = 10f;
+    public float maxRayDistance = 30f;
     public LayerMask uiLayerMask = -1;
 
     private Collider _collider;

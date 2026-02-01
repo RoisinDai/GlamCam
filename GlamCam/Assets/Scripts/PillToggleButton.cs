@@ -20,7 +20,7 @@ public class PillToggleButton : MonoBehaviour
 
     [Header("Raycast Settings")]
     public Camera avatarCamera;
-    public float maxRayDistance = 20f;
+    public float maxRayDistance = 30f;
     public LayerMask uiLayerMask = LayerMask.GetMask("UI3D");
 
     private float _nextAllowedTime;
