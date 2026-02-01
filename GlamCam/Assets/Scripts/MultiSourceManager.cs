@@ -12,6 +12,12 @@ public class MultiSourceManager : MonoBehaviour {
     public float MeasuredSpineMidWidth { get; private set; } = -1f;
     public float MeasuredHeight { get; private set; } = -1f;
 
+    // T-pose bone length measurements (raw meters, averaged left/right)
+    public float MeasuredUpperArmLength { get; private set; } = -1f; // Shoulder → Elbow
+    public float MeasuredLowerArmLength { get; private set; } = -1f; // Elbow → Wrist
+    public float MeasuredUpperLegLength { get; private set; } = -1f; // SpineBase → Knee
+    public float MeasuredLowerLegLength { get; private set; } = -1f; // Knee → Foot
+
     private KinectSensor _Sensor;
     private MultiSourceFrameReader _Reader;
     private CoordinateMapper _Mapper;
@@ -164,6 +170,7 @@ public class MultiSourceManager : MonoBehaviour {
                 {
                     MeasuredSpineMidWidth = MeasureSpineMidWidth();
                     MeasuredHeight = MeasureUserHeight();
+                    MeasureBoneLengths();
                     IsMeasured = true;
                     // Divide by 10 since the measured height is in decimeters
                     float heightMeters = MeasuredHeight / 10f;
@@ -201,6 +208,48 @@ public class MultiSourceManager : MonoBehaviour {
         Debug.Log($"[MultiSourceManager] Measured user height: {height:F3} units");
         return height;
     }
+
+    /// <summary>
+    /// Measures all bone lengths during T-pose using raw Kinect coordinates (meters).
+    /// Averages left and right sides for bilateral bones.
+    /// Uses raw coordinates (no ×10 scaling) to match AvatarController's local-space bone measurements.
+    /// </summary>
+    private void MeasureBoneLengths()
+    {
+        var joints = _TrackedBody.Joints;
+
+        // Upper arm: Shoulder → Elbow (avg left/right)
+        float leftUpperArm = RawJointDistance(joints[JointType.ShoulderLeft], joints[JointType.ElbowLeft]);
+        float rightUpperArm = RawJointDistance(joints[JointType.ShoulderRight], joints[JointType.ElbowRight]);
+        MeasuredUpperArmLength = (leftUpperArm + rightUpperArm) * 0.5f;
+
+        // Lower arm: Elbow → Wrist (avg left/right)
+        float leftLowerArm = RawJointDistance(joints[JointType.ElbowLeft], joints[JointType.WristLeft]);
+        float rightLowerArm = RawJointDistance(joints[JointType.ElbowRight], joints[JointType.WristRight]);
+        MeasuredLowerArmLength = (leftLowerArm + rightLowerArm) * 0.5f;
+
+        // Upper leg: SpineBase → Knee (avg left/right)
+        float leftUpperLeg = RawJointDistance(joints[JointType.SpineBase], joints[JointType.KneeLeft]);
+        float rightUpperLeg = RawJointDistance(joints[JointType.SpineBase], joints[JointType.KneeRight]);
+        MeasuredUpperLegLength = (leftUpperLeg + rightUpperLeg) * 0.5f;
+
+        // Lower leg: Knee → Foot (avg left/right)
+        float leftLowerLeg = RawJointDistance(joints[JointType.KneeLeft], joints[JointType.FootLeft]);
+        float rightLowerLeg = RawJointDistance(joints[JointType.KneeRight], joints[JointType.FootRight]);
+        MeasuredLowerLegLength = (leftLowerLeg + rightLowerLeg) * 0.5f;
+
+        Debug.Log($"[MultiSourceManager] Bone lengths (m): UpperArm={MeasuredUpperArmLength:F4}, LowerArm={MeasuredLowerArmLength:F4}, UpperLeg={MeasuredUpperLegLength:F4}, LowerLeg={MeasuredLowerLegLength:F4}");
+    }
+
+    /// <summary>
+    /// Calculates the distance between two joints using raw Kinect coordinates (meters, no ×10).
+    /// </summary>
+    private float RawJointDistance(Windows.Kinect.Joint a, Windows.Kinect.Joint b)
+    {
+        Vector3 posA = GetVector3FromJoint(a);
+        Vector3 posB = GetVector3FromJoint(b);
+        return Vector3.Distance(posA, posB);
+    }
     
     // =====================================================
     // T-Pose Detection and Measurement
@@ -215,6 +264,10 @@ public class MultiSourceManager : MonoBehaviour {
         IsMeasured = false;
         MeasuredSpineMidWidth = -1f;
         MeasuredHeight = -1f;
+        MeasuredUpperArmLength = -1f;
+        MeasuredLowerArmLength = -1f;
+        MeasuredUpperLegLength = -1f;
+        MeasuredLowerLegLength = -1f;
         _TPoseHoldTimer = 0f;
     }
 

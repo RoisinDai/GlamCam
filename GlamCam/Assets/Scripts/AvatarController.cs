@@ -1156,6 +1156,37 @@ public class AvatarController : MonoBehaviour
         return 0f;
     }
 
+    /// <summary>
+    /// Returns the fixed T-pose bone length (in raw meters) for a given Unity bone.
+    /// Maps bilateral bones (left/right) to the averaged T-pose measurement from MultiSourceManager.
+    /// </summary>
+    private float GetTPoseBoneLength(HumanBodyBones bone)
+    {
+        if (_MultiSourceManager == null) return -1f;
+
+        switch (bone)
+        {
+            case HumanBodyBones.LeftUpperArm:
+            case HumanBodyBones.RightUpperArm:
+                return _MultiSourceManager.MeasuredUpperArmLength;
+
+            case HumanBodyBones.LeftLowerArm:
+            case HumanBodyBones.RightLowerArm:
+                return _MultiSourceManager.MeasuredLowerArmLength;
+
+            case HumanBodyBones.LeftUpperLeg:
+            case HumanBodyBones.RightUpperLeg:
+                return _MultiSourceManager.MeasuredUpperLegLength;
+
+            case HumanBodyBones.LeftLowerLeg:
+            case HumanBodyBones.RightLowerLeg:
+                return _MultiSourceManager.MeasuredLowerLegLength;
+
+            default:
+                return -1f;
+        }
+    }
+
     // ========================================================================================
     // PHASE 4: SCALE FACTOR CALCULATION
     // ========================================================================================
@@ -1236,13 +1267,8 @@ public class AvatarController : MonoBehaviour
                 continue;
             }
 
-            // Phase 3: Measure smoothed Kinect bone length
-            float kinectLength = MeasureSmoothedKinectBoneLength(
-                trackedBody, 
-                config.startJoint, 
-                config.endJoint, 
-                config.unityBone
-            );
+            // Use fixed T-pose bone length from MultiSourceManager (no per-frame Kinect jitter)
+            float kinectLength = GetTPoseBoneLength(config.unityBone);
 
             if (kinectLength <= 0f)
             {
