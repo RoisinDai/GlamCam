@@ -3,6 +3,11 @@ using Kinect = Windows.Kinect;
 
 public class HandCursorFollower : MonoBehaviour
 {
+    public enum HandSide { Right, Left }
+
+    [Header("Hand Selection")]
+    public HandSide handToTrack = HandSide.Right;
+
     public GameObject bodySourceManager;
 
     public bool useClosestTrackedBody = true;
@@ -62,7 +67,8 @@ public class HandCursorFollower : MonoBehaviour
             return;
         }
 
-        var handJoint = body.Joints[Kinect.JointType.HandRight];
+        var jointType = handToTrack == HandSide.Right ? Kinect.JointType.HandRight : Kinect.JointType.HandLeft;
+        var handJoint = body.Joints[jointType];
         if (handJoint.TrackingState == Kinect.TrackingState.NotTracked)
         {
             SetCursorActive(false);
@@ -71,8 +77,8 @@ public class HandCursorFollower : MonoBehaviour
 
         SetCursorActive(true);
 
-        var handRightState = body.HandRightState;
-        bool isFist = (handRightState == Kinect.HandState.Closed);
+        var handState = handToTrack == HandSide.Right ? body.HandRightState : body.HandLeftState;
+        bool isFist = (handState == Kinect.HandState.Closed);
         UpdateFistState(isFist);
 
         // Use the same coordinate transformation as BodySourceView
