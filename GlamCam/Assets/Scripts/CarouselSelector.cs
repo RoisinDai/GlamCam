@@ -60,8 +60,8 @@ public class CarouselSelector : MonoBehaviour
         },
         ["Hats"] = new[]
         {
+            "pillow_manMesh",
             "harvey_jackolanternMesh",
-            "pillow_manMesh"
         },
         ["Accessories"] = new[]
         {
