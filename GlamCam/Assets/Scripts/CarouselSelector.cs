@@ -23,9 +23,11 @@ public class CarouselSelector : MonoBehaviour
     private static readonly Dictionary<string, string[]> ORDER = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Tops"] = new[]
-        {
+        {   
+            "denim_jacketMesh",
+            "t-shirt_basic_tuckedMesh",
+            "mens_boho_top1elvMesh",
             "f_lusekoftaMesh",
-            "sweater_fishermanMesh",
             "Polo_t-shirtMesh",
             "vintagetopMesh",
             "elvs_butterflydiscotop1Mesh",
@@ -33,7 +35,6 @@ public class CarouselSelector : MonoBehaviour
         },
         ["Bottoms"] = new[]
         {
-            "pleated_skirtelv1Mesh",
             "mariaskirtMesh",
             "elvs_gored_elephantpant1Mesh",
             "elvs_disco_pant_drufflesMesh",
@@ -41,25 +42,34 @@ public class CarouselSelector : MonoBehaviour
         },
         ["Dresses"] = new[]
         {
-            "elvs_goddessdress1Mesh",
+            "princessgownMesh",
+            "babydoll_elvruff1aMesh",
+            "elvs_sailormoon1Mesh",
+            "50sdressMesh",
+            "elvs_short_halterdress1Mesh",
             "qipaoMesh",
-            "elvs_goddess_dress2Mesh",
-            "elvs_mini_halterdressMesh",
             "elvs_goddessdress8Mesh",
         },
         ["Fullbodies"] = new[]
         {
+            "Laputa_SheetaMesh",
+            "coatMesh",
+            "uniform_jacketMesh",
+            "male_elegantsuit01Mesh",
             "rescueteam_jacket_maleMesh",
             "mars_suitMesh",
         },
         ["Hats"] = new[]
         {
-            "pillow_manMesh",
-            "cl_don_quixote_hatMesh",
-            "tophat1Mesh",
+            "harvey_jackolanternMesh",
+            "pillow_manMesh"
         },
         ["Accessories"] = new[]
         {
+            "elv_fduster1Mesh",
+            "multi_bangle1elvMesh",
+            "magic_sceptreMesh",
+            "electricguitarMesh",
             "suitcaseMesh",
             "bowMesh",
             "tennisracketMesh",
