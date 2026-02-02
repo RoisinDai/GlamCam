@@ -20,6 +20,7 @@ public class CarouselSelector : MonoBehaviour
     public delegate void OnSelectionChanged(int newIndex, string itemName);
     public event OnSelectionChanged SelectionChanged;
 
+    // The following are just order we want to enforce ourselves (non alphabetical).
     private static readonly Dictionary<string, string[]> ORDER = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Tops"] = new[]
@@ -35,6 +36,7 @@ public class CarouselSelector : MonoBehaviour
         },
         ["Bottoms"] = new[]
         {
+            "pleated_skirtelv1Mesh",
             "mariaskirtMesh",
             "elvs_gored_elephantpant1Mesh",
             "elvs_disco_pant_drufflesMesh",
