@@ -20,13 +20,16 @@ public class CarouselSelector : MonoBehaviour
     public delegate void OnSelectionChanged(int newIndex, string itemName);
     public event OnSelectionChanged SelectionChanged;
 
+    // The following are just order we want to enforce ourselves (non alphabetical).
     private static readonly Dictionary<string, string[]> ORDER = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Tops"] = new[]
         {
             "f_lusekoftaMesh",
-            "sweater_fishermanMesh",
-            "Polo_t-shirtMesh",
+            "denim_jacketMesh",
+            "t-shirt_basic_tuckedMesh",
+            "uniform_jacketMesh",
+            "mens_boho_top1elvMesh",
             "vintagetopMesh",
             "elvs_butterflydiscotop1Mesh",
             "knitted_sweater_01Mesh",
@@ -41,27 +44,34 @@ public class CarouselSelector : MonoBehaviour
         },
         ["Dresses"] = new[]
         {
-            "elvs_goddessdress1Mesh",
+            "babydoll_elvruff1aMesh",
+            "50sdressMesh",
+            "elvs_sailormoon1Mesh",
             "qipaoMesh",
-            "elvs_goddess_dress2Mesh",
-            "elvs_mini_halterdressMesh",
             "elvs_goddessdress8Mesh",
+            "elvs_short_halterdress1Mesh",
         },
         ["Fullbodies"] = new[]
         {
+            "coatMesh",
             "rescueteam_jacket_maleMesh",
+            "male_elegantsuit01Mesh",
+            "Laputa_SheetaMesh",
             "mars_suitMesh",
         },
         ["Hats"] = new[]
         {
             "pillow_manMesh",
-            "cl_don_quixote_hatMesh",
-            "tophat1Mesh",
+            "harvey_jackolanternMesh",
         },
         ["Accessories"] = new[]
         {
-            "suitcaseMesh",
+            "elv_fduster1Mesh",
+            "multi_bangle1elvMesh",
             "bowMesh",
+            "magic_sceptreMesh",
+            "electricguitarMesh",
+            "suitcaseMesh",
             "tennisracketMesh",
         },
     };
