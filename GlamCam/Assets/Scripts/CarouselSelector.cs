@@ -29,7 +29,6 @@ public class CarouselSelector : MonoBehaviour
             "t-shirt_basic_tuckedMesh",
             "uniform_jacketMesh",
             "mens_boho_top1elvMesh",
-            "Polo_t-shirtMesh",
             "vintagetopMesh",
             "elvs_butterflydiscotop1Mesh",
             "knitted_sweater_01Mesh",
