@@ -25,7 +25,7 @@ public class CarouselSelector : MonoBehaviour
         ["Tops"] = new[]
         {   
             "denim_jacketMesh",
-            "T-shirt_basic_tuckedMesh",
+            "t-shirt_basic_tuckedMesh",
             "mens_boho_top1elvMesh",
             "f_lusekoftaMesh",
             "Polo_t-shirtMesh",
@@ -42,16 +42,17 @@ public class CarouselSelector : MonoBehaviour
         },
         ["Dresses"] = new[]
         {
+            "princessgownMesh",
             "babydoll_elvruff1aMesh",
             "elvs_sailormoon1Mesh",
             "50sdressMesh",
             "elvs_short_halterdress1Mesh",
             "qipaoMesh",
-            "elvs_mini_halterdressMesh",
             "elvs_goddessdress8Mesh",
         },
         ["Fullbodies"] = new[]
         {
+            "Laputa_SheetaMesh",
             "coatMesh",
             "uniform_jacketMesh",
             "male_elegantsuit01Mesh",
@@ -60,14 +61,14 @@ public class CarouselSelector : MonoBehaviour
         },
         ["Hats"] = new[]
         {
-            "jackolanternMesh",
+            "harvey_jackolanternMesh",
             "pillow_manMesh"
         },
         ["Accessories"] = new[]
         {
-            "microphoneMesh",
-            "bangle2Mesh",
-            "sceptreMesh",
+            "elv_fduster1Mesh",
+            "multi_bangle1elvMesh",
+            "magic_sceptreMesh",
             "electricguitarMesh",
             "suitcaseMesh",
             "bowMesh",
