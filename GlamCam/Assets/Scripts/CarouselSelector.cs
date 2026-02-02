@@ -23,11 +23,12 @@ public class CarouselSelector : MonoBehaviour
     private static readonly Dictionary<string, string[]> ORDER = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Tops"] = new[]
-        {   
+        {
+            "f_lusekoftaMesh",
             "denim_jacketMesh",
             "t-shirt_basic_tuckedMesh",
+            "uniform_jacketMesh",
             "mens_boho_top1elvMesh",
-            "f_lusekoftaMesh",
             "Polo_t-shirtMesh",
             "vintagetopMesh",
             "elvs_butterflydiscotop1Mesh",
@@ -42,21 +43,19 @@ public class CarouselSelector : MonoBehaviour
         },
         ["Dresses"] = new[]
         {
-            "princessgownMesh",
             "babydoll_elvruff1aMesh",
-            "elvs_sailormoon1Mesh",
             "50sdressMesh",
-            "elvs_short_halterdress1Mesh",
+            "elvs_sailormoon1Mesh",
             "qipaoMesh",
             "elvs_goddessdress8Mesh",
+            "elvs_short_halterdress1Mesh",
         },
         ["Fullbodies"] = new[]
         {
-            "Laputa_SheetaMesh",
             "coatMesh",
-            "uniform_jacketMesh",
-            "male_elegantsuit01Mesh",
             "rescueteam_jacket_maleMesh",
+            "male_elegantsuit01Mesh",
+            "Laputa_SheetaMesh",
             "mars_suitMesh",
         },
         ["Hats"] = new[]
@@ -68,10 +67,10 @@ public class CarouselSelector : MonoBehaviour
         {
             "elv_fduster1Mesh",
             "multi_bangle1elvMesh",
+            "bowMesh",
             "magic_sceptreMesh",
             "electricguitarMesh",
             "suitcaseMesh",
-            "bowMesh",
             "tennisracketMesh",
         },
     };
