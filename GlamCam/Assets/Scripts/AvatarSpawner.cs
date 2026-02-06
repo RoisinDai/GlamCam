@@ -18,7 +18,8 @@ public class AvatarSpawner : MonoBehaviour
     // We need to add this as a component to the clothed avatar model after it is spawned.
     const string AVATAR_CONTROLLER_SCRIPT = "AvatarController";
 
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)] // Run after scene loads, but before Start() is called on any object.
+    // commented out to use a fixed clothed_avatar model for clothing physics.
+    // [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)] // Run after scene loads, but before Start() is called on any object.
     static void OnAfterSceneLoad()
     {
 #if UNITY_EDITOR
