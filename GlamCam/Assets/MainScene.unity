@@ -304,7 +304,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8821130411451d343a1488e2a9db134e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  BoneMaterial: {fileID: 2100000, guid: f2ea145c63353784985576f08398a815, type: 2}
+  BoneMaterial: {fileID: 0}
   BodySourceManager: {fileID: 1698423884}
   TransparentMaterial: {fileID: 2100000, guid: 13c96712e7c0e84489e83bc81ee1d869, type: 2}
 --- !u!1 &117184208
@@ -9438,6 +9438,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7505612864562528660, guid: 12667711ae0ae4d2b96a0d4e91f58743, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 35855ae20b75edc4d89dc9f1c3efd888, type: 2}
     - target: {fileID: 7769886111947813258, guid: 12667711ae0ae4d2b96a0d4e91f58743, type: 3}
       propertyPath: m_IsActive
       value: 0
