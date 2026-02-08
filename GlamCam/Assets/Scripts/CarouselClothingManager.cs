@@ -21,9 +21,14 @@ public class CarouselClothingManager : MonoBehaviour
     [Header("Category Behavior")]
     public ClothingCategoryType categoryType = ClothingCategoryType.Mixable;
 
+    [Header("Startup Delay")]
+    // Delay before hiding clothing at startup (allows Magica Cloth to initialize)")
+    public float startupDelay = 2f;
+
     // Internal
     private readonly Dictionary<string, GameObject> garmentsByName = new();
     private readonly List<GameObject> categoryGarments = new();
+    private bool _initializedAfterDelay = false;
 
     void Start()
     {
@@ -44,16 +49,29 @@ public class CarouselClothingManager : MonoBehaviour
         {
             carousel.SelectionChanged += OnCarouselSelectionChanged;
 
-            // Apply initial selection immediately
-            OnCarouselSelectionChanged(
-                carousel.GetIndex(),
-                carousel.GetCurrentItemName()
-            );
+            // Delay initial selection to allow Magica Cloth to build with meshes active
+            StartCoroutine(DelayedInitialSelection());
         }
         else
         {
             Debug.LogWarning("[CarouselClothingManager] CarouselSelector not assigned.");
         }
+    }
+
+    private System.Collections.IEnumerator DelayedInitialSelection()
+    {
+        // Wait for Magica Cloth to initialize with all meshes active
+        yield return new WaitForSeconds(startupDelay);
+
+        _initializedAfterDelay = true;
+
+        // Now apply initial selection (which will hide non-selected clothing)
+        OnCarouselSelectionChanged(
+            carousel.GetIndex(),
+            carousel.GetCurrentItemName()
+        );
+
+        Debug.Log($"[CarouselClothingManager] [{GetCategoryLabel()}] Delayed initialization complete.");
     }
 
     public void ResetToNoneUIOnly()
@@ -118,6 +136,10 @@ public class CarouselClothingManager : MonoBehaviour
     private void OnCarouselSelectionChanged(int index, string itemName)
     {
         if (string.IsNullOrEmpty(itemName))
+            return;
+
+        // Skip selection changes during startup delay (keep all meshes active for Magica Cloth)
+        if (!_initializedAfterDelay)
             return;
 
         // Always turn OFF everything in this managed set first
