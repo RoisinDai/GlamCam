@@ -1343,7 +1343,7 @@ public class AvatarController : MonoBehaviour
         // Apply thickness-only scaling to spine/torso bones
         if (enableThicknessScaling)
         {
-            ApplySpineThicknessScaling(thicknessFactor);
+            ApplySpineThicknessScaling(thicknessFactor*1.2f); // *1.2 Based on experimental results for torso scaling
         }
     }
 
@@ -1371,7 +1371,7 @@ public class AvatarController : MonoBehaviour
             Vector3 desiredWorldScale = new Vector3(
                 thicknessFactor * UniformScaleFactor,  // Width (X)
                 UniformScaleFactor,                     // Height (Y) - no change
-                thicknessFactor * UniformScaleFactor   // Depth (Z)
+                thicknessFactor * UniformScaleFactor * 0.75f   // Depth (Z) -> doesn't change as much as width, but we can scale it slightly for better proportions
             );
 
             // Required local scale = desiredWorldScale / parentCumulativeScale
@@ -1390,6 +1390,12 @@ public class AvatarController : MonoBehaviour
                 currentRelativeScale.y != 0 ? requiredLocalScale.y / currentRelativeScale.y : 1f,
                 currentRelativeScale.z != 0 ? requiredLocalScale.z / currentRelativeScale.z : 1f
             );
+
+            // Scale down slightly for chest and upper chest to prevent extreme widening, based on experimental results
+            if (spineBone == HumanBodyBones.Chest || spineBone == HumanBodyBones.UpperChest)
+            {
+                scaleFactorToApply.x = 1.0f; // Don't scale in x, else we push arms outwards
+            }
 
             // Apply the calculated scale factor
             fakeUMA.ScaleBoneIndependently(boneTransform, scaleFactorToApply);
@@ -1487,6 +1493,7 @@ public class AvatarController : MonoBehaviour
 
         float expectedWidth = AVATAR_WIDTH_HEIGHT_RATIO * _MultiSourceManager.MeasuredHeight;
         float buildFactor = _MultiSourceManager.MeasuredSpineMidWidth / expectedWidth;
+        Debug.Log($"[THICKNESS SCALING] Measured SpineMid Width = {_MultiSourceManager.MeasuredSpineMidWidth:F4}, Expected Width = {expectedWidth:F4}, Build Factor = {buildFactor:F4}");
         return buildFactor;
     }
 
