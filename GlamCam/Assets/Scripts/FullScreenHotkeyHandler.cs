@@ -19,10 +19,10 @@ public class FullScreenHotkeyHandler : MonoBehaviour
         {
             FullscreenGameView.Toggle();
         }
-        // Toggle game view orientation (portrait/landscape) when hotkey pressed
+        // Toggle Windows display orientation (landscape/portrait) when hotkey pressed
         if (Input.GetKeyDown(KeyCode.Slash))
         {
-            GameViewOrientation.Toggle();
+            WindowsDisplayOrientation.Toggle();
         }
     }
 }
@@ -76,99 +76,100 @@ public static class FullscreenGameView
     }
 }
 
-public static class GameViewOrientation
+public static class WindowsDisplayOrientation
 {
-    static readonly Assembly EditorAssembly = typeof(Editor).Assembly;
-    static readonly Type GameViewType = EditorAssembly.GetType("UnityEditor.GameView");
-    static readonly Type GameViewSizesType = EditorAssembly.GetType("UnityEditor.GameViewSizes");
-    static readonly Type GameViewSizeType = EditorAssembly.GetType("UnityEditor.GameViewSize");
-    static readonly Type GameViewSizeTypeEnum = EditorAssembly.GetType("UnityEditor.GameViewSizeType");
+    // Windows API constants
+    const int DMDO_DEFAULT = 0;  // Landscape
+    const int DMDO_90 = 1;       // Portrait (rotated 90° CCW)
+    const int DM_DISPLAYORIENTATION = 0x00000080;
+    const int DM_PELSWIDTH = 0x00080000;
+    const int DM_PELSHEIGHT = 0x00100000;
+    const int ENUM_CURRENT_SETTINGS = -1;
+    const int CDS_RESET = 0x40000000;
 
-    static object SizesInstance
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Ansi)]
+    struct DEVMODE
     {
-        get
-        {
-            var singletonType = typeof(ScriptableSingleton<>).MakeGenericType(GameViewSizesType);
-            return singletonType.GetProperty("instance").GetValue(null);
-        }
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string dmDeviceName;
+        public short dmSpecVersion;
+        public short dmDriverVersion;
+        public short dmSize;
+        public short dmDriverExtra;
+        public int dmFields;
+        public int dmPositionX;
+        public int dmPositionY;
+        public int dmDisplayOrientation;
+        public int dmDisplayFixedOutput;
+        public short dmColor;
+        public short dmDuplex;
+        public short dmYResolution;
+        public short dmTTOption;
+        public short dmCollate;
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string dmFormName;
+        public short dmLogPixels;
+        public int dmBitsPerPel;
+        public int dmPelsWidth;
+        public int dmPelsHeight;
+        public int dmDisplayFlags;
+        public int dmDisplayFrequency;
+        public int dmICMMethod;
+        public int dmICMIntent;
+        public int dmMediaType;
+        public int dmDitherType;
+        public int dmReserved1;
+        public int dmReserved2;
+        public int dmPanningWidth;
+        public int dmPanningHeight;
     }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern int ChangeDisplaySettings(ref DEVMODE devMode, int flags);
 
     public static void Toggle()
     {
-        if (GameViewType == null)
+        DEVMODE dm = new DEVMODE();
+        dm.dmSize = (short)System.Runtime.InteropServices.Marshal.SizeOf(typeof(DEVMODE));
+
+        if (!EnumDisplaySettings(null, ENUM_CURRENT_SETTINGS, ref dm))
         {
-            Debug.LogError("[GameViewOrientation] GameView type not found.");
+            Debug.LogError("[WindowsDisplayOrientation] Failed to get current display settings.");
             return;
         }
 
-        var gameView = EditorWindow.GetWindow(GameViewType);
-        if (gameView == null) return;
-
-        // Get the current rendered size
-        var targetSizeProp = GameViewType.GetProperty("targetSize", BindingFlags.NonPublic | BindingFlags.Instance);
-        if (targetSizeProp == null)
+        // Toggle between landscape (0°) and portrait (90°)
+        if (dm.dmDisplayOrientation == DMDO_DEFAULT)
         {
-            Debug.LogError("[GameViewOrientation] targetSize property not found.");
-            return;
+            dm.dmDisplayOrientation = DMDO_90;
+            // Swap width and height for portrait
+            int temp = dm.dmPelsWidth;
+            dm.dmPelsWidth = dm.dmPelsHeight;
+            dm.dmPelsHeight = temp;
+        }
+        else
+        {
+            dm.dmDisplayOrientation = DMDO_DEFAULT;
+            // Swap width and height for landscape
+            int temp = dm.dmPelsWidth;
+            dm.dmPelsWidth = dm.dmPelsHeight;
+            dm.dmPelsHeight = temp;
         }
 
-        Vector2 currentSize = (Vector2)targetSizeProp.GetValue(gameView);
-        int newWidth = Mathf.RoundToInt(currentSize.y);
-        int newHeight = Mathf.RoundToInt(currentSize.x);
+        dm.dmFields = DM_DISPLAYORIENTATION | DM_PELSWIDTH | DM_PELSHEIGHT;
 
-        int sizeIndex = FindOrAddSize(newWidth, newHeight);
-        if (sizeIndex < 0) return;
-
-        // Apply the new size
-        var selectedSizeIndexProp = GameViewType.GetProperty("selectedSizeIndex", BindingFlags.NonPublic | BindingFlags.Instance);
-        if (selectedSizeIndexProp == null)
+        int result = ChangeDisplaySettings(ref dm, CDS_RESET);
+        if (result == 0)
         {
-            Debug.LogError("[GameViewOrientation] selectedSizeIndex property not found.");
-            return;
+            Debug.Log($"[WindowsDisplayOrientation] Toggled to {(dm.dmDisplayOrientation == DMDO_DEFAULT ? "Landscape" : "Portrait")} ({dm.dmPelsWidth}x{dm.dmPelsHeight})");
         }
-
-        selectedSizeIndexProp.SetValue(gameView, sizeIndex);
-        gameView.Repaint();
-
-        Debug.Log($"[GameViewOrientation] Toggled to {newWidth}x{newHeight}");
-    }
-
-    static object GetCurrentGroup()
-    {
-        var currentGroupTypeProp = GameViewSizesType.GetProperty("currentGroupType");
-        var groupType = currentGroupTypeProp.GetValue(SizesInstance);
-        var getGroupMethod = GameViewSizesType.GetMethod("GetGroup");
-        return getGroupMethod.Invoke(SizesInstance, new object[] { (int)groupType });
-    }
-
-    static int FindOrAddSize(int width, int height)
-    {
-        var group = GetCurrentGroup();
-        if (group == null) return -1;
-
-        var groupObj = group.GetType();
-        var getTotalCount = groupObj.GetMethod("GetTotalCount");
-        var getGameViewSize = groupObj.GetMethod("GetGameViewSize");
-        int totalCount = (int)getTotalCount.Invoke(group, null);
-
-        // Search all existing sizes (built-in + custom)
-        for (int i = 0; i < totalCount; i++)
+        else
         {
-            var size = getGameViewSize.Invoke(group, new object[] { i });
-            int w = (int)size.GetType().GetProperty("width").GetValue(size);
-            int h = (int)size.GetType().GetProperty("height").GetValue(size);
-            if (w == width && h == height)
-                return i;
+            Debug.LogError($"[WindowsDisplayOrientation] ChangeDisplaySettings failed with code {result}");
         }
-
-        // Not found — add a new custom size
-        var fixedResolution = Enum.Parse(GameViewSizeTypeEnum, "FixedResolution");
-        var ctor = GameViewSizeType.GetConstructor(new Type[] { GameViewSizeTypeEnum, typeof(int), typeof(int), typeof(string) });
-        var newSize = ctor.Invoke(new object[] { fixedResolution, width, height, $"{width}x{height}" });
-
-        groupObj.GetMethod("AddCustomSize").Invoke(group, new object[] { newSize });
-
-        return (int)getTotalCount.Invoke(group, null) - 1;
     }
 }
 
