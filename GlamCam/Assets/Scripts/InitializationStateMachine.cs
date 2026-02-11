@@ -36,7 +36,9 @@ public class InitializationStateMachine : MonoBehaviour
     private GameObject _divider;
     private GameObject _clearAllBtn;
     private GameObject _resetBtn;
-
+    private GameObject _viewMannequinBtn;
+    private GameObject _viewSceneBtn;
+    
     private void Start()
     {
         // MainRig should always be active for this approach
