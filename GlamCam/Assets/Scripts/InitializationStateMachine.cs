@@ -24,6 +24,8 @@ public class InitializationStateMachine : MonoBehaviour
     public float transitionSeconds = 2f;
 
     private State _currentState = State.Init;
+    public State CurrentState => _currentState;
+    
     private Coroutine _transitionCoroutine;
 
     // Cached references to Main UI pieces we want to toggle
