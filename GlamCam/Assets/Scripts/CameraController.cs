@@ -6,6 +6,9 @@ public class CameraController : MonoBehaviour
     [SerializeField] private Camera debugCamera;
     
     private bool isAvatarCameraActive = true;
+    
+    // Static property so other scripts can check if debug camera is active
+    public static bool IsDebugCameraActive { get; private set; } = false;
 
     void Start()
     {
@@ -39,6 +42,7 @@ public class CameraController : MonoBehaviour
         }
 
         isAvatarCameraActive = !isAvatarCameraActive;
+        IsDebugCameraActive = !isAvatarCameraActive;
 
         avatarCamera.enabled = isAvatarCameraActive;
         debugCamera.enabled = !isAvatarCameraActive;

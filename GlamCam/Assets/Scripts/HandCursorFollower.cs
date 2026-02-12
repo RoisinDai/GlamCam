@@ -29,6 +29,13 @@ public class HandCursorFollower : MonoBehaviour
     private bool _isFistClosed = false;
     private bool _rawFistState = false;
     private float _fistDebounceTimer = 0f;
+    
+    [Header("Debug Raycast Visualization")]
+    public Color rayColorDefault = Color.red;
+    public Color rayColorHit = Color.green;
+    public float rayLength = 30f;
+    private LineRenderer _debugLineRenderer;
+    private Camera _avatarCamera;
 
     public bool GetIsFistClosed() => _isFistClosed;
 
@@ -48,6 +55,31 @@ public class HandCursorFollower : MonoBehaviour
         {
             Debug.LogWarning("[HandCursorFollower] BodySourceManager not found. Assign it in the inspector.");
         }
+        
+        // Setup debug ray visualization
+        SetupDebugLineRenderer();
+        
+        // Find AvatarCamera for ray direction
+        var camObj = GameObject.Find("AvatarCamera");
+        if (camObj != null)
+            _avatarCamera = camObj.GetComponent<Camera>();
+        if (_avatarCamera == null)
+            _avatarCamera = Camera.main;
+    }
+    
+    private void SetupDebugLineRenderer()
+    {
+        _debugLineRenderer = gameObject.GetComponent<LineRenderer>();
+        if (_debugLineRenderer == null)
+        {
+            _debugLineRenderer = gameObject.AddComponent<LineRenderer>();
+        }
+        
+        _debugLineRenderer.startWidth = 0.005f;
+        _debugLineRenderer.endWidth = 0.005f;
+        _debugLineRenderer.positionCount = 2;
+        _debugLineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+        _debugLineRenderer.enabled = false;
 
         _renderers = GetComponentsInChildren<Renderer>(true);
         _canvasGroup = GetComponentInChildren<CanvasGroup>(true);
@@ -93,6 +125,43 @@ public class HandCursorFollower : MonoBehaviour
         {
             transform.position = targetPos;
         }
+    }
+    
+    void LateUpdate()
+    {
+        UpdateDebugRay();
+    }
+    
+    private void UpdateDebugRay()
+    {
+        if (_debugLineRenderer == null) return;
+        
+        // Only show ray when debug camera is active
+        if (!CameraController.IsDebugCameraActive || _avatarCamera == null)
+        {
+            _debugLineRenderer.enabled = false;
+            return;
+        }
+        
+        _debugLineRenderer.enabled = true;
+        
+        Vector3 origin = transform.position;
+        Vector3 direction = (_avatarCamera.transform.position - origin).normalized;
+        Vector3 endPoint = origin + direction * rayLength;
+        
+        // Check if ray hits something on UI3D layer
+        LayerMask uiLayerMask = LayerMask.GetMask("UI3D");
+        RaycastHit hit;
+        bool didHit = Physics.Raycast(origin, direction, out hit, rayLength, uiLayerMask);
+        
+        // Set line positions
+        _debugLineRenderer.SetPosition(0, origin);
+        _debugLineRenderer.SetPosition(1, didHit ? hit.point : endPoint);
+        
+        // Set color based on hit
+        Color rayColor = didHit ? rayColorHit : rayColorDefault;
+        _debugLineRenderer.startColor = rayColor;
+        _debugLineRenderer.endColor = rayColor;
     }
 
     private void SetCursorActive(bool visible)
