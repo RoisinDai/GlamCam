@@ -23,8 +23,6 @@ public class FullScreenHotkeyHandler : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Slash))
         {
             WindowsDisplayOrientation.Toggle();
-            FullscreenGameView.Toggle(); // close
-            FullscreenGameView.Toggle(); // reopen at new resolution
         }
     }
 }
@@ -167,6 +165,10 @@ public static class WindowsDisplayOrientation
         if (result == 0)
         {
             Debug.Log($"[WindowsDisplayOrientation] Toggled to {(dm.dmDisplayOrientation == DMDO_DEFAULT ? "Landscape" : "Portrait")} ({dm.dmPelsWidth}x{dm.dmPelsHeight})");
+
+            // Re-toggle fullscreen twice so it picks up the new resolution
+            FullscreenGameView.Toggle(); // close
+            FullscreenGameView.Toggle(); // reopen at new resolution
         }
         else
         {
