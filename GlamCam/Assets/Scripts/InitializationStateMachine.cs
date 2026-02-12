@@ -38,8 +38,8 @@ public class InitializationStateMachine : MonoBehaviour
     private GameObject _divider;
     private GameObject _clearAllBtn;
     private GameObject _resetBtn;
-    private GameObject _viewMannequinBtn;
-    private GameObject _viewSceneBtn;
+    private GameObject _debugViewBtn;
+    private GameObject _viewBaseAvatarBtn;
     
     private void Start()
     {
@@ -168,6 +168,8 @@ public class InitializationStateMachine : MonoBehaviour
         // Buttons
         SetActive(_clearAllBtn, visible);
         SetActive(_resetBtn, visible);
+        SetActive(_debugViewBtn, visible);
+        SetActive(_viewBaseAvatarBtn, visible);
     }
 
     private void CacheMainUiReferences()
@@ -204,6 +206,8 @@ public class InitializationStateMachine : MonoBehaviour
         // Buttons
         _clearAllBtn = FindGo(mainRig, "ClearAllBtn");
         _resetBtn = FindGo(mainRig, "ResetBtn");
+        _debugViewBtn = FindGo(mainRig, "DebugViewBtn");
+        _viewBaseAvatarBtn = FindGo(mainRig, "ViewBaseAvatarBtn");
     }
 
     private GameObject FindGo(GameObject root, string path)
