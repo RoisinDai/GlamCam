@@ -49,11 +49,4 @@ public class CameraController : MonoBehaviour
 
         Debug.Log($"Switched to {(isAvatarCameraActive ? "AvatarCamera" : "DebugCamera")}");
     }
-
-    private void ShowHandRays()
-    {
-        // Placeholder for hand ray visualization logic
-        // TODO: Verify if they are visible in the current camera view and if not, make them visible when we swap to the debug camera.
-        Debug.Log("Hand rays are now visible.");
-    }
 }

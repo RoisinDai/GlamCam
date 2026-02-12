@@ -9534,7 +9534,7 @@ RectTransform:
   m_GameObject: {fileID: 963570433}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 1000}
-  m_LocalScale: {x: 1.9769274, y: 1.9769274, z: 1.9769274}
+  m_LocalScale: {x: 0.9394981, y: 0.9394981, z: 0.9394981}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2090944736}
@@ -9543,7 +9543,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 912, y: 513.25}
+  m_SizeDelta: {x: 1920, y: 1080}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &999454371
 GameObject:
@@ -9583,6 +9583,9 @@ MonoBehaviour:
   smoothing: 0.4
   hideWhenNotTracked: 1
   fistDebounceTime: 0.15
+  rayColorDefault: {r: 1, g: 0, b: 0, a: 1}
+  rayColorHit: {r: 0, g: 1, b: 0, a: 1}
+  rayLength: 30
 --- !u!54 &999454373
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -12900,6 +12903,7 @@ GameObject:
   - component: {fileID: 1360918301}
   - component: {fileID: 1360918302}
   - component: {fileID: 1360918303}
+  - component: {fileID: 1360918304}
   m_Layer: 3
   m_Name: ViewSceneBtn
   m_TagString: Untagged
@@ -12959,6 +12963,20 @@ MonoBehaviour:
   target: {fileID: 0}
   hoverScale: 1.15
   speed: 12
+--- !u!114 &1360918304
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1360918300}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58f1b22e23b9341c4aefcb014e9c3c77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  avatarCamera: {fileID: 300744147}
+  debugCamera: {fileID: 1839515786}
 --- !u!1 &1361758240
 GameObject:
   m_ObjectHideFlags: 0
@@ -23068,7 +23086,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
+  far clip plane: 2000
   field of view: 60
   orthographic: 0
   orthographic size: 5
@@ -23095,8 +23113,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1839515784}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.0000003874302, y: -0.047685023, z: -0.0000019329455, w: 0.99886245}
-  m_LocalPosition: {x: 3.4281793, y: 0.22766456, z: -1.1376765}
+  m_LocalRotation: {x: -0.009333988, y: 0.23419292, z: -0.002665997, w: -0.9721416}
+  m_LocalPosition: {x: 4.954685, y: 0.42082158, z: -0.7825973}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -28120,6 +28138,9 @@ MonoBehaviour:
   smoothing: 0.4
   hideWhenNotTracked: 1
   fistDebounceTime: 0.15
+  rayColorDefault: {r: 1, g: 0, b: 0, a: 1}
+  rayColorHit: {r: 0, g: 1, b: 0, a: 1}
+  rayLength: 30
 --- !u!4 &2032897896
 Transform:
   m_ObjectHideFlags: 0
