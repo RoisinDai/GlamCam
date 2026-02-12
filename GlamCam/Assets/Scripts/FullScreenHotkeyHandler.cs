@@ -44,6 +44,38 @@ public static class FullscreenGameView
     [MenuItem("Window/General/Game (Fullscreen) %#&2", priority = 2)]
     public static void Toggle()
     {
+        if (instance != null)
+        {
+            Close();
+        }
+        else
+        {
+            OpenAtCurrentDesktopResolution();
+        }
+    }
+
+    public static void Close()
+    {
+        if (instance != null)
+        {
+            instance.Close();
+            instance = null;
+        }
+    }
+
+    public static void OpenAtCurrentDesktopResolution()
+    {
+        Open(Screen.currentResolution.width, Screen.currentResolution.height);
+    }
+
+    public static void Reopen(int width, int height)
+    {
+        Close();
+        Open(width, height);
+    }
+
+    static void Open(int width, int height)
+    {
         if (GameViewType == null)
         {
             Debug.LogError("GameView type not found.");
@@ -55,24 +87,15 @@ public static class FullscreenGameView
             Debug.LogWarning("GameView.showToolbar property not found.");
         }
 
-        if (instance != null)
-        {
-            instance.Close();
-            instance = null;
-        }
-        else
-        {
-            instance = (EditorWindow) ScriptableObject.CreateInstance(GameViewType);
+        instance = (EditorWindow) ScriptableObject.CreateInstance(GameViewType);
+        ShowToolbarProperty?.SetValue(instance, False);
 
-            ShowToolbarProperty?.SetValue(instance, False);
-
-            var desktopResolution = new Vector2(Screen.currentResolution.width, Screen.currentResolution.height);
-            Debug.Log($"[FullscreenGameView] Setting Game View to fullscreen with resolution {desktopResolution.x}x{desktopResolution.y}");
-            var fullscreenRect = new Rect(Vector2.zero, desktopResolution);
-            instance.ShowPopup();
-            instance.position = fullscreenRect;
-            instance.Focus();
-        }
+        var desktopResolution = new Vector2(width, height);
+        Debug.Log($"[FullscreenGameView] Setting Game View to fullscreen with resolution {desktopResolution.x}x{desktopResolution.y}");
+        var fullscreenRect = new Rect(Vector2.zero, desktopResolution);
+        instance.ShowPopup();
+        instance.position = fullscreenRect;
+        instance.Focus();
     }
 }
 
@@ -166,9 +189,8 @@ public static class WindowsDisplayOrientation
         {
             Debug.Log($"[WindowsDisplayOrientation] Toggled to {(dm.dmDisplayOrientation == DMDO_DEFAULT ? "Landscape" : "Portrait")} ({dm.dmPelsWidth}x{dm.dmPelsHeight})");
 
-            // Re-toggle fullscreen twice so it picks up the new resolution
-            FullscreenGameView.Toggle(); // close
-            FullscreenGameView.Toggle(); // reopen at new resolution
+            // Wait one editor tick so Windows can settle orientation before resizing Game View.
+            EditorApplication.delayCall += () => FullscreenGameView.Reopen(dm.dmPelsWidth, dm.dmPelsHeight);
         }
         else
         {
