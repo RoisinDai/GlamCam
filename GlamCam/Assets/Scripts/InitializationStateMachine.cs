@@ -24,6 +24,8 @@ public class InitializationStateMachine : MonoBehaviour
     public float transitionSeconds = 2f;
 
     private State _currentState = State.Init;
+    public State CurrentState => _currentState;
+    
     private Coroutine _transitionCoroutine;
 
     // Cached references to Main UI pieces we want to toggle
@@ -36,7 +38,9 @@ public class InitializationStateMachine : MonoBehaviour
     private GameObject _divider;
     private GameObject _clearAllBtn;
     private GameObject _resetBtn;
-
+    private GameObject _viewMannequinBtn;
+    private GameObject _viewSceneBtn;
+    
     private void Start()
     {
         // MainRig should always be active for this approach
