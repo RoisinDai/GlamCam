@@ -12932,7 +12932,7 @@ SphereCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
@@ -12966,12 +12966,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cooldownSeconds: 0.5
-  avatarCamera: {fileID: 0}
+  avatarCamera: {fileID: 300744147}
   maxRayDistance: 30
   uiLayerMask:
     serializedVersion: 2
-    m_Bits: 0
-  debugCamera: {fileID: 0}
+    m_Bits: 8
+  debugCamera: {fileID: 1839515786}
 --- !u!1 &1361758240
 GameObject:
   m_ObjectHideFlags: 0
