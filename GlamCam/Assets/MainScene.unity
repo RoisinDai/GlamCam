@@ -4469,20 +4469,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: -641829949622598810, guid: 12667711ae0ae4d2b96a0d4e91f58743, type: 3}
   m_PrefabInstance: {fileID: 1034570224}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &383413220
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 383413217}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a944d251e546241be8a87cd7370bbf77, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  invisibleMaskMaterial: {fileID: 2100000, guid: 35855ae20b75edc4d89dc9f1c3efd888, type: 2}
-  greenMaterial: {fileID: 2100000, guid: 6ce6403ae830e3540ac706cd2c88d887, type: 2}
 --- !u!1 &386829141
 GameObject:
   m_ObjectHideFlags: 0
@@ -5522,7 +5508,7 @@ GameObject:
   - component: {fileID: 584263622}
   - component: {fileID: 584263623}
   m_Layer: 3
-  m_Name: ViewMannequinBtn
+  m_Name: ViewBaseAvatarBtn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5589,9 +5575,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 584263619}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a944d251e546241be8a87cd7370bbf77, type: 3}
+  m_Script: {fileID: 11500000, guid: 3341d46b2b85c43dba0e08b94716926b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  cooldownSeconds: 0.5
+  avatarCamera: {fileID: 300744147}
+  maxRayDistance: 30
+  uiLayerMask:
+    serializedVersion: 2
+    m_Bits: 8
+  baseAvatarMesh: {fileID: 383413217}
   invisibleMaskMaterial: {fileID: 2100000, guid: 35855ae20b75edc4d89dc9f1c3efd888, type: 2}
   greenMaterial: {fileID: 2100000, guid: 83dc835d7b1960a4286d39cf3ab61069, type: 2}
 --- !u!4 &614438009 stripped
@@ -9941,9 +9934,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 12667711ae0ae4d2b96a0d4e91f58743, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1792988650}
-    - targetCorrespondingSourceObject: {fileID: -641829949622598810, guid: 12667711ae0ae4d2b96a0d4e91f58743, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 383413220}
   m_SourcePrefab: {fileID: 100100000, guid: 12667711ae0ae4d2b96a0d4e91f58743, type: 3}
 --- !u!4 &1034570225 stripped
 Transform:
@@ -12905,7 +12895,7 @@ GameObject:
   - component: {fileID: 1360918303}
   - component: {fileID: 1360918304}
   m_Layer: 3
-  m_Name: ViewSceneBtn
+  m_Name: DebugViewBtn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
