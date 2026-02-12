@@ -137,7 +137,7 @@ public class HandCursorFollower : MonoBehaviour
         if (_debugLineRenderer == null) return;
         
         // Only show ray when debug camera is active
-        if (!CameraController.IsDebugCameraActive || _avatarCamera == null)
+        if (DebugViewButton.isAvatarCameraActive || _avatarCamera == null)
         {
             _debugLineRenderer.enabled = false;
             return;
