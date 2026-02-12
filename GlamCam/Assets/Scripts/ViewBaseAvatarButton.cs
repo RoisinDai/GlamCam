@@ -11,6 +11,8 @@ public class ViewBaseAvatarButton : MonoBehaviour
     public LayerMask uiLayerMask;
     private float _nextAllowedTime = 0f;
     private Collider _collider;
+    [SerializeField] private GameObject handCursorObj;
+    [SerializeField] private GameObject handCursorLeftObj;
     private HandCursorFollower _handCursor;
     private HandCursorFollower _handCursorLeft;
     private HoverScale _hoverScale;
@@ -39,16 +41,11 @@ public class ViewBaseAvatarButton : MonoBehaviour
 
         _hoverScale = GetComponent<HoverScale>();
 
-        var handObj = GameObject.FindWithTag("HandCursor");
-        if (handObj != null)
-            _handCursor = handObj.GetComponent<HandCursorFollower>();
+        if (handCursorObj != null)
+            _handCursor = handCursorObj.GetComponent<HandCursorFollower>();
 
-        if (_handCursor == null)
-            Debug.LogWarning("[ViewBaseAvatarButton] HandCursorFollower not found (tag: HandCursor).");
-
-        var handObjLeft = GameObject.FindWithTag("HandCursorLeft");
-        if (handObjLeft != null)
-            _handCursorLeft = handObjLeft.GetComponent<HandCursorFollower>();
+        if (handCursorLeftObj != null)
+            _handCursorLeft = handCursorLeftObj.GetComponent<HandCursorFollower>();
 
         // Auto-find AvatarCamera if not assigned
         if (avatarCamera == null)
