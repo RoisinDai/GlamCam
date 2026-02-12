@@ -12,12 +12,17 @@ public class FullScreenHotkeyHandler : MonoBehaviour
 	// Enable fullscreen when starting game
     void Start() { if (makeFullscreenAtStart) { FullscreenGameView.Toggle(); } }
 
-    void Update() 
+    void Update()
     {
 		// Toggle fullscreen when hotkey pressed
         if (Input.GetKeyDown(KeyCode.Backslash))
         {
             FullscreenGameView.Toggle();
+        }
+        // Toggle Windows display orientation (landscape/portrait) when hotkey pressed
+        if (Input.GetKeyDown(KeyCode.Slash))
+        {
+            WindowsDisplayOrientation.Toggle();
         }
     }
 }
@@ -39,6 +44,38 @@ public static class FullscreenGameView
     [MenuItem("Window/General/Game (Fullscreen) %#&2", priority = 2)]
     public static void Toggle()
     {
+        if (instance != null)
+        {
+            Close();
+        }
+        else
+        {
+            OpenAtCurrentDesktopResolution();
+        }
+    }
+
+    public static void Close()
+    {
+        if (instance != null)
+        {
+            instance.Close();
+            instance = null;
+        }
+    }
+
+    public static void OpenAtCurrentDesktopResolution()
+    {
+        Open(Screen.currentResolution.width, Screen.currentResolution.height);
+    }
+
+    public static void Reopen(int width, int height)
+    {
+        Close();
+        Open(width, height);
+    }
+
+    static void Open(int width, int height)
+    {
         if (GameViewType == null)
         {
             Debug.LogError("GameView type not found.");
@@ -50,23 +87,114 @@ public static class FullscreenGameView
             Debug.LogWarning("GameView.showToolbar property not found.");
         }
 
-        if (instance != null)
+        instance = (EditorWindow) ScriptableObject.CreateInstance(GameViewType);
+        ShowToolbarProperty?.SetValue(instance, False);
+
+        var desktopResolution = new Vector2(width, height);
+        Debug.Log($"[FullscreenGameView] Setting Game View to fullscreen with resolution {desktopResolution.x}x{desktopResolution.y}");
+        var fullscreenRect = new Rect(Vector2.zero, desktopResolution);
+        instance.ShowPopup();
+        instance.position = fullscreenRect;
+        instance.Focus();
+    }
+}
+
+public static class WindowsDisplayOrientation
+{
+    // Windows API constants
+    const int DMDO_DEFAULT = 0;  // Landscape
+    const int DMDO_90 = 1;       // Portrait (rotated 90° CCW)
+    const int DM_DISPLAYORIENTATION = 0x00000080;
+    const int DM_PELSWIDTH = 0x00080000;
+    const int DM_PELSHEIGHT = 0x00100000;
+    const int ENUM_CURRENT_SETTINGS = -1;
+    const int CDS_RESET = 0x40000000;
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential, CharSet = System.Runtime.InteropServices.CharSet.Ansi)]
+    struct DEVMODE
+    {
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string dmDeviceName;
+        public short dmSpecVersion;
+        public short dmDriverVersion;
+        public short dmSize;
+        public short dmDriverExtra;
+        public int dmFields;
+        public int dmPositionX;
+        public int dmPositionY;
+        public int dmDisplayOrientation;
+        public int dmDisplayFixedOutput;
+        public short dmColor;
+        public short dmDuplex;
+        public short dmYResolution;
+        public short dmTTOption;
+        public short dmCollate;
+        [System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string dmFormName;
+        public short dmLogPixels;
+        public int dmBitsPerPel;
+        public int dmPelsWidth;
+        public int dmPelsHeight;
+        public int dmDisplayFlags;
+        public int dmDisplayFrequency;
+        public int dmICMMethod;
+        public int dmICMIntent;
+        public int dmMediaType;
+        public int dmDitherType;
+        public int dmReserved1;
+        public int dmReserved2;
+        public int dmPanningWidth;
+        public int dmPanningHeight;
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool EnumDisplaySettings(string deviceName, int modeNum, ref DEVMODE devMode);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern int ChangeDisplaySettings(ref DEVMODE devMode, int flags);
+
+    public static void Toggle()
+    {
+        DEVMODE dm = new DEVMODE();
+        dm.dmSize = (short)System.Runtime.InteropServices.Marshal.SizeOf(typeof(DEVMODE));
+
+        if (!EnumDisplaySettings(null, ENUM_CURRENT_SETTINGS, ref dm))
         {
-            instance.Close();
-            instance = null;
+            Debug.LogError("[WindowsDisplayOrientation] Failed to get current display settings.");
+            return;
+        }
+
+        // Toggle between landscape (0°) and portrait (90°)
+        if (dm.dmDisplayOrientation == DMDO_DEFAULT)
+        {
+            dm.dmDisplayOrientation = DMDO_90;
+            // Swap width and height for portrait
+            int temp = dm.dmPelsWidth;
+            dm.dmPelsWidth = dm.dmPelsHeight;
+            dm.dmPelsHeight = temp;
         }
         else
         {
-            instance = (EditorWindow) ScriptableObject.CreateInstance(GameViewType);
+            dm.dmDisplayOrientation = DMDO_DEFAULT;
+            // Swap width and height for landscape
+            int temp = dm.dmPelsWidth;
+            dm.dmPelsWidth = dm.dmPelsHeight;
+            dm.dmPelsHeight = temp;
+        }
 
-            ShowToolbarProperty?.SetValue(instance, False);
+        dm.dmFields = DM_DISPLAYORIENTATION | DM_PELSWIDTH | DM_PELSHEIGHT;
 
-            var desktopResolution = new Vector2(Screen.currentResolution.width, Screen.currentResolution.height);
-            Debug.Log($"[FullscreenGameView] Setting Game View to fullscreen with resolution {desktopResolution.x}x{desktopResolution.y}");
-            var fullscreenRect = new Rect(Vector2.zero, desktopResolution);
-            instance.ShowPopup();
-            instance.position = fullscreenRect;
-            instance.Focus();
+        int result = ChangeDisplaySettings(ref dm, CDS_RESET);
+        if (result == 0)
+        {
+            Debug.Log($"[WindowsDisplayOrientation] Toggled to {(dm.dmDisplayOrientation == DMDO_DEFAULT ? "Landscape" : "Portrait")} ({dm.dmPelsWidth}x{dm.dmPelsHeight})");
+
+            // Wait one editor tick so Windows can settle orientation before resizing Game View.
+            EditorApplication.delayCall += () => FullscreenGameView.Reopen(dm.dmPelsWidth, dm.dmPelsHeight);
+        }
+        else
+        {
+            Debug.LogError($"[WindowsDisplayOrientation] ChangeDisplaySettings failed with code {result}");
         }
     }
 }
