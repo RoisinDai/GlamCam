@@ -16,7 +16,7 @@ public class BodyTrackingWarnings : MonoBehaviour
     public GameObject bodySourceManager;
 
     [Tooltip("The Warning GameObject under MainRig to show/hide")]
-    public GameObject warningObject;    
+    public GameObject warningObject;
 
     [Header("Detection Settings")]
     [Tooltip("Maximum allowed rotation angle (degrees) before showing warning")]
@@ -42,6 +42,8 @@ public class BodyTrackingWarnings : MonoBehaviour
     private BodySourceManager _bodyManager;
     private InitializationStateMachine _initStateMachine;
 
+    private ClothingRulesCoordinator _clothingCoordinator;
+
     // Joints to check for limb tracking
     private static readonly Kinect.JointType[] _ArmJoints = new Kinect.JointType[]
     {
@@ -65,6 +67,12 @@ public class BodyTrackingWarnings : MonoBehaviour
         if (_initStateMachine == null)
         {
             Debug.LogWarning("[BodyTrackingWarnings] InitializationStateMachine not found - warnings will show in all phases.");
+        }
+
+        _clothingCoordinator = FindObjectOfType<ClothingRulesCoordinator>();
+        if (_clothingCoordinator == null)
+        {
+            Debug.LogWarning("[BodyTrackingWarnings] ClothingRulesCoordinator not found - clothing will not be cleared on warning.");
         }
 
         // Find BodySourceManager
@@ -297,8 +305,27 @@ public class BodyTrackingWarnings : MonoBehaviour
         }
     }
 
+    private bool _savedClothing = false;
+
     private void SetWarningVisible(bool visible)
     {
+        if (visible && !_showingWarning)
+        {
+            // record current clothing before hiding it
+            _clothingCoordinator?.SaveCurrentSelections();
+            ClothingRulesCoordinator.ClearAllClothing();
+            _savedClothing = true;
+        }
+        else if (!visible && _showingWarning)
+        {
+            // when warning clears, restore garments we hid earlier
+            if (_savedClothing)
+            {
+                _clothingCoordinator?.RestoreSavedSelections();
+                _savedClothing = false;
+            }
+        }
+
         _showingWarning = visible;
 
         if (warningObject != null)
