@@ -9,7 +9,7 @@ public class MultiSourceManager : MonoBehaviour {
 
     // Measurement status (polled by AvatarController and UI)
     public bool IsMeasured { get; private set; } = false;
-    public float MeasuredSpineMidWidth { get; private set; } = -1f;
+    public float MeasuredSpineBaseWidth { get; private set; } = -1f;
     public float MeasuredHeight { get; private set; } = -1f;
 
     // T-pose bone length measurements (raw meters, averaged left/right)
@@ -167,14 +167,14 @@ public class MultiSourceManager : MonoBehaviour {
 
                 if (_TPoseHoldTimer >= TPOSE_HOLD_DURATION)
                 {
-                    MeasuredSpineMidWidth = MeasureSpineMidWidth();
+                    MeasuredSpineBaseWidth = MeasureSpineBaseWidth();
                     MeasuredHeight = MeasureUserHeight();
                     MeasureBoneLengths();
                     IsMeasured = true;
                     // Divide by 10 since the measured height is in decimeters
                     float heightMeters = MeasuredHeight / 10f;
-                    float widthMeters = MeasuredSpineMidWidth / 10f;
-                    Debug.Log($"[MultiSourceManager] Measurement complete. Height={MeasuredHeight:F3} units ({heightMeters:F3}m) Width={MeasuredSpineMidWidth:F3} units ({widthMeters:F3}m) IsMeasured={IsMeasured}");
+                    float widthMeters = MeasuredSpineBaseWidth / 10f;
+                    Debug.Log($"[MultiSourceManager] Measurement complete. Height={MeasuredHeight:F3} units ({heightMeters:F3}m) Width={MeasuredSpineBaseWidth:F3} units ({widthMeters:F3}m) IsMeasured={IsMeasured}");
                 }
             }
             else
@@ -261,7 +261,7 @@ public class MultiSourceManager : MonoBehaviour {
     public void StartMeasurement()
     {
         IsMeasured = false;
-        MeasuredSpineMidWidth = -1f;
+        MeasuredSpineBaseWidth = -1f;
         MeasuredHeight = -1f;
         MeasuredUpperArmLength = -1f;
         MeasuredLowerArmLength = -1f;
@@ -348,7 +348,7 @@ public class MultiSourceManager : MonoBehaviour {
             float avgZ = 0f;
             int count = 0;
 
-            var torsoJoints = new[] { JointType.SpineBase, JointType.SpineMid, JointType.SpineShoulder };
+            var torsoJoints = new[] { JointType.SpineBase, JointType.SpineBase, JointType.SpineShoulder };
             foreach (var jt in torsoJoints)
             {
                 if (joints[jt].TrackingState != TrackingState.NotTracked)
@@ -373,17 +373,17 @@ public class MultiSourceManager : MonoBehaviour {
     }
     
     /// <summary>
-    /// Measures body width at SpineMid joint.
+    /// Measures body width at SpineBase joint.
     /// Returns width in meters, or 0 if measurement failed.
     /// </summary>
-    public float MeasureSpineMidWidth()
+    public float MeasureSpineBaseWidth()
     {
         if (_TrackedBody == null || !_TrackedBody.IsTracked)
         {
             return 0f;
         }
         
-        var joint = _TrackedBody.Joints[JointType.SpineMid];
+        var joint = _TrackedBody.Joints[JointType.SpineBase];
         return MeasureWidthAtJoint(joint);
     }
     

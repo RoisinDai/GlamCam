@@ -610,7 +610,7 @@ public class AvatarController : MonoBehaviour
         ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
 
         // 5. Apply uniform scaling ONCE using T-pose height from MultiSourceManager
-        if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f && _MultiSourceManager.MeasuredSpineMidWidth > 0f)
+        if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f && _MultiSourceManager.MeasuredSpineBaseWidth > 0f)
         {
             UniformScaleFactor =
                 _KinectUserMeasurements.height / _AvatarMeasurements.height;
@@ -1485,15 +1485,15 @@ public class AvatarController : MonoBehaviour
     /// </summary>
     private float EstimateBodyBuildFactor()
     {
-        if (_MultiSourceManager == null || _MultiSourceManager.MeasuredSpineMidWidth <= 0f
+        if (_MultiSourceManager == null || _MultiSourceManager.MeasuredSpineBaseWidth <= 0f
             || _MultiSourceManager.MeasuredHeight <= 0f)
         {
             return 1.0f;
         }
 
         float expectedWidth = AVATAR_WIDTH_HEIGHT_RATIO * _MultiSourceManager.MeasuredHeight;
-        float buildFactor = _MultiSourceManager.MeasuredSpineMidWidth / expectedWidth;
-        Debug.Log($"[THICKNESS SCALING] Measured SpineMid Width = {_MultiSourceManager.MeasuredSpineMidWidth:F4}, Expected Width = {expectedWidth:F4}, Build Factor = {buildFactor:F4}");
+        float buildFactor = _MultiSourceManager.MeasuredSpineBaseWidth / expectedWidth;
+        Debug.Log($"[THICKNESS SCALING] Measured SpineMid Width = {_MultiSourceManager.MeasuredSpineBaseWidth:F4}, Expected Width = {expectedWidth:F4}, Build Factor = {buildFactor:F4}");
         return buildFactor;
     }
 
