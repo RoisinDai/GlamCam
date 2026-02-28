@@ -398,7 +398,7 @@ public class AvatarController : MonoBehaviour
     private HumanoidMeasurements _AvatarMeasurements = new();
 
     // Scaling factor variables
-    private const float AVATAR_WIDTH_HEIGHT_RATIO = 0.1791f; // avatar SpineMid width / height (30.15cm / 168.33cm)
+    private const float AVATAR_WIDTH_HEIGHT_RATIO = 0.2032f; // avatar SpineBase width / height (34.28cm / 168.72cm)
     private float UniformScaleFactor = -1f;
     private ExtensionFactors _ExtensionFactors = new();
     private bool hasValidBody = false;
@@ -435,13 +435,15 @@ public class AvatarController : MonoBehaviour
     [Tooltip("Enable statistical body build estimation for thickness scaling")]
     public bool enableThicknessScaling = true;
 
-    // Smoothed body build factor (updated every frame)
-    private float _SmoothedBuildFactor = 1.0f;
+    // Population-based limb width ratios (empirically measured)
+    private const float POPULATION_WAIST_ARM_RATIO   = 2.9527f; // waist is ~2.95x wider than bicep
+    private const float POPULATION_WAIST_THIGH_RATIO = 1.6570f; // waist is ~1.66x wider than thigh
 
-    // Smoothing factor for thickness (slower than length for stability)
-    [Range(0.01f, 0.5f)]
-    [Tooltip("Smoothing factor for thickness scaling. Lower = smoother. Should be slower than bone length smoothing.")]
-    public float thicknessSmoothingFactor = 0.05f;
+    // Avatar model's waist-to-limb width ratios.
+    // If the avatar has average proportions, these equal the population ratios.
+    // Tune these in the Inspector if the avatar's arms/thighs look over- or under-scaled.
+    [SerializeField] private float _avatarWaistArmRatio   = 2.9527f;
+    [SerializeField] private float _avatarWaistThighRatio = 1.6570f;
 
     // Spine bones that receive thickness-only scaling (no length scaling)
     // These bones make the torso wider/thinner based on the build factor
@@ -1257,12 +1259,7 @@ public class AvatarController : MonoBehaviour
         // This allows the system to correct errors from previous frames
         MeasureCurrentAvatarBoneLengths();
 
-        float thicknessFactor = 1.0f;
-        if (enableThicknessScaling)
-        {
-            float rawBuildFactor = EstimateBodyBuildFactor();
-            thicknessFactor = SmoothBodyBuildFactor(rawBuildFactor);
-        }
+        float buildFactor = enableThicknessScaling ? EstimateBodyBuildFactor() : 1.0f;
 
         // CRITICAL FIX: Sort bones in hierarchical order (parent before children)
         // This ensures parent scales are applied before children calculate cumulative parent scales
@@ -1311,11 +1308,14 @@ public class AvatarController : MonoBehaviour
             // CRITICAL: Multiply by UniformScaleFactor to preserve the base uniform scaling!
             // desiredLengthScale is ~1.0 because we measure against already-uniformly-scaled bones.
             // Without multiplying by UniformScaleFactor, we would remove the uniform scale.
+            // Per-limb thickness derived from waist measurement + population ratios
+            float limbThickness = GetLimbThicknessFactor(config.unityBone, buildFactor);
+
             // Desired world scale for this bone (what we want in world space)
             Vector3 desiredWorldScale = new Vector3(
-                thicknessFactor * UniformScaleFactor,
+                limbThickness * UniformScaleFactor,
                 desiredLengthScale * UniformScaleFactor,
-                thicknessFactor * UniformScaleFactor
+                limbThickness * UniformScaleFactor
             );
 
             // Required local scale = desiredWorldScale / parentCumulativeScale
@@ -1340,10 +1340,10 @@ public class AvatarController : MonoBehaviour
             fakeUMA.ScaleBoneIndependently(boneTransform, scaleFactorToApply);
         }
 
-        // Apply thickness-only scaling to spine/torso bones
+        // Apply thickness-only scaling to spine/torso bones (waist uses buildFactor directly)
         if (enableThicknessScaling)
         {
-            ApplySpineThicknessScaling(thicknessFactor*1.2f); // *1.2 Based on experimental results for torso scaling
+            ApplySpineThicknessScaling(buildFactor * 1.2f); // *1.2 Based on experimental results for torso scaling
         }
     }
 
@@ -1478,6 +1478,37 @@ public class AvatarController : MonoBehaviour
     // ========================================================================================
     // STATISTICAL THICKNESS SCALING SYSTEM
     // ========================================================================================
+
+    /// <summary>
+    /// Returns a per-limb thickness scale factor derived from the global waist build factor
+    /// and population-based waist-to-limb width ratios.
+    ///
+    /// Formula: limbFactor = buildFactor × (avatarRatio / populationRatio)
+    /// - If the avatar has the same proportions as the average person, limbFactor == buildFactor.
+    /// - If the avatar's arms are proportionally thicker than average (smaller avatarWaistArmRatio),
+    ///   the arm factor is reduced, preventing over-scaling.
+    /// - Tune _avatarWaistArmRatio / _avatarWaistThighRatio in the Inspector to match your avatar.
+    /// </summary>
+    private float GetLimbThicknessFactor(HumanBodyBones bone, float buildFactor)
+    {
+        switch (bone)
+        {
+            case HumanBodyBones.LeftUpperArm:
+            case HumanBodyBones.RightUpperArm:
+            case HumanBodyBones.LeftLowerArm:
+            case HumanBodyBones.RightLowerArm:
+                return buildFactor * (_avatarWaistArmRatio / POPULATION_WAIST_ARM_RATIO);
+
+            case HumanBodyBones.LeftUpperLeg:
+            case HumanBodyBones.RightUpperLeg:
+            case HumanBodyBones.LeftLowerLeg:
+            case HumanBodyBones.RightLowerLeg:
+                return buildFactor * (_avatarWaistThighRatio / POPULATION_WAIST_THIGH_RATIO);
+
+            default:
+                return buildFactor;
+        }
+    }
 
     /// <summary>
     /// Calculates body build (thickness) factor from T-pose SpineMid width measurement.
