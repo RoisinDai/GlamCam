@@ -6,7 +6,7 @@ using System.Text;
 public class FPSLogger : MonoBehaviour
 {
     [Tooltip("How often to update the FPS reading (in seconds)")]
-    public float updateInterval = 0.5f;
+    public float updateInterval = 1.0f;
 
     private float accumulator = 0f;
     private int frames = 0;
