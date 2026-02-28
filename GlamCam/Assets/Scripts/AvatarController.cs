@@ -400,6 +400,9 @@ public class AvatarController : MonoBehaviour
     // Scaling factor variables
     private const float AVATAR_WIDTH_HEIGHT_RATIO = 0.1791f; // avatar SpineMid width / height (30.15cm / 168.33cm)
     private float UniformScaleFactor = -1f;
+    private bool _ShowMeasurementLines = false;
+    private List<LineRenderer> _MeasurementLineRenderers = new();
+    private LineRenderer _HeightLineRenderer;
     private ExtensionFactors _ExtensionFactors = new();
     private bool hasValidBody = false;
 
@@ -499,6 +502,9 @@ public class AvatarController : MonoBehaviour
 
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.M))
+            ToggleMeasurementLines();
+
         // Gate: pause avatar tracking while waiting for T-pose measurement
         if (_MultiSourceManager != null && !_MultiSourceManager.IsMeasured) return;
 
@@ -621,6 +627,9 @@ public class AvatarController : MonoBehaviour
             // 1. Update bone scaling based on Kinect measurements
             UpdateContinuousBoneScaling();
 
+            // Create measurement line renderers once after T-pose scaling is applied
+            InitMeasurementLines();
+
             // Export avatar dimensional analysis once after T-pose scaling is applied
             ExportDimensionalAnalysis();
 
@@ -629,6 +638,10 @@ public class AvatarController : MonoBehaviour
 
         // 6. Optional: shoulder-based translation correction
         ApplyUniformTranslationBasedOnShoulders();
+
+        // Update measurement line positions to follow the moving avatar
+        if (_ShowMeasurementLines)
+            UpdateMeasurementLinePositions();
     }
 
     /// <summary>
@@ -824,6 +837,112 @@ public class AvatarController : MonoBehaviour
         System.IO.File.AppendAllText(path, row + "\n");
 
         Debug.Log($"[DimensionalAnalysis] Saved to {path}\n{row}");
+    }
+
+    // Bone pairs used for measurement line rendering, with colors per segment type.
+    private static readonly (HumanBodyBones boneA, HumanBodyBones boneB, Color color)[] _MeasurementBonePairDefs =
+    {
+        (HumanBodyBones.LeftUpperArm,  HumanBodyBones.LeftLowerArm,   Color.cyan),
+        (HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm,  Color.cyan),
+        (HumanBodyBones.LeftLowerArm,  HumanBodyBones.LeftHand,       new Color(0.2f, 0.5f, 1f)),
+        (HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand,      new Color(0.2f, 0.5f, 1f)),
+        (HumanBodyBones.LeftUpperLeg,  HumanBodyBones.LeftLowerLeg,   Color.green),
+        (HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg,  Color.green),
+        (HumanBodyBones.LeftLowerLeg,  HumanBodyBones.LeftFoot,       new Color(0.4f, 0.9f, 0.2f)),
+        (HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot,      new Color(0.4f, 0.9f, 0.2f)),
+        (HumanBodyBones.LeftUpperArm,  HumanBodyBones.RightUpperArm,  Color.red),
+        (HumanBodyBones.Chest,         HumanBodyBones.Hips,           Color.magenta),
+    };
+
+    /// <summary>
+    /// Creates one LineRenderer per measurement segment after T-pose scaling.
+    /// Hidden by default; toggle with M key or ToggleMeasurementLines().
+    /// </summary>
+    private void InitMeasurementLines()
+    {
+        foreach (var lr in _MeasurementLineRenderers)
+            if (lr != null) Destroy(lr.gameObject);
+        _MeasurementLineRenderers.Clear();
+
+        if (_HeightLineRenderer != null)
+        {
+            Destroy(_HeightLineRenderer.gameObject);
+            _HeightLineRenderer = null;
+        }
+
+        var mat = new Material(Shader.Find("Sprites/Default"));
+
+        foreach (var (boneA, boneB, color) in _MeasurementBonePairDefs)
+        {
+            var go = new GameObject($"MeasLine_{boneA}_{boneB}");
+            var lr = go.AddComponent<LineRenderer>();
+            lr.material       = mat;
+            lr.startColor     = color;
+            lr.endColor       = color;
+            lr.startWidth     = 0.01f;
+            lr.endWidth       = 0.01f;
+            lr.positionCount  = 2;
+            lr.useWorldSpace  = true;
+            lr.enabled        = _ShowMeasurementLines;
+            _MeasurementLineRenderers.Add(lr);
+        }
+
+        // Height: foot average → head (vertical white line)
+        var hgo = new GameObject("MeasLine_Height");
+        _HeightLineRenderer               = hgo.AddComponent<LineRenderer>();
+        _HeightLineRenderer.material      = mat;
+        _HeightLineRenderer.startColor    = Color.white;
+        _HeightLineRenderer.endColor      = Color.white;
+        _HeightLineRenderer.startWidth    = 0.01f;
+        _HeightLineRenderer.endWidth      = 0.01f;
+        _HeightLineRenderer.positionCount = 2;
+        _HeightLineRenderer.useWorldSpace = true;
+        _HeightLineRenderer.enabled       = _ShowMeasurementLines;
+
+        UpdateMeasurementLinePositions();
+    }
+
+    /// <summary>
+    /// Updates each LineRenderer to match current bone world positions.
+    /// Called every LateUpdate while lines are visible.
+    /// </summary>
+    private void UpdateMeasurementLinePositions()
+    {
+        for (int i = 0; i < _MeasurementBonePairDefs.Length && i < _MeasurementLineRenderers.Count; i++)
+        {
+            var (boneA, boneB, _) = _MeasurementBonePairDefs[i];
+            Transform tA = animator.GetBoneTransform(boneA);
+            Transform tB = animator.GetBoneTransform(boneB);
+            if (tA == null || tB == null) continue;
+            _MeasurementLineRenderers[i].SetPosition(0, tA.position);
+            _MeasurementLineRenderers[i].SetPosition(1, tB.position);
+        }
+
+        if (_HeightLineRenderer != null)
+        {
+            Transform lFoot = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+            Transform rFoot = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+            Transform head  = animator.GetBoneTransform(HumanBodyBones.Head);
+            if (lFoot != null && rFoot != null && head != null)
+            {
+                float footAvgY = (lFoot.position.y + rFoot.position.y) / 2f;
+                Vector3 bottom = new Vector3(head.position.x, footAvgY, head.position.z);
+                _HeightLineRenderer.SetPosition(0, bottom);
+                _HeightLineRenderer.SetPosition(1, head.position);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Toggles measurement lines on/off. Bound to M key; also callable from UI.
+    /// </summary>
+    public void ToggleMeasurementLines()
+    {
+        _ShowMeasurementLines = !_ShowMeasurementLines;
+        foreach (var lr in _MeasurementLineRenderers)
+            if (lr != null) lr.enabled = _ShowMeasurementLines;
+        if (_HeightLineRenderer != null)
+            _HeightLineRenderer.enabled = _ShowMeasurementLines;
     }
 
     /// <summary>
@@ -1617,6 +1736,17 @@ public class AvatarController : MonoBehaviour
 
         // Clear user measurements
         _KinectUserMeasurements = new HumanoidMeasurements();
+
+        // Destroy measurement line renderers so they are recreated for the next user
+        foreach (var lr in _MeasurementLineRenderers)
+            if (lr != null) Destroy(lr.gameObject);
+        _MeasurementLineRenderers.Clear();
+        if (_HeightLineRenderer != null)
+        {
+            Destroy(_HeightLineRenderer.gameObject);
+            _HeightLineRenderer = null;
+        }
+        _ShowMeasurementLines = false;
 
         // Re-trigger T-pose measurement
         if (_MultiSourceManager != null)
