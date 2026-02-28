@@ -435,15 +435,19 @@ public class AvatarController : MonoBehaviour
     [Tooltip("Enable statistical body build estimation for thickness scaling")]
     public bool enableThicknessScaling = true;
 
-    // Population-based limb width ratios (empirically measured)
-    private const float POPULATION_WAIST_ARM_RATIO   = 2.9527f; // waist is ~2.95x wider than bicep
-    private const float POPULATION_WAIST_THIGH_RATIO = 1.6570f; // waist is ~1.66x wider than thigh
+    // Population-based limb width ratios (empirically measured from N=2505)
+    private const float POPULATION_WAIST_ARM_RATIO     = 2.9527f; // waist / bicep (upper arm)
+    private const float POPULATION_WAIST_FOREARM_RATIO = 3.3806f; // waist / forearm (lower arm)
+    private const float POPULATION_WAIST_THIGH_RATIO   = 1.6570f; // waist / thigh (upper leg)
+    private const float POPULATION_WAIST_CALF_RATIO    = 2.3948f; // waist / calf (lower leg)
 
     // Avatar model's waist-to-limb width ratios.
     // If the avatar has average proportions, these equal the population ratios.
-    // Tune these in the Inspector if the avatar's arms/thighs look over- or under-scaled.
-    [SerializeField] private float _avatarWaistArmRatio   = 2.9527f;
-    [SerializeField] private float _avatarWaistThighRatio = 1.6570f;
+    // Tune these in the Inspector if the avatar's limbs look over- or under-scaled.
+    [SerializeField] private float _avatarWaistArmRatio     = 2.9527f;
+    [SerializeField] private float _avatarWaistForearmRatio = 3.3806f;
+    [SerializeField] private float _avatarWaistThighRatio   = 1.6570f;
+    [SerializeField] private float _avatarWaistCalfRatio    = 2.3948f;
 
     // Spine bones that receive thickness-only scaling (no length scaling)
     // These bones make the torso wider/thinner based on the build factor
@@ -1487,7 +1491,7 @@ public class AvatarController : MonoBehaviour
     /// - If the avatar has the same proportions as the average person, limbFactor == buildFactor.
     /// - If the avatar's arms are proportionally thicker than average (smaller avatarWaistArmRatio),
     ///   the arm factor is reduced, preventing over-scaling.
-    /// - Tune _avatarWaistArmRatio / _avatarWaistThighRatio in the Inspector to match your avatar.
+    /// - Tune _avatarWaist* ratios in the Inspector to match your avatar.
     /// </summary>
     private float GetLimbThicknessFactor(HumanBodyBones bone, float buildFactor)
     {
@@ -1495,15 +1499,19 @@ public class AvatarController : MonoBehaviour
         {
             case HumanBodyBones.LeftUpperArm:
             case HumanBodyBones.RightUpperArm:
+                return buildFactor * (_avatarWaistArmRatio / POPULATION_WAIST_ARM_RATIO);
+
             case HumanBodyBones.LeftLowerArm:
             case HumanBodyBones.RightLowerArm:
-                return buildFactor * (_avatarWaistArmRatio / POPULATION_WAIST_ARM_RATIO);
+                return buildFactor * (_avatarWaistForearmRatio / POPULATION_WAIST_FOREARM_RATIO);
 
             case HumanBodyBones.LeftUpperLeg:
             case HumanBodyBones.RightUpperLeg:
+                return buildFactor * (_avatarWaistThighRatio / POPULATION_WAIST_THIGH_RATIO);
+
             case HumanBodyBones.LeftLowerLeg:
             case HumanBodyBones.RightLowerLeg:
-                return buildFactor * (_avatarWaistThighRatio / POPULATION_WAIST_THIGH_RATIO);
+                return buildFactor * (_avatarWaistCalfRatio / POPULATION_WAIST_CALF_RATIO);
 
             default:
                 return buildFactor;
