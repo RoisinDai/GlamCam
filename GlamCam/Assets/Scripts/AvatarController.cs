@@ -756,7 +756,7 @@ public class AvatarController : MonoBehaviour
     /// </summary>
     public Dictionary<string, float> GetDimensionalAnalysisCm()
     {
-        const float mToCm = 100f;
+        const float mToCm = 10f; // 1 Unity unit = 1 dm (MeasuredHeight is in decimeters), so × 10 → cm
 
         Transform leftUpperArm  = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
         Transform leftLowerArm  = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
