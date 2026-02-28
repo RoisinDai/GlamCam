@@ -621,6 +621,9 @@ public class AvatarController : MonoBehaviour
             // 1. Update bone scaling based on Kinect measurements
             UpdateContinuousBoneScaling();
 
+            // Export avatar dimensional analysis once after T-pose scaling is applied
+            ExportDimensionalAnalysis();
+
             Debug.Log($"UniformScaleFactor set to {UniformScaleFactor:F3} (T-pose height: {_MultiSourceManager.MeasuredHeight:F3}m, avatar height: {_AvatarMeasurements.height:F3})");
         }
 
@@ -737,6 +740,90 @@ public class AvatarController : MonoBehaviour
         float height = headTop.position.y - footAvgY;
 
         _AvatarMeasurements.height = height;
+    }
+
+    /// <summary>
+    /// Computes world-space bone distances from the scaled avatar in centimeters.
+    /// Uses animator bone positions directly — safe to call after UniformScaleFactor is applied.
+    /// </summary>
+    public Dictionary<string, float> GetDimensionalAnalysisCm()
+    {
+        const float mToCm = 100f;
+
+        Transform leftUpperArm  = animator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+        Transform leftLowerArm  = animator.GetBoneTransform(HumanBodyBones.LeftLowerArm);
+        Transform leftHand      = animator.GetBoneTransform(HumanBodyBones.LeftHand);
+        Transform rightUpperArm = animator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+        Transform rightLowerArm = animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
+        Transform rightHand     = animator.GetBoneTransform(HumanBodyBones.RightHand);
+
+        Transform leftUpperLeg  = animator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
+        Transform leftLowerLeg  = animator.GetBoneTransform(HumanBodyBones.LeftLowerLeg);
+        Transform leftFoot      = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
+        Transform rightUpperLeg = animator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
+        Transform rightLowerLeg = animator.GetBoneTransform(HumanBodyBones.RightLowerLeg);
+        Transform rightFoot     = animator.GetBoneTransform(HumanBodyBones.RightFoot);
+
+        Transform head  = animator.GetBoneTransform(HumanBodyBones.Head);
+        Transform hips  = animator.GetBoneTransform(HumanBodyBones.Hips);
+        Transform chest = animator.GetBoneTransform(HumanBodyBones.Chest);
+
+        float footAvgY = (leftFoot.position.y + rightFoot.position.y) / 2f;
+
+        // Upper arm: shoulder joint → elbow
+        float leftUpperArmLen  = Vector3.Distance(leftUpperArm.position,  leftLowerArm.position);
+        float rightUpperArmLen = Vector3.Distance(rightUpperArm.position, rightLowerArm.position);
+
+        // Lower arm: elbow → wrist
+        float leftLowerArmLen  = Vector3.Distance(leftLowerArm.position,  leftHand.position);
+        float rightLowerArmLen = Vector3.Distance(rightLowerArm.position, rightHand.position);
+
+        // Upper leg: hip joint → knee
+        float leftUpperLegLen  = Vector3.Distance(leftUpperLeg.position,  leftLowerLeg.position);
+        float rightUpperLegLen = Vector3.Distance(rightUpperLeg.position, rightLowerLeg.position);
+
+        // Lower leg: knee → ankle
+        float leftLowerLegLen  = Vector3.Distance(leftLowerLeg.position,  leftFoot.position);
+        float rightLowerLegLen = Vector3.Distance(rightLowerLeg.position, rightFoot.position);
+
+        return new Dictionary<string, float>
+        {
+            ["Height"]         = (head.position.y - footAvgY) * mToCm,
+            ["UpperArmLength"] = ((leftUpperArmLen + rightUpperArmLen) / 2f) * mToCm,
+            ["LowerArmLength"] = ((leftLowerArmLen + rightLowerArmLen) / 2f) * mToCm,
+            ["UpperLegLength"] = ((leftUpperLegLen + rightUpperLegLen) / 2f) * mToCm,
+            ["LowerLegLength"] = ((leftLowerLegLen + rightLowerLegLen) / 2f) * mToCm,
+            ["ShoulderWidth"]  = Vector3.Distance(leftUpperArm.position, rightUpperArm.position) * mToCm,
+            ["TorsoLength"]    = Vector3.Distance(chest.position, hips.position) * mToCm,
+        };
+    }
+
+    /// <summary>
+    /// Logs the dimensional analysis to the Unity console and appends a row to
+    /// dimensional_analysis.csv in Application.persistentDataPath.
+    /// </summary>
+    public void ExportDimensionalAnalysis(string subjectId = "subject")
+    {
+        if (UniformScaleFactor < 0f)
+        {
+            Debug.LogWarning("[DimensionalAnalysis] Avatar not yet scaled — wait for T-pose calibration.");
+            return;
+        }
+
+        var m = GetDimensionalAnalysisCm();
+
+        string header = "SubjectId,Height,UpperArmLength,LowerArmLength,UpperLegLength,LowerLegLength,ShoulderWidth,TorsoLength";
+        string row    = $"{subjectId}," +
+                        $"{m["Height"]:F2},{m["UpperArmLength"]:F2},{m["LowerArmLength"]:F2}," +
+                        $"{m["UpperLegLength"]:F2},{m["LowerLegLength"]:F2}," +
+                        $"{m["ShoulderWidth"]:F2},{m["TorsoLength"]:F2}";
+
+        string path = System.IO.Path.Combine(Application.persistentDataPath, "dimensional_analysis.csv");
+        if (!System.IO.File.Exists(path))
+            System.IO.File.WriteAllText(path, header + "\n");
+        System.IO.File.AppendAllText(path, row + "\n");
+
+        Debug.Log($"[DimensionalAnalysis] Saved to {path}\n{row}");
     }
 
     /// <summary>
