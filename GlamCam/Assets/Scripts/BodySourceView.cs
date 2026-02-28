@@ -128,6 +128,7 @@ public class BodySourceView : MonoBehaviour
   private GameObject CreateBodyObject(ulong id)
   {
     GameObject body = new GameObject("Body:" + id);
+    body.transform.parent = this.transform;
 
     // Create a cube for each of the 20 joints
     foreach (Windows.Kinect.JointType jt in System.Enum.GetValues(typeof(Windows.Kinect.JointType)))

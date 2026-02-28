@@ -25,7 +25,7 @@ public class InitializationStateMachine : MonoBehaviour
 
     private State _currentState = State.Init;
     public State CurrentState => _currentState;
-    
+
     private Coroutine _transitionCoroutine;
 
     // Cached references to Main UI pieces we want to toggle
@@ -40,7 +40,8 @@ public class InitializationStateMachine : MonoBehaviour
     private GameObject _resetBtn;
     private GameObject _debugViewBtn;
     private GameObject _viewBaseAvatarBtn;
-    
+    private GameObject _viewSkeletonBtn;
+
     private void Start()
     {
         // MainRig should always be active for this approach
@@ -168,8 +169,10 @@ public class InitializationStateMachine : MonoBehaviour
         // Buttons
         SetActive(_clearAllBtn, visible);
         SetActive(_resetBtn, visible);
+        // only show debug view when oriented landscape
         SetActive(_debugViewBtn, visible);
         SetActive(_viewBaseAvatarBtn, visible);
+        SetActive(_viewSkeletonBtn, visible);
     }
 
     private void CacheMainUiReferences()
@@ -208,6 +211,7 @@ public class InitializationStateMachine : MonoBehaviour
         _resetBtn = FindGo(mainRig, "ResetBtn");
         _debugViewBtn = FindGo(mainRig, "DebugViewBtn");
         _viewBaseAvatarBtn = FindGo(mainRig, "ViewBaseAvatarBtn");
+        _viewSkeletonBtn = FindGo(mainRig, "ViewSkeletonBtn");
     }
 
     private GameObject FindGo(GameObject root, string path)
