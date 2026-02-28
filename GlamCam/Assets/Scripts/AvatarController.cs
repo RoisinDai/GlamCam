@@ -1536,16 +1536,6 @@ public class AvatarController : MonoBehaviour
         return buildFactor;
     }
 
-    /// <summary>
-    /// Apply exponential smoothing to the body build factor to reduce jitter.
-    /// </summary>
-    private float SmoothBodyBuildFactor(float rawBuildFactor)
-    {
-        // Apply exponential moving average
-        _SmoothedBuildFactor = Mathf.Lerp(_SmoothedBuildFactor, rawBuildFactor, thicknessSmoothingFactor);
-        return _SmoothedBuildFactor;
-    }
-
     // ========================================================================================
     // RESTART
     // ========================================================================================
@@ -1565,7 +1555,6 @@ public class AvatarController : MonoBehaviour
 
         // Clear smoothed measurement history
         _SmoothedKinectBoneLengths.Clear();
-        _SmoothedBuildFactor = 1.0f;
 
         // Clear user measurements
         _KinectUserMeasurements = new HumanoidMeasurements();
