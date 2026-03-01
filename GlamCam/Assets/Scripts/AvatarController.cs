@@ -399,6 +399,12 @@ public class AvatarController : MonoBehaviour
 
     // Scaling factor variables
     private const float AVATAR_WIDTH_HEIGHT_RATIO = 0.1791f; // avatar SpineMid width / height (30.15cm / 168.33cm)
+
+    // Population-based waist-to-limb width ratios (N=2505)
+    private const float POPULATION_WAIST_ARM_RATIO     = 2.9527f; // waist / bicep (upper arm)
+    private const float POPULATION_WAIST_FOREARM_RATIO = 3.3806f; // waist / forearm (lower arm)
+    private const float POPULATION_WAIST_THIGH_RATIO   = 1.6570f; // waist / thigh (upper leg)
+    private const float POPULATION_WAIST_CALF_RATIO    = 2.3948f; // waist / calf (lower leg)
     private float UniformScaleFactor = -1f;
     private ExtensionFactors _ExtensionFactors = new();
     private bool hasValidBody = false;
@@ -1312,10 +1318,13 @@ public class AvatarController : MonoBehaviour
             // desiredLengthScale is ~1.0 because we measure against already-uniformly-scaled bones.
             // Without multiplying by UniformScaleFactor, we would remove the uniform scale.
             // Desired world scale for this bone (what we want in world space)
+            float boneThicknessFactor = enableThicknessScaling
+                ? GetLimbThicknessFactor(config.unityBone)
+                : 1.0f;
             Vector3 desiredWorldScale = new Vector3(
-                thicknessFactor * UniformScaleFactor,
+                boneThicknessFactor * UniformScaleFactor,
                 desiredLengthScale * UniformScaleFactor,
-                thicknessFactor * UniformScaleFactor
+                boneThicknessFactor * UniformScaleFactor
             );
 
             // Required local scale = desiredWorldScale / parentCumulativeScale
@@ -1495,6 +1504,41 @@ public class AvatarController : MonoBehaviour
         float buildFactor = _MultiSourceManager.MeasuredSpineBaseWidth / expectedWidth;
         Debug.Log($"[THICKNESS SCALING] Measured SpineMid Width = {_MultiSourceManager.MeasuredSpineBaseWidth:F4}, Expected Width = {expectedWidth:F4}, Build Factor = {buildFactor:F4}");
         return buildFactor;
+    }
+
+    /// <summary>
+    /// Computes a per-segment thickness scale factor directly from the measured waist width.
+    /// userLimbWidth  = userWaistWidth  / POPULATION_RATIO  (estimated from population data)
+    /// avatarLimbWidth = avatarWaistWidth / POPULATION_RATIO  (avatar's expected limb at this scale)
+    /// factor = userLimbWidth / avatarLimbWidth
+    /// Replace the denominator with a directly measured avatar limb width for per-segment tuning.
+    /// </summary>
+    private float GetLimbThicknessFactor(HumanBodyBones bone)
+    {
+        float userWaist  = _MultiSourceManager.MeasuredSpineBaseWidth;
+        float avatarWaist = AVATAR_WIDTH_HEIGHT_RATIO * _MultiSourceManager.MeasuredHeight;
+
+        switch (bone)
+        {
+            case HumanBodyBones.LeftUpperArm:
+            case HumanBodyBones.RightUpperArm:
+                return (userWaist / POPULATION_WAIST_ARM_RATIO) / (avatarWaist / POPULATION_WAIST_ARM_RATIO);
+
+            case HumanBodyBones.LeftLowerArm:
+            case HumanBodyBones.RightLowerArm:
+                return (userWaist / POPULATION_WAIST_FOREARM_RATIO) / (avatarWaist / POPULATION_WAIST_FOREARM_RATIO);
+
+            case HumanBodyBones.LeftUpperLeg:
+            case HumanBodyBones.RightUpperLeg:
+                return (userWaist / POPULATION_WAIST_THIGH_RATIO) / (avatarWaist / POPULATION_WAIST_THIGH_RATIO);
+
+            case HumanBodyBones.LeftLowerLeg:
+            case HumanBodyBones.RightLowerLeg:
+                return (userWaist / POPULATION_WAIST_CALF_RATIO) / (avatarWaist / POPULATION_WAIST_CALF_RATIO);
+
+            default:
+                return userWaist / avatarWaist;
+        }
     }
 
     /// <summary>
