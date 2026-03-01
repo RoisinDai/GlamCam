@@ -16,6 +16,10 @@ public class ResetButton : MonoBehaviour
     public float maxRayDistance = 30f;
     public LayerMask uiLayerMask = -1;
 
+    [Header("View Buttons (for reset)")]
+    [SerializeField] private ViewSkeletonButton skeletonButton;
+    [SerializeField] private ViewBaseAvatarButton baseAvatarButton;
+
     private Collider _collider;
     private HandCursorFollower _handCursor;
     private HandCursorFollower _handCursorLeft;
@@ -50,6 +54,12 @@ public class ResetButton : MonoBehaviour
         }
 
         _hoverScale = GetComponent<HoverScale>();
+
+        // Auto-find view buttons if not assigned
+        if (skeletonButton == null)
+            skeletonButton = FindObjectOfType<ViewSkeletonButton>();
+        if (baseAvatarButton == null)
+            baseAvatarButton = FindObjectOfType<ViewBaseAvatarButton>();
 
         // Auto-find AvatarCamera if not assigned
         if (avatarCamera == null)
@@ -145,6 +155,12 @@ public class ResetButton : MonoBehaviour
     public void OnResetPressed()
     {
         Debug.Log("[ResetButton] Reset pressed!");
+
+        // 0) Reset view buttons (skeleton / base avatar) so Canvas comes back
+        if (skeletonButton != null)
+            skeletonButton.ResetToDefault();
+        if (baseAvatarButton != null)
+            baseAvatarButton.ResetToDefault();
 
         // 1) Reset UI / phase state
         if (stateMachine != null)

@@ -31,8 +31,17 @@ public class ViewSkeletonButton : MonoBehaviour
     [Tooltip("Assign BodyView here (recommended). Works even if BodyView starts inactive.")]
     [SerializeField] private GameObject bodyViewObj;
 
+    [Header("Canvas Control")]
+    [Tooltip("Assign the Canvas GameObject to hide when skeleton is shown. Auto-finds 'Canvas' if not set.")]
+    [SerializeField] private GameObject canvasObj;
+
+    [Header("Mutual Exclusion")]
+    [Tooltip("Reference to the ViewBaseAvatarButton so skeleton and base avatar don't show at the same time.")]
+    [SerializeField] private ViewBaseAvatarButton baseAvatarButton;
+
     // Backwards compat with your original private field name
     private GameObject _bodyViewObj;
+    private GameObject _canvasObj;
 
     void Start()
     {
@@ -79,6 +88,26 @@ public class ViewSkeletonButton : MonoBehaviour
         {
             Debug.Log($"[ViewSkeletonButton] Found BodyView (activeSelf={_bodyViewObj.activeSelf}).");
         }
+
+        // Resolve Canvas reference
+        _canvasObj = canvasObj;
+        if (_canvasObj == null)
+        {
+            _canvasObj = FindInSceneIncludingInactive("Canvas");
+        }
+
+        if (_canvasObj == null)
+        {
+            Debug.LogWarning("[ViewSkeletonButton] Canvas not found. (Tip: assign it in Inspector.)");
+        }
+        else
+        {
+            Debug.Log($"[ViewSkeletonButton] Found Canvas (activeSelf={_canvasObj.activeSelf}).");
+        }
+
+        // Auto-find ViewBaseAvatarButton if not assigned
+        if (baseAvatarButton == null)
+            baseAvatarButton = FindObjectOfType<ViewBaseAvatarButton>();
     }
 
     void Update()
@@ -158,8 +187,46 @@ public class ViewSkeletonButton : MonoBehaviour
             return;
         }
 
-        _bodyViewObj.SetActive(!_bodyViewObj.activeSelf);
+        bool willBeActive = !_bodyViewObj.activeSelf;
+
+        // If we're about to turn skeleton ON, reset the base avatar first
+        if (willBeActive && baseAvatarButton != null)
+            baseAvatarButton.ResetToDefault();
+
+        _bodyViewObj.SetActive(willBeActive);
         Debug.Log($"[ViewSkeletonButton] BodyView active? {_bodyViewObj.activeSelf}");
+
+        // Hide Canvas (video feed) when skeleton is shown, restore when skeleton is hidden
+        if (_canvasObj == null)
+            _canvasObj = canvasObj != null ? canvasObj : FindInSceneIncludingInactive("Canvas");
+
+        if (_canvasObj != null)
+        {
+            _canvasObj.SetActive(!willBeActive);
+            Debug.Log($"[ViewSkeletonButton] Canvas active? {_canvasObj.activeSelf}");
+        }
+    }
+
+    /// <summary>
+    /// Resets skeleton to off and restores canvas. Called by other buttons for mutual exclusion.
+    /// </summary>
+    public void ResetToDefault()
+    {
+        if (_bodyViewObj == null)
+            _bodyViewObj = bodyViewObj != null ? bodyViewObj : FindInSceneIncludingInactive("BodyView");
+
+        if (_bodyViewObj != null && _bodyViewObj.activeSelf)
+        {
+            _bodyViewObj.SetActive(false);
+            Debug.Log("[ViewSkeletonButton] ResetToDefault: BodyView deactivated.");
+        }
+
+        // Restore canvas
+        if (_canvasObj == null)
+            _canvasObj = canvasObj != null ? canvasObj : FindInSceneIncludingInactive("Canvas");
+
+        if (_canvasObj != null)
+            _canvasObj.SetActive(true);
     }
 
     /// <summary>

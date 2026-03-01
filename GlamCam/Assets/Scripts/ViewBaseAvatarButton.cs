@@ -26,6 +26,15 @@ public class ViewBaseAvatarButton : MonoBehaviour
 
     [SerializeField] private Material invisibleMaskMaterial;
     [SerializeField] private Material greenMaterial;
+
+    [Header("Canvas Control")]
+    [Tooltip("Assign the Canvas GameObject to hide when base avatar is shown. Auto-finds 'Canvas' if not set.")]
+    [SerializeField] private GameObject canvasObj;
+    private GameObject _canvasObj;
+
+    [Header("Mutual Exclusion")]
+    [Tooltip("Reference to the ViewSkeletonButton so skeleton and base avatar don't show at the same time.")]
+    [SerializeField] private ViewSkeletonButton skeletonButton;
     
 
 
@@ -69,6 +78,26 @@ public class ViewBaseAvatarButton : MonoBehaviour
         {
             Debug.LogWarning("[ViewBaseAvatarButton] Base Avatar Mesh not assigned!");
         }
+
+        // Resolve Canvas reference
+        _canvasObj = canvasObj;
+        if (_canvasObj == null)
+        {
+            _canvasObj = FindInSceneIncludingInactive("Canvas");
+        }
+
+        if (_canvasObj == null)
+        {
+            Debug.LogWarning("[ViewBaseAvatarButton] Canvas not found. (Tip: assign it in Inspector.)");
+        }
+        else
+        {
+            Debug.Log($"[ViewBaseAvatarButton] Found Canvas (activeSelf={_canvasObj.activeSelf}).");
+        }
+
+        // Auto-find ViewSkeletonButton if not assigned
+        if (skeletonButton == null)
+            skeletonButton = FindObjectOfType<ViewSkeletonButton>();
     }
 
     void Update()
@@ -153,10 +182,73 @@ public class ViewBaseAvatarButton : MonoBehaviour
             return;
         }
 
+        bool willShowGreen = isInvisibleMaskActive; // currently invisible → about to show green
+
+        // If we're about to show the green base avatar, reset skeleton first
+        if (willShowGreen && skeletonButton != null)
+            skeletonButton.ResetToDefault();
+
         isInvisibleMaskActive = !isInvisibleMaskActive;
 
         baseAvatarRenderer.material = isInvisibleMaskActive ? invisibleMaskMaterial : greenMaterial;
 
         Debug.Log($"Switched to {(isInvisibleMaskActive ? "InvisibleMask" : "Green")} material");
+
+        // Hide Canvas (video feed) when green material is shown, restore when invisible mask is active
+        if (_canvasObj == null)
+            _canvasObj = canvasObj != null ? canvasObj : FindInSceneIncludingInactive("Canvas");
+
+        if (_canvasObj != null)
+        {
+            _canvasObj.SetActive(isInvisibleMaskActive);
+            Debug.Log($"[ViewBaseAvatarButton] Canvas active? {_canvasObj.activeSelf}");
+        }
+    }
+
+    /// <summary>
+    /// Resets base avatar to invisible mask and restores canvas. Called by other buttons for mutual exclusion.
+    /// </summary>
+    public void ResetToDefault()
+    {
+        if (baseAvatarRenderer == null || invisibleMaskMaterial == null) return;
+
+        if (!isInvisibleMaskActive)
+        {
+            isInvisibleMaskActive = true;
+            baseAvatarRenderer.material = invisibleMaskMaterial;
+            Debug.Log("[ViewBaseAvatarButton] ResetToDefault: switched back to InvisibleMask.");
+        }
+
+        // Restore canvas
+        if (_canvasObj == null)
+            _canvasObj = canvasObj != null ? canvasObj : FindInSceneIncludingInactive("Canvas");
+
+        if (_canvasObj != null)
+            _canvasObj.SetActive(true);
+    }
+
+    /// <summary>
+    /// Finds a GameObject by name in the loaded scenes, INCLUDING inactive objects.
+    /// </summary>
+    private static GameObject FindInSceneIncludingInactive(string targetName)
+    {
+#if UNITY_2023_1_OR_NEWER
+        Transform[] all = GameObject.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (var t in all)
+        {
+            if (t.name == targetName)
+                return t.gameObject;
+        }
+        return null;
+#else
+        Transform[] all = Resources.FindObjectsOfTypeAll<Transform>();
+        foreach (var t in all)
+        {
+            if (t.name != targetName) continue;
+            if (!t.gameObject.scene.IsValid()) continue;
+            return t.gameObject;
+        }
+        return null;
+#endif
     }
 }
