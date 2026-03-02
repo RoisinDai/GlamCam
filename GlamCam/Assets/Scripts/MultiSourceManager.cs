@@ -15,7 +15,7 @@ public class MultiSourceManager : MonoBehaviour {
     // T-pose bone length measurements (raw meters, averaged left/right)
     public float MeasuredUpperArmLength { get; private set; } = -1f; // Shoulder → Elbow
     public float MeasuredLowerArmLength { get; private set; } = -1f; // Elbow → Wrist
-    public float MeasuredUpperLegLength { get; private set; } = -1f; // SpineBase → Knee
+    public float MeasuredUpperLegLength { get; private set; } = -1f; // Hip → Knee
     public float MeasuredLowerLegLength { get; private set; } = -1f; // Knee → Foot
 
     private KinectSensor _Sensor;
@@ -227,9 +227,9 @@ public class MultiSourceManager : MonoBehaviour {
         float rightLowerArm = RawJointDistance(joints[JointType.ElbowRight], joints[JointType.WristRight]);
         MeasuredLowerArmLength = (leftLowerArm + rightLowerArm) * 0.5f;
 
-        // Upper leg: SpineBase → Knee (avg left/right)
-        float leftUpperLeg = RawJointDistance(joints[JointType.SpineBase], joints[JointType.KneeLeft]);
-        float rightUpperLeg = RawJointDistance(joints[JointType.SpineBase], joints[JointType.KneeRight]);
+        // Upper leg: Hip → Knee (avg left/right)
+        float leftUpperLeg = RawJointDistance(joints[JointType.HipLeft], joints[JointType.KneeLeft]);
+        float rightUpperLeg = RawJointDistance(joints[JointType.HipRight], joints[JointType.KneeRight]);
         MeasuredUpperLegLength = (leftUpperLeg + rightUpperLeg) * 0.5f;
 
         // Lower leg: Knee → Foot (avg left/right)

@@ -995,8 +995,8 @@ public class AvatarController : MonoBehaviour
             new BoneMappingConfig(Kinect.JointType.ElbowRight, Kinect.JointType.WristRight, HumanBodyBones.LeftLowerArm, yAxis),
             
             // Upper legs (bilateral)
-            new BoneMappingConfig(Kinect.JointType.SpineBase, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg, yAxis),
-            new BoneMappingConfig(Kinect.JointType.SpineBase, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg, yAxis),
+            new BoneMappingConfig(Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg, yAxis),
+            new BoneMappingConfig(Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg, yAxis),
             
             // Lower legs (bilateral)
             new BoneMappingConfig(Kinect.JointType.KneeLeft, Kinect.JointType.FootLeft, HumanBodyBones.RightLowerLeg, yAxis),
@@ -1352,7 +1352,7 @@ public class AvatarController : MonoBehaviour
         // Apply thickness-only scaling to spine/torso bones
         if (enableThicknessScaling)
         {
-            ApplySpineThicknessScaling(thicknessFactor*1.2f); // *1.2 Based on experimental results for torso scaling
+            ApplySpineThicknessScaling(thicknessFactor); // *1.2 Based on experimental results for torso scaling
         }
     }
 
