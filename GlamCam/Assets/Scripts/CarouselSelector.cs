@@ -31,7 +31,6 @@ public class CarouselSelector : MonoBehaviour
             "mens_boho_top1elvMesh",
             "vintagetopMesh",
             "elvs_butterflydiscotop1Mesh",
-            "knitted_sweater_01Mesh",
             "T_shirt_basic_tuckedMesh",
         },
         ["Bottoms"] = new[]

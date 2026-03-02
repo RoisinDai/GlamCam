@@ -39,9 +39,14 @@ public class ViewSkeletonButton : MonoBehaviour
     [Tooltip("Reference to the ViewBaseAvatarButton so skeleton and base avatar don't show at the same time.")]
     [SerializeField] private ViewBaseAvatarButton baseAvatarButton;
 
+    [Header("Clothed Avatar Mesh")]
+    [Tooltip("Assign clothed_avatarMesh (child of clothed_avatar) here. Auto-found if not set.")]
+    [SerializeField] private GameObject clothedAvatarMesh;
+
     // Backwards compat with your original private field name
     private GameObject _bodyViewObj;
     private GameObject _canvasObj;
+    private GameObject _clothedAvatarMesh;
 
     void Start()
     {
@@ -108,6 +113,23 @@ public class ViewSkeletonButton : MonoBehaviour
         // Auto-find ViewBaseAvatarButton if not assigned
         if (baseAvatarButton == null)
             baseAvatarButton = FindObjectOfType<ViewBaseAvatarButton>();
+
+        // Resolve clothed_avatarMesh
+        _clothedAvatarMesh = clothedAvatarMesh;
+        if (_clothedAvatarMesh == null)
+        {
+            GameObject clothedAvatar = GameObject.Find("clothed_avatar");
+            if (clothedAvatar != null)
+            {
+                Transform t = clothedAvatar.transform.Find("clothed_avatarMesh");
+                if (t != null) _clothedAvatarMesh = t.gameObject;
+            }
+        }
+
+        if (_clothedAvatarMesh == null)
+            Debug.LogWarning("[ViewSkeletonButton] clothed_avatarMesh not found. (Tip: assign it in Inspector.)");
+        else
+            Debug.Log($"[ViewSkeletonButton] Found clothed_avatarMesh (activeSelf={_clothedAvatarMesh.activeSelf}).");
     }
 
     void Update()
@@ -196,6 +218,13 @@ public class ViewSkeletonButton : MonoBehaviour
         _bodyViewObj.SetActive(willBeActive);
         Debug.Log($"[ViewSkeletonButton] BodyView active? {_bodyViewObj.activeSelf}");
 
+        // Hide clothed_avatarMesh when skeleton is shown, restore when skeleton is hidden
+        if (_clothedAvatarMesh != null)
+        {
+            _clothedAvatarMesh.SetActive(!willBeActive);
+            Debug.Log($"[ViewSkeletonButton] clothed_avatarMesh active? {_clothedAvatarMesh.activeSelf}");
+        }
+
         // Hide Canvas (video feed) when skeleton is shown, restore when skeleton is hidden
         if (_canvasObj == null)
             _canvasObj = canvasObj != null ? canvasObj : FindInSceneIncludingInactive("Canvas");
@@ -219,6 +248,13 @@ public class ViewSkeletonButton : MonoBehaviour
         {
             _bodyViewObj.SetActive(false);
             Debug.Log("[ViewSkeletonButton] ResetToDefault: BodyView deactivated.");
+        }
+
+        // Restore clothed_avatarMesh
+        if (_clothedAvatarMesh != null && !_clothedAvatarMesh.activeSelf)
+        {
+            _clothedAvatarMesh.SetActive(true);
+            Debug.Log("[ViewSkeletonButton] ResetToDefault: clothed_avatarMesh restored.");
         }
 
         // Restore canvas

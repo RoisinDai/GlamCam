@@ -5590,6 +5590,7 @@ MonoBehaviour:
   invisibleMaskMaterial: {fileID: 2100000, guid: 35855ae20b75edc4d89dc9f1c3efd888, type: 2}
   greenMaterial: {fileID: 2100000, guid: 83dc835d7b1960a4286d39cf3ab61069, type: 2}
   canvasObj: {fileID: 963570433}
+  skeletonButton: {fileID: 0}
 --- !u!4 &614438009 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8663108757192039544, guid: 12667711ae0ae4d2b96a0d4e91f58743, type: 3}
@@ -9902,7 +9903,8 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: -767840835391124201, guid: 12667711ae0ae4d2b96a0d4e91f58743, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 12667711ae0ae4d2b96a0d4e91f58743, type: 3}
       insertIndex: -1
@@ -15991,6 +15993,7 @@ MonoBehaviour:
   handCursorLeftObj: {fileID: 2032897893}
   bodyViewObj: {fileID: 112136118}
   canvasObj: {fileID: 963570433}
+  baseAvatarButton: {fileID: 0}
 --- !u!114 &1383592148
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -22933,6 +22936,8 @@ MonoBehaviour:
   uiLayerMask:
     serializedVersion: 2
     m_Bits: 8
+  skeletonButton: {fileID: 0}
+  baseAvatarButton: {fileID: 0}
 --- !u!114 &1793313930
 MonoBehaviour:
   m_ObjectHideFlags: 0
