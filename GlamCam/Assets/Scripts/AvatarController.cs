@@ -441,14 +441,6 @@ public class AvatarController : MonoBehaviour
     [Tooltip("Enable statistical body build estimation for thickness scaling")]
     public bool enableThicknessScaling = true;
 
-    // Smoothed body build factor (updated every frame)
-    private float _SmoothedBuildFactor = 1.0f;
-
-    // Smoothing factor for thickness (slower than length for stability)
-    [Range(0.01f, 0.5f)]
-    [Tooltip("Smoothing factor for thickness scaling. Lower = smoother. Should be slower than bone length smoothing.")]
-    public float thicknessSmoothingFactor = 0.05f;
-
     // Spine bones that receive thickness-only scaling (no length scaling)
     // These bones make the torso wider/thinner based on the build factor
     private static readonly HumanBodyBones[] _SpineThicknessBones = new HumanBodyBones[]
@@ -1267,7 +1259,7 @@ public class AvatarController : MonoBehaviour
         if (enableThicknessScaling)
         {
             float rawBuildFactor = EstimateBodyBuildFactor();
-            thicknessFactor = SmoothBodyBuildFactor(rawBuildFactor);
+            thicknessFactor = rawBuildFactor;
         }
 
         // CRITICAL FIX: Sort bones in hierarchical order (parent before children)
@@ -1541,16 +1533,6 @@ public class AvatarController : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Apply exponential smoothing to the body build factor to reduce jitter.
-    /// </summary>
-    private float SmoothBodyBuildFactor(float rawBuildFactor)
-    {
-        // Apply exponential moving average
-        _SmoothedBuildFactor = Mathf.Lerp(_SmoothedBuildFactor, rawBuildFactor, thicknessSmoothingFactor);
-        return _SmoothedBuildFactor;
-    }
-
     // ========================================================================================
     // RESTART
     // ========================================================================================
@@ -1570,7 +1552,6 @@ public class AvatarController : MonoBehaviour
 
         // Clear smoothed measurement history
         _SmoothedKinectBoneLengths.Clear();
-        _SmoothedBuildFactor = 1.0f;
 
         // Clear user measurements
         _KinectUserMeasurements = new HumanoidMeasurements();
