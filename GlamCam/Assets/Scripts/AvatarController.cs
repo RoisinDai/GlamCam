@@ -28,10 +28,11 @@ class ExtensionFactors
     public float lowerLegExtensionFactor = 0;
 }
 
-// Stores the original local scale of each bone for reference
+// Stores the original local transform data of each bone for reference
 class BoneScaleData
 {
     public Vector3 originalLocalScale;
+    public Vector3 originalLocalPosition;
     public Vector3 currentScale = Vector3.one;
     public Transform boneTransform;
 
@@ -39,23 +40,22 @@ class BoneScaleData
     {
         boneTransform = bone;
         originalLocalScale = bone.localScale;
+        originalLocalPosition = bone.localPosition;
     }
 }
 
-// Phase 1.4: Configuration for mapping Kinect joint pairs to Unity humanoid bones
+// Configuration for mapping Kinect joint pairs to Unity humanoid bones
 class BoneMappingConfig
 {
-    public Kinect.JointType startJoint;      // Start Kinect joint (e.g., ShoulderLeft)
-    public Kinect.JointType endJoint;        // End Kinect joint (e.g., ElbowLeft)
-    public HumanBodyBones unityBone;         // Corresponding Unity bone (note left-right mirror)
-    public Vector3 stretchAxis;              // Which local axis the bone stretches along (typically Y)
+    public Kinect.JointType startJoint;   // Start Kinect joint (e.g., ShoulderLeft)
+    public Kinect.JointType endJoint;     // End Kinect joint (e.g., ElbowLeft)
+    public HumanBodyBones unityBone;      // Corresponding Unity bone (note left-right mirror)
 
-    public BoneMappingConfig(Kinect.JointType start, Kinect.JointType end, HumanBodyBones bone, Vector3 axis)
+    public BoneMappingConfig(Kinect.JointType start, Kinect.JointType end, HumanBodyBones bone)
     {
         startJoint = start;
         endJoint = end;
         unityBone = bone;
-        stretchAxis = axis;
     }
 }
 
@@ -216,7 +216,9 @@ public class FakeUMA
     }
 
     /// <summary>
-    /// Resets all bones to their original scales.
+    /// Resets all bones to their original scales and local positions.
+    /// Call this on Restart to undo both FakeUMA localScale changes and
+    /// the bone-length localPosition adjustments applied during calibration.
     /// </summary>
     public void ResetAllBoneScales()
     {
@@ -230,11 +232,10 @@ public class FakeUMA
             if (bone != null)
             {
                 bone.localScale = data.originalLocalScale;
+                bone.localPosition = data.originalLocalPosition;
                 data.currentScale = Vector3.one;
             }
         }
-
-        // Debug.Log("Reset all bone scales to original values.");
     }
 
     /// <summary>
@@ -512,14 +513,10 @@ public class AvatarController : MonoBehaviour
         trackedBody = GetClosestTrackedBody(data);
         if (trackedBody == null) return;
 
-        if (animator != null)
+        if (animator != null && animator.enabled)
         {
-            animator.enabled = false; // Disables the Animator temporarily
-            // Debug.Log("Animator has been disabled for manual bone control.");
+            animator.enabled = false; // Disable once — manual bone control takes over
         }
-
-        // Cache joints for use in this frame
-        var joints = trackedBody.Joints;
 
         // Use T-pose height from MultiSourceManager (needed by EstimateBodyBuildFactor)
         if (_MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f)
@@ -738,6 +735,7 @@ public class AvatarController : MonoBehaviour
         if (headTop == null || footLeft == null || footRight == null)
         {
             Debug.LogError("AvatarMeasurement: Could not find bones for height calculation.");
+            return;
         }
 
         float footAvgY = (footLeft.position.y + footRight.position.y) / 2f;
@@ -982,26 +980,23 @@ public class AvatarController : MonoBehaviour
     /// </summary>
     private void InitializeBoneMappingConfigs()
     {
-        // Y-axis is the standard stretch axis for Unity humanoid bones
-        Vector3 yAxis = new Vector3(1f, 0f, 1f); // Scale only Y, keep X and Z at 1
-
         _BoneMappingConfigs = new List<BoneMappingConfig>
         {
             // Upper arms (bilateral) - Note: Kinect left = Unity right due to mirroring
-            new BoneMappingConfig(Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft, HumanBodyBones.RightUpperArm, yAxis),
-            new BoneMappingConfig(Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight, HumanBodyBones.LeftUpperArm, yAxis),
-            
+            new BoneMappingConfig(Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft, HumanBodyBones.RightUpperArm),
+            new BoneMappingConfig(Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight, HumanBodyBones.LeftUpperArm),
+
             // Lower arms (bilateral)
-            new BoneMappingConfig(Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft, HumanBodyBones.RightLowerArm, yAxis),
-            new BoneMappingConfig(Kinect.JointType.ElbowRight, Kinect.JointType.WristRight, HumanBodyBones.LeftLowerArm, yAxis),
-            
+            new BoneMappingConfig(Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft, HumanBodyBones.RightLowerArm),
+            new BoneMappingConfig(Kinect.JointType.ElbowRight, Kinect.JointType.WristRight, HumanBodyBones.LeftLowerArm),
+
             // Upper legs (bilateral)
-            new BoneMappingConfig(Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg, yAxis),
-            new BoneMappingConfig(Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg, yAxis),
-            
+            new BoneMappingConfig(Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg),
+            new BoneMappingConfig(Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg),
+
             // Lower legs (bilateral)
-            new BoneMappingConfig(Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg, yAxis),
-            new BoneMappingConfig(Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg, yAxis),
+            new BoneMappingConfig(Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg),
+            new BoneMappingConfig(Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg),
         };
 
         Debug.Log($"Initialized {_BoneMappingConfigs.Count} bone mapping configurations.");
