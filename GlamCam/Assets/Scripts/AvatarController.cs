@@ -401,10 +401,10 @@ public class AvatarController : MonoBehaviour
     private const float AVATAR_WIDTH_HEIGHT_RATIO = 0.1791f; // avatar SpineMid width / height (30.15cm / 168.33cm)
 
     // Population-based waist-to-limb width ratios (N=2505)
-    private const float POPULATION_WAIST_ARM_RATIO     = 2.9527f; // waist / bicep (upper arm)
+    private const float POPULATION_WAIST_ARM_RATIO = 2.9527f; // waist / bicep (upper arm)
     private const float POPULATION_WAIST_FOREARM_RATIO = 3.3806f; // waist / forearm (lower arm)
-    private const float POPULATION_WAIST_THIGH_RATIO   = 1.6570f; // waist / thigh (upper leg)
-    private const float POPULATION_WAIST_CALF_RATIO    = 2.3948f; // waist / calf (lower leg)
+    private const float POPULATION_WAIST_THIGH_RATIO = 1.6570f; // waist / thigh (upper leg)
+    private const float POPULATION_WAIST_CALF_RATIO = 2.3948f; // waist / calf (lower leg)
     private float UniformScaleFactor = -1f;
     private ExtensionFactors _ExtensionFactors = new();
     private bool hasValidBody = false;
@@ -991,8 +991,8 @@ public class AvatarController : MonoBehaviour
             new BoneMappingConfig(Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg, yAxis),
             
             // Lower legs (bilateral)
-            new BoneMappingConfig(Kinect.JointType.KneeLeft, Kinect.JointType.FootLeft, HumanBodyBones.RightLowerLeg, yAxis),
-            new BoneMappingConfig(Kinect.JointType.KneeRight, Kinect.JointType.FootRight, HumanBodyBones.LeftLowerLeg, yAxis),
+            new BoneMappingConfig(Kinect.JointType.KneeLeft, Kinect.JointType.AnkleLeft, HumanBodyBones.RightLowerLeg, yAxis),
+            new BoneMappingConfig(Kinect.JointType.KneeRight, Kinect.JointType.AnkleRight, HumanBodyBones.LeftLowerLeg, yAxis),
         };
 
         Debug.Log($"Initialized {_BoneMappingConfigs.Count} bone mapping configurations.");
@@ -1507,7 +1507,7 @@ public class AvatarController : MonoBehaviour
     /// </summary>
     private float GetLimbThicknessFactor(HumanBodyBones bone)
     {
-        float userWaist  = _MultiSourceManager.MeasuredSpineMidWidth;
+        float userWaist = _MultiSourceManager.MeasuredSpineMidWidth;
         float avatarWaist = AVATAR_WIDTH_HEIGHT_RATIO * _MultiSourceManager.MeasuredHeight;
 
         switch (bone)

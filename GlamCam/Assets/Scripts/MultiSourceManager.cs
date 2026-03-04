@@ -3,7 +3,8 @@ using System.Collections;
 using System.Linq;
 using Windows.Kinect;
 
-public class MultiSourceManager : MonoBehaviour {
+public class MultiSourceManager : MonoBehaviour
+{
     public int ColorWidth { get; private set; }
     public int ColorHeight { get; private set; }
 
@@ -16,7 +17,7 @@ public class MultiSourceManager : MonoBehaviour {
     public float MeasuredUpperArmLength { get; private set; } = -1f; // Shoulder → Elbow
     public float MeasuredLowerArmLength { get; private set; } = -1f; // Elbow → Wrist
     public float MeasuredUpperLegLength { get; private set; } = -1f; // Hip → Knee
-    public float MeasuredLowerLegLength { get; private set; } = -1f; // Knee → Foot
+    public float MeasuredLowerLegLength { get; private set; } = -1f; // Knee → Ankle
 
     private KinectSensor _Sensor;
     private MultiSourceFrameReader _Reader;
@@ -25,7 +26,7 @@ public class MultiSourceManager : MonoBehaviour {
     private ushort[] _DepthData;
     private byte[] _ColorData;
     private byte[] _BodyIndexData;
-    
+
     // Body tracking
     private Body[] _BodyData;
     private Body _TrackedBody;
@@ -35,10 +36,10 @@ public class MultiSourceManager : MonoBehaviour {
     private const float TPOSE_HOLD_DURATION = 1.0f;
     private const float TPOSE_ARM_EXTENSION_MIN = 0.3f; // minimum horizontal arm spread (meters)
     private const float TPOSE_ANGLE_RATIO_MAX = 0.4f;   // max |deltaY/deltaX| (~22° from horizontal)
-    
+
     // For color-to-depth mapping (Body Mask)
     private DepthSpacePoint[] _ColorMappedToDepthPoints;
-    
+
     private const int DEPTH_WIDTH = 512;
     private const int DEPTH_HEIGHT = 424;
     private const float DEPTH_HORIZONTAL_FOV = 70.6f; // Kinect v2 depth camera horizontal FOV
@@ -47,7 +48,7 @@ public class MultiSourceManager : MonoBehaviour {
     {
         return _ColorTexture;
     }
-    
+
     public ushort[] GetDepthData()
     {
         return _DepthData;
@@ -57,38 +58,38 @@ public class MultiSourceManager : MonoBehaviour {
     {
         return _BodyIndexData;
     }
-    
+
     public CoordinateMapper GetCoordinateMapper()
     {
         return _Mapper;
     }
 
-    void Start () 
+    void Start()
     {
         _Sensor = KinectSensor.GetDefault();
-        
-        if (_Sensor != null) 
+
+        if (_Sensor != null)
         {
             // Include Body in the frame reader
             _Reader = _Sensor.OpenMultiSourceFrameReader(
                 FrameSourceTypes.Color | FrameSourceTypes.Depth | FrameSourceTypes.BodyIndex | FrameSourceTypes.Body);
-            
+
             var colorFrameDesc = _Sensor.ColorFrameSource.CreateFrameDescription(ColorImageFormat.Rgba);
             ColorWidth = colorFrameDesc.Width;
             ColorHeight = colorFrameDesc.Height;
-            
+
             _ColorTexture = new Texture2D(colorFrameDesc.Width, colorFrameDesc.Height, TextureFormat.RGBA32, false);
             _ColorData = new byte[colorFrameDesc.BytesPerPixel * colorFrameDesc.LengthInPixels];
-            
+
             var depthFrameDesc = _Sensor.DepthFrameSource.FrameDescription;
             _DepthData = new ushort[depthFrameDesc.LengthInPixels];
             _BodyIndexData = new byte[depthFrameDesc.LengthInPixels]; // 512 x 424
-            
+
             // Initialize body array
             _BodyData = new Body[_Sensor.BodyFrameSource.BodyCount];
-            
+
             _Mapper = _Sensor.CoordinateMapper;
-            
+
             // For Body Mask - mapping color pixels to depth space
             _ColorMappedToDepthPoints = new DepthSpacePoint[colorFrameDesc.Width * colorFrameDesc.Height];
 
@@ -96,7 +97,7 @@ public class MultiSourceManager : MonoBehaviour {
             {
                 _Sensor.Open();
             }
-            
+
             Debug.Log("MultiSourceManager: Started successfully. Press M or click button to capture.");
         }
         else
@@ -104,8 +105,8 @@ public class MultiSourceManager : MonoBehaviour {
             Debug.LogError("MultiSourceManager: Kinect sensor not found!");
         }
     }
-    
-    void Update ()
+
+    void Update()
     {
         // Nothing to do once measured — AvatarController uses BodySourceManager for tracking
         if (IsMeasured) return;
@@ -130,34 +131,34 @@ public class MultiSourceManager : MonoBehaviour {
                                 colorFrame.CopyConvertedFrameDataToArray(_ColorData, ColorImageFormat.Rgba);
                                 _ColorTexture.LoadRawTextureData(_ColorData);
                                 _ColorTexture.Apply();
-                                
+
                                 depthFrame.CopyFrameDataToArray(_DepthData);
                                 bodyIndexFrame.CopyFrameDataToArray(_BodyIndexData);
                                 bodyFrame.GetAndRefreshBodyData(_BodyData);
-                                
+
                                 // Get the closest tracked body to the camera
                                 _TrackedBody = GetClosestTrackedBody(_BodyData);
-                                
+
                                 bodyFrame.Dispose();
                                 bodyFrame = null;
                             }
-                            
+
                             bodyIndexFrame.Dispose();
                             bodyIndexFrame = null;
                         }
-                        
+
                         depthFrame.Dispose();
                         depthFrame = null;
                     }
-                
+
                     colorFrame.Dispose();
                     colorFrame = null;
                 }
-                
+
                 frame = null;
             }
         }
-        
+
         // T-pose detection and one-shot measurement
         if (!IsMeasured && _TrackedBody != null && _TrackedBody.IsTracked)
         {
@@ -183,7 +184,7 @@ public class MultiSourceManager : MonoBehaviour {
             }
         }
     }
-    
+
     /// <summary>
     /// Converts a Kinect joint to Unity Vector3 (in meters).
     /// </summary>
@@ -232,9 +233,9 @@ public class MultiSourceManager : MonoBehaviour {
         float rightUpperLeg = RawJointDistance(joints[JointType.HipRight], joints[JointType.KneeRight]);
         MeasuredUpperLegLength = (leftUpperLeg + rightUpperLeg) * 0.5f;
 
-        // Lower leg: Knee → Foot (avg left/right)
-        float leftLowerLeg = RawJointDistance(joints[JointType.KneeLeft], joints[JointType.FootLeft]);
-        float rightLowerLeg = RawJointDistance(joints[JointType.KneeRight], joints[JointType.FootRight]);
+        // Lower leg: Knee → Ankle (avg left/right)
+        float leftLowerLeg = RawJointDistance(joints[JointType.KneeLeft], joints[JointType.AnkleLeft]);
+        float rightLowerLeg = RawJointDistance(joints[JointType.KneeRight], joints[JointType.AnkleRight]);
         MeasuredLowerLegLength = (leftLowerLeg + rightLowerLeg) * 0.5f;
 
         Debug.Log($"[MultiSourceManager] Bone lengths (m): UpperArm={MeasuredUpperArmLength:F4}, LowerArm={MeasuredLowerArmLength:F4}, UpperLeg={MeasuredUpperLegLength:F4}, LowerLeg={MeasuredLowerLegLength:F4}");
@@ -249,7 +250,7 @@ public class MultiSourceManager : MonoBehaviour {
         Vector3 posB = GetVector3FromJoint(b);
         return Vector3.Distance(posA, posB);
     }
-    
+
     // =====================================================
     // T-Pose Detection and Measurement
     // =====================================================
@@ -371,7 +372,7 @@ public class MultiSourceManager : MonoBehaviour {
 
         return closestBody;
     }
-    
+
     /// <summary>
     /// Measures body width at SpineMid joint.
     /// Returns width in meters, or 0 if measurement failed.
@@ -382,11 +383,11 @@ public class MultiSourceManager : MonoBehaviour {
         {
             return 0f;
         }
-        
+
         var joint = _TrackedBody.Joints[JointType.SpineMid];
         return MeasureWidthAtJoint(joint);
     }
-    
+
     /// <summary>
     /// Measures the body width at a specific joint by scanning the silhouette horizontally.
     /// </summary>
@@ -397,26 +398,26 @@ public class MultiSourceManager : MonoBehaviour {
             Debug.LogWarning("MeasureWidthAtJoint: Joint not tracked");
             return 0f;
         }
-        
+
         if (_BodyIndexData == null || _DepthData == null || _Mapper == null)
         {
             Debug.LogWarning("MeasureWidthAtJoint: Required data not available");
             return 0f;
         }
-        
+
         // Convert joint position (3D camera space) to depth space (2D pixels)
         DepthSpacePoint depthPoint = _Mapper.MapCameraPointToDepthSpace(joint.Position);
-        
+
         int centerX = (int)(depthPoint.X + 0.5f);
         int centerY = (int)(depthPoint.Y + 0.5f);
-        
+
         // Check bounds
         if (centerX < 0 || centerX >= DEPTH_WIDTH || centerY < 0 || centerY >= DEPTH_HEIGHT)
         {
             Debug.LogWarning("MeasureWidthAtJoint: Joint position out of depth frame bounds");
             return 0f;
         }
-        
+
         // Scan LEFT from center to find left edge
         int leftEdge = centerX;
         for (int x = centerX; x >= 0; x--)
@@ -429,7 +430,7 @@ public class MultiSourceManager : MonoBehaviour {
             }
             if (x == 0) leftEdge = 0;
         }
-        
+
         // Scan RIGHT from center to find right edge
         int rightEdge = centerX;
         for (int x = centerX; x < DEPTH_WIDTH; x++)
@@ -442,28 +443,28 @@ public class MultiSourceManager : MonoBehaviour {
             }
             if (x == DEPTH_WIDTH - 1) rightEdge = DEPTH_WIDTH - 1;
         }
-        
+
         int widthInPixels = rightEdge - leftEdge + 1;
-        
+
         // Get depth at the center point (in millimeters)
         int centerIndex = centerY * DEPTH_WIDTH + centerX;
         float depthMm = _DepthData[centerIndex];
-        
+
         if (depthMm <= 0)
         {
             Debug.LogWarning("MeasureWidthAtJoint: Invalid depth value");
             return 0f;
         }
-        
+
         // Convert pixels to meters
         float widthInMeters = PixelsToMeters(widthInPixels, depthMm);
         float widthInUnits = widthInMeters * 10f;
-        
+
         Debug.Log($"MeasureWidthAtJoint: center=({centerX},{centerY}), pixels={widthInPixels}, depth={depthMm}mm, width={widthInMeters:F3}m, width={widthInUnits:F3} units");
-        
+
         return widthInUnits;
     }
-    
+
     /// <summary>
     /// Converts a horizontal pixel distance to real-world meters at a given depth.
     /// </summary>
@@ -475,7 +476,7 @@ public class MultiSourceManager : MonoBehaviour {
         float metersPerPixel = frameWidthAtDepth / DEPTH_WIDTH;
         return pixels * metersPerPixel;
     }
-    
+
     void OnApplicationQuit()
     {
         if (_Reader != null)
@@ -483,14 +484,14 @@ public class MultiSourceManager : MonoBehaviour {
             _Reader.Dispose();
             _Reader = null;
         }
-        
+
         if (_Sensor != null)
         {
             if (_Sensor.IsOpen)
             {
                 _Sensor.Close();
             }
-            
+
             _Sensor = null;
         }
     }
