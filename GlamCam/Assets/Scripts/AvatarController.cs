@@ -764,12 +764,33 @@ public class AvatarController : MonoBehaviour
 
         // Phase 5.3: Execution order
 
-        // 2. Then, apply forward kinematics (bone rotations)
+        // 1. Apply one-shot uniform + bone scaling FIRST, before any FK or movement.
+        // This ensures the avatar is in its rest T-pose when measurements are taken,
+        // so arm asymmetry from live tracking does not contaminate the scaling.
+        if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f && _MultiSourceManager.MeasuredSpineMidWidth > 0f)
+        {
+            UniformScaleFactor =
+                _KinectUserMeasurements.height / _AvatarMeasurements.height;
+
+            ClothedBaseAvatar.transform.localScale =
+                Vector3.one * UniformScaleFactor;
+
+            // Update bone scaling based on Kinect measurements
+            UpdateContinuousBoneScaling();
+
+            Debug.Log($"UniformScaleFactor set to {UniformScaleFactor:F3} (T-pose height: {_MultiSourceManager.MeasuredHeight:F3}m, avatar height: {_AvatarMeasurements.height:F3})");
+        }
+
+        // 2-6: Only run FK, rotation, position, and translation AFTER one-shot scaling is done.
+        // While UniformScaleFactor is still unset, the avatar stays in its bind T-pose.
+        if (UniformScaleFactor < 0f) return;
+
+        // 2. Apply forward kinematics (bone rotations)
         ApplyForwardKinematics(trackedBody);
 
         // 2.5. Update inverse scales for rotation changes (CRITICAL for non-uniform scaling)
         // After FK changes bone rotations, the inverse scale compensation must be updated
-        if (fakeUMA != null && UniformScaleFactor > 0f)
+        if (fakeUMA != null)
         {
             fakeUMA.UpdateInverseScalesForCurrentRotations();
         }
@@ -784,21 +805,6 @@ public class AvatarController : MonoBehaviour
         // 4. Move avatar root to spine base
         Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
         ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
-
-        // 5. Apply uniform scaling ONCE using T-pose height from MultiSourceManager
-        if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f && _MultiSourceManager.MeasuredSpineMidWidth > 0f)
-        {
-            UniformScaleFactor =
-                _KinectUserMeasurements.height / _AvatarMeasurements.height;
-
-            ClothedBaseAvatar.transform.localScale =
-                Vector3.one * UniformScaleFactor;
-
-            // 1. Update bone scaling based on Kinect measurements
-            UpdateContinuousBoneScaling();
-
-            Debug.Log($"UniformScaleFactor set to {UniformScaleFactor:F3} (T-pose height: {_MultiSourceManager.MeasuredHeight:F3}m, avatar height: {_AvatarMeasurements.height:F3})");
-        }
 
         // 6. Optional: shoulder-based translation correction
         ApplyUniformTranslationBasedOnShoulders();
@@ -1440,6 +1446,37 @@ public class AvatarController : MonoBehaviour
             thicknessFactor = rawBuildFactor;
         }
 
+        // Apply thickness-only scaling to spine/torso bones
+        if (enableThicknessScaling)
+        {
+            ApplySpineThicknessScaling(thicknessFactor); // *1.2 Based on experimental results for torso scaling
+        }
+
+        // SYMMETRY FIX: Pre-compute bilaterally-averaged avatar bone lengths.
+        // Even when the user holds a perfectly symmetric T-pose, the avatar model itself can have
+        // slight skeletal asymmetry (different localPosition magnitudes on left vs right).
+        // This produces different avatarLength denominators for each side, which in turn produces
+        // different desiredLengthScale values → visually asymmetric arms/legs after scaling.
+        // Solution: for each bilateral pair, average both sides' avatar lengths so both receive
+        // an identical scale factor.
+        var symmetricAvatarLengths = new Dictionary<HumanBodyBones, float>(_CurrentAvatarBoneLengths);
+        var bilateralPairs = new (HumanBodyBones left, HumanBodyBones right)[]
+        {
+            (HumanBodyBones.LeftUpperArm,  HumanBodyBones.RightUpperArm),
+            (HumanBodyBones.LeftLowerArm,  HumanBodyBones.RightLowerArm),
+            (HumanBodyBones.LeftUpperLeg,  HumanBodyBones.RightUpperLeg),
+            (HumanBodyBones.LeftLowerLeg,  HumanBodyBones.RightLowerLeg),
+        };
+        foreach (var (left, right) in bilateralPairs)
+        {
+            if (symmetricAvatarLengths.ContainsKey(left) && symmetricAvatarLengths.ContainsKey(right))
+            {
+                float avg = (symmetricAvatarLengths[left] + symmetricAvatarLengths[right]) * 0.5f;
+                symmetricAvatarLengths[left]  = avg;
+                symmetricAvatarLengths[right] = avg;
+            }
+        }
+
         // CRITICAL FIX: Sort bones in hierarchical order (parent before children)
         // This ensures parent scales are applied before children calculate cumulative parent scales
         var sortedConfigs = SortBonesInHierarchicalOrder(_BoneMappingConfigs);
@@ -1450,7 +1487,7 @@ public class AvatarController : MonoBehaviour
         foreach (var config in sortedConfigs)
         {
             // Check if we have a current measurement for this bone
-            if (!_CurrentAvatarBoneLengths.ContainsKey(config.unityBone))
+            if (!symmetricAvatarLengths.ContainsKey(config.unityBone))
             {
                 Debug.LogWarning($"[BONE SCALING] SKIPPED {config.unityBone}: No current measurement in dictionary");
                 continue;
@@ -1466,8 +1503,8 @@ public class AvatarController : MonoBehaviour
                 continue;
             }
 
-            // Phase 2.1: Retrieve CURRENT avatar bone length (measured this frame)
-            float avatarLength = _CurrentAvatarBoneLengths[config.unityBone];
+            // Phase 2.1: Retrieve bilaterally-averaged avatar bone length (symmetry-corrected)
+            float avatarLength = symmetricAvatarLengths[config.unityBone];
 
             // Phase 4.1: Calculate DESIRED length scale factor
             float desiredLengthScale = CalculateBoneScaleFactor(kinectLength, avatarLength);
@@ -1527,12 +1564,6 @@ public class AvatarController : MonoBehaviour
             // Apply thickness-only scale (with rotation-aware inverse to children)
             fakeUMA.ScaleBoneIndependently(boneTransform, scaleFactorToApply);
         }
-
-        // Apply thickness-only scaling to spine/torso bones
-        if (enableThicknessScaling)
-        {
-            ApplySpineThicknessScaling(thicknessFactor); // *1.2 Based on experimental results for torso scaling
-        }
     }
 
     /// <summary>
@@ -1579,11 +1610,11 @@ public class AvatarController : MonoBehaviour
                 currentRelativeScale.z != 0 ? requiredLocalScale.z / currentRelativeScale.z : 1f
             );
 
-            // Scale down slightly for chest and upper chest to prevent extreme widening, based on experimental results
-            if (spineBone == HumanBodyBones.Chest || spineBone == HumanBodyBones.UpperChest)
-            {
-                scaleFactorToApply.x = 1.0f; // Don't scale in x, else we push arms outwards
-            }
+            // // Scale down slightly for chest and upper chest to prevent extreme widening, based on experimental results
+            // if (spineBone == HumanBodyBones.Chest || spineBone == HumanBodyBones.UpperChest)
+            // {
+            //     scaleFactorToApply.x = 1.0f; // Don't scale in x, else we push arms outwards
+            // }
 
             // Apply the calculated scale factor
             fakeUMA.ScaleBoneIndependently(boneTransform, scaleFactorToApply);
@@ -1764,6 +1795,18 @@ public class AvatarController : MonoBehaviour
 
         // Reset all bone scales to original FBX values
         fakeUMA.ResetAllBoneScales();
+
+        // Re-enable the Animator so it evaluates its default state and snaps all bones
+        // back to the bind T-pose. This undoes any FK rotations from the previous user.
+        if (animator != null)
+        {
+            animator.enabled = true;
+        }
+
+        // Reset avatar root position and rotation so the avatar is not left at the
+        // previous user's SpineBase location/orientation.
+        ClothedBaseAvatar.transform.position = Vector3.zero;
+        ClothedBaseAvatar.transform.rotation = Quaternion.identity;
 
         // Clear smoothed measurement history
         _SmoothedKinectBoneLengths.Clear();

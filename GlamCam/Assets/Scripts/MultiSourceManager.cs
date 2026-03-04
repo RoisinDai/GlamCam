@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using Windows.Kinect;
 
@@ -35,6 +36,16 @@ public class MultiSourceManager : MonoBehaviour {
     private const float TPOSE_HOLD_DURATION = 1.0f;
     private const float TPOSE_ARM_EXTENSION_MIN = 0.3f; // minimum horizontal arm spread (meters)
     private const float TPOSE_ANGLE_RATIO_MAX = 0.4f;   // max |deltaY/deltaX| (~22° from horizontal)
+    
+    // Multi-sample measurement for robustness (reduces noise/fluctuation)
+    private const int MEASUREMENT_SAMPLE_COUNT = 20;
+    private List<float> _HeightSamples = new List<float>();
+    private List<float> _WidthSamples = new List<float>();
+    private List<float> _UpperArmSamples = new List<float>();
+    private List<float> _LowerArmSamples = new List<float>();
+    private List<float> _UpperLegSamples = new List<float>();
+    private List<float> _LowerLegSamples = new List<float>();
+    private bool _IsSampling = false; // True after TPOSE_HOLD_DURATION, collecting samples
     
     // For color-to-depth mapping (Body Mask)
     private DepthSpacePoint[] _ColorMappedToDepthPoints;
@@ -158,28 +169,57 @@ public class MultiSourceManager : MonoBehaviour {
             }
         }
         
-        // T-pose detection and one-shot measurement
+        // T-pose detection and multi-sample measurement for robustness
         if (!IsMeasured && _TrackedBody != null && _TrackedBody.IsTracked)
         {
             if (DetectTPose())
             {
                 _TPoseHoldTimer += Time.deltaTime;
 
+                // After holding T-pose for required duration, start collecting samples
                 if (_TPoseHoldTimer >= TPOSE_HOLD_DURATION)
                 {
-                    MeasuredSpineMidWidth = MeasureSpineMidWidth();
-                    MeasuredHeight = MeasureUserHeight();
-                    MeasureBoneLengths();
-                    IsMeasured = true;
-                    // Divide by 10 since the measured height is in decimeters
-                    float heightMeters = MeasuredHeight / 10f;
-                    float widthMeters = MeasuredSpineMidWidth / 10f;
-                    Debug.Log($"[MultiSourceManager] Measurement complete. Height={MeasuredHeight:F3} units ({heightMeters:F3}m) Width={MeasuredSpineMidWidth:F3} units ({widthMeters:F3}m) IsMeasured={IsMeasured}");
+                    if (!_IsSampling)
+                    {
+                        _IsSampling = true;
+                        Debug.Log($"[MultiSourceManager] T-pose held for {TPOSE_HOLD_DURATION}s. Starting to collect {MEASUREMENT_SAMPLE_COUNT} samples...");
+                    }
+
+                    // Collect one sample per frame
+                    CollectMeasurementSample();
+
+                    // Check if we have enough samples
+                    if (_HeightSamples.Count >= MEASUREMENT_SAMPLE_COUNT)
+                    {
+                        // Compute mean of all samples
+                        MeasuredHeight = _HeightSamples.Average();
+                        MeasuredSpineMidWidth = _WidthSamples.Average();
+                        MeasuredUpperArmLength = _UpperArmSamples.Average();
+                        MeasuredLowerArmLength = _LowerArmSamples.Average();
+                        MeasuredUpperLegLength = _UpperLegSamples.Average();
+                        MeasuredLowerLegLength = _LowerLegSamples.Average();
+
+                        IsMeasured = true;
+                        _IsSampling = false;
+
+                        // Divide by 10 since the measured height is in decimeters
+                        float heightMeters = MeasuredHeight / 10f;
+                        float widthMeters = MeasuredSpineMidWidth / 10f;
+                        Debug.Log($"[MultiSourceManager] Measurement complete ({MEASUREMENT_SAMPLE_COUNT} samples averaged). Height={MeasuredHeight:F3} units ({heightMeters:F3}m) Width={MeasuredSpineMidWidth:F3} units ({widthMeters:F3}m)");
+                        Debug.Log($"[MultiSourceManager] Bone lengths (m): UpperArm={MeasuredUpperArmLength:F4}, LowerArm={MeasuredLowerArmLength:F4}, UpperLeg={MeasuredUpperLegLength:F4}, LowerLeg={MeasuredLowerLegLength:F4}");
+                    }
                 }
             }
             else
             {
+                // T-pose lost - reset sampling state
+                if (_IsSampling)
+                {
+                    Debug.Log($"[MultiSourceManager] T-pose lost during sampling. Collected {_HeightSamples.Count}/{MEASUREMENT_SAMPLE_COUNT} samples. Restarting...");
+                }
                 _TPoseHoldTimer = 0f;
+                _IsSampling = false;
+                ClearMeasurementSamples();
             }
         }
     }
@@ -268,6 +308,63 @@ public class MultiSourceManager : MonoBehaviour {
         MeasuredUpperLegLength = -1f;
         MeasuredLowerLegLength = -1f;
         _TPoseHoldTimer = 0f;
+        _IsSampling = false;
+        ClearMeasurementSamples();
+    }
+
+    /// <summary>
+    /// Clears all measurement sample lists.
+    /// </summary>
+    private void ClearMeasurementSamples()
+    {
+        _HeightSamples.Clear();
+        _WidthSamples.Clear();
+        _UpperArmSamples.Clear();
+        _LowerArmSamples.Clear();
+        _UpperLegSamples.Clear();
+        _LowerLegSamples.Clear();
+    }
+
+    /// <summary>
+    /// Collects one measurement sample for all measurements.
+    /// Called once per frame while sampling.
+    /// </summary>
+    private void CollectMeasurementSample()
+    {
+        // Height
+        float height = MeasureUserHeight();
+        if (height > 0) _HeightSamples.Add(height);
+
+        // Width
+        float width = MeasureSpineMidWidth();
+        if (width > 0) _WidthSamples.Add(width);
+
+        // Bone lengths
+        var joints = _TrackedBody.Joints;
+
+        // Upper arm
+        float leftUpperArm = RawJointDistance(joints[JointType.ShoulderLeft], joints[JointType.ElbowLeft]);
+        float rightUpperArm = RawJointDistance(joints[JointType.ShoulderRight], joints[JointType.ElbowRight]);
+        float upperArm = (leftUpperArm + rightUpperArm) * 0.5f;
+        if (upperArm > 0) _UpperArmSamples.Add(upperArm);
+
+        // Lower arm
+        float leftLowerArm = RawJointDistance(joints[JointType.ElbowLeft], joints[JointType.WristLeft]);
+        float rightLowerArm = RawJointDistance(joints[JointType.ElbowRight], joints[JointType.WristRight]);
+        float lowerArm = (leftLowerArm + rightLowerArm) * 0.5f;
+        if (lowerArm > 0) _LowerArmSamples.Add(lowerArm);
+
+        // Upper leg
+        float leftUpperLeg = RawJointDistance(joints[JointType.HipLeft], joints[JointType.KneeLeft]);
+        float rightUpperLeg = RawJointDistance(joints[JointType.HipRight], joints[JointType.KneeRight]);
+        float upperLeg = (leftUpperLeg + rightUpperLeg) * 0.5f;
+        if (upperLeg > 0) _UpperLegSamples.Add(upperLeg);
+
+        // Lower leg
+        float leftLowerLeg = RawJointDistance(joints[JointType.KneeLeft], joints[JointType.FootLeft]);
+        float rightLowerLeg = RawJointDistance(joints[JointType.KneeRight], joints[JointType.FootRight]);
+        float lowerLeg = (leftLowerLeg + rightLowerLeg) * 0.5f;
+        if (lowerLeg > 0) _LowerLegSamples.Add(lowerLeg);
     }
 
     /// <summary>
