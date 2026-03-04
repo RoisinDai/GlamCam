@@ -1319,17 +1319,16 @@ public class AvatarController : MonoBehaviour
             // Calculate parent's cumulative scale (includes root uniform scale)
             Vector3 parentCumulativeScale = GetParentCumulativeScale(boneTransform);
 
-            // desiredLengthScale = kinectLength / avatarLocalLength is already the total
-            // world-scale ratio needed relative to the raw model. parentCumulativeScale
-            // already contains UniformScaleFactor, so multiplying again would double-count.
-            // Thickness uses user-height-normalised ratios and DOES need * USF to convert
-            // from the user-height reference frame back to model-height world scale.
+            // desiredWorldScale represents the TOTAL world-space scale needed for this bone.
+            // ALL axes must include UniformScaleFactor because parentCumulativeScale
+            // (which we divide by next) already contains USF from the root transform.
+            // Without USF in the numerator the division would shrink the axis to ~1/USF.
             float boneThicknessFactor = enableThicknessScaling
                 ? GetLimbThicknessFactor(config.unityBone)
                 : 1.0f;
             Vector3 desiredWorldScale = new Vector3(
                 boneThicknessFactor * UniformScaleFactor,
-                desiredLengthScale,
+                desiredLengthScale * UniformScaleFactor,
                 boneThicknessFactor * UniformScaleFactor
             );
 
