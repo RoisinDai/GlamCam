@@ -48,14 +48,12 @@ class BoneMappingConfig
     public Kinect.JointType startJoint;      // Start Kinect joint (e.g., ShoulderLeft)
     public Kinect.JointType endJoint;        // End Kinect joint (e.g., ElbowLeft)
     public HumanBodyBones unityBone;         // Corresponding Unity bone (note left-right mirror)
-    public Vector3 stretchAxis;              // Which local axis the bone stretches along (typically Y)
 
-    public BoneMappingConfig(Kinect.JointType start, Kinect.JointType end, HumanBodyBones bone, Vector3 axis)
+    public BoneMappingConfig(Kinect.JointType start, Kinect.JointType end, HumanBodyBones bone)
     {
         startJoint = start;
         endJoint = end;
         unityBone = bone;
-        stretchAxis = axis;
     }
 }
 
@@ -405,6 +403,16 @@ public class AvatarController : MonoBehaviour
     private const float POPULATION_WAIST_FOREARM_RATIO = 3.3806f; // waist / forearm (lower arm)
     private const float POPULATION_WAIST_THIGH_RATIO   = 1.6570f; // waist / thigh (upper leg)
     private const float POPULATION_WAIST_CALF_RATIO    = 2.3948f; // waist / calf (lower leg)
+
+    // Avatar-specific limb width-to-height ratios — MEASURE THESE FROM YOUR AVATAR MODEL.
+    // Each value = (limb cross-section width in cm) / (avatar height in cm).
+    // Defaults below assume population-average proportions derived from the avatar's waist
+    // (AVATAR_WIDTH_HEIGHT_RATIO / POPULATION_RATIO). Replace with actual measurements
+    // from your model for accurate per-limb thickness differentiation.
+    private const float AVATAR_UPPER_ARM_WIDTH_HEIGHT_RATIO = 0.0607f; // ~10.2cm / 168.33cm
+    private const float AVATAR_FOREARM_WIDTH_HEIGHT_RATIO   = 0.0530f; // ~8.9cm  / 168.33cm
+    private const float AVATAR_THIGH_WIDTH_HEIGHT_RATIO     = 0.1081f; // ~18.2cm / 168.33cm
+    private const float AVATAR_CALF_WIDTH_HEIGHT_RATIO      = 0.0748f; // ~12.6cm / 168.33cm
     private float UniformScaleFactor = -1f;
     private ExtensionFactors _ExtensionFactors = new();
     private bool hasValidBody = false;
@@ -973,26 +981,23 @@ public class AvatarController : MonoBehaviour
     /// </summary>
     private void InitializeBoneMappingConfigs()
     {
-        // Y-axis is the standard stretch axis for Unity humanoid bones
-        Vector3 yAxis = new Vector3(1f, 0f, 1f); // Scale only Y, keep X and Z at 1
-
         _BoneMappingConfigs = new List<BoneMappingConfig>
         {
             // Upper arms (bilateral) - Note: Kinect left = Unity right due to mirroring
-            new BoneMappingConfig(Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft, HumanBodyBones.RightUpperArm, yAxis),
-            new BoneMappingConfig(Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight, HumanBodyBones.LeftUpperArm, yAxis),
+            new BoneMappingConfig(Kinect.JointType.ShoulderLeft, Kinect.JointType.ElbowLeft, HumanBodyBones.RightUpperArm),
+            new BoneMappingConfig(Kinect.JointType.ShoulderRight, Kinect.JointType.ElbowRight, HumanBodyBones.LeftUpperArm),
             
             // Lower arms (bilateral)
-            new BoneMappingConfig(Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft, HumanBodyBones.RightLowerArm, yAxis),
-            new BoneMappingConfig(Kinect.JointType.ElbowRight, Kinect.JointType.WristRight, HumanBodyBones.LeftLowerArm, yAxis),
+            new BoneMappingConfig(Kinect.JointType.ElbowLeft, Kinect.JointType.WristLeft, HumanBodyBones.RightLowerArm),
+            new BoneMappingConfig(Kinect.JointType.ElbowRight, Kinect.JointType.WristRight, HumanBodyBones.LeftLowerArm),
             
             // Upper legs (bilateral)
-            new BoneMappingConfig(Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg, yAxis),
-            new BoneMappingConfig(Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg, yAxis),
+            new BoneMappingConfig(Kinect.JointType.HipLeft, Kinect.JointType.KneeLeft, HumanBodyBones.RightUpperLeg),
+            new BoneMappingConfig(Kinect.JointType.HipRight, Kinect.JointType.KneeRight, HumanBodyBones.LeftUpperLeg),
             
             // Lower legs (bilateral)
-            new BoneMappingConfig(Kinect.JointType.KneeLeft, Kinect.JointType.FootLeft, HumanBodyBones.RightLowerLeg, yAxis),
-            new BoneMappingConfig(Kinect.JointType.KneeRight, Kinect.JointType.FootRight, HumanBodyBones.LeftLowerLeg, yAxis),
+            new BoneMappingConfig(Kinect.JointType.KneeLeft, Kinect.JointType.FootLeft, HumanBodyBones.RightLowerLeg),
+            new BoneMappingConfig(Kinect.JointType.KneeRight, Kinect.JointType.FootRight, HumanBodyBones.LeftLowerLeg),
         };
 
         Debug.Log($"Initialized {_BoneMappingConfigs.Count} bone mapping configurations.");
@@ -1000,9 +1005,8 @@ public class AvatarController : MonoBehaviour
 
     /// <summary>
     /// Phase 2.1: Measure current avatar bone lengths.
-    /// CRITICAL: This must be called EVERY FRAME before calculating scale factors,
-    /// so that we measure the bone lengths after the previous frame's scaling.
-    /// This allows the system to correct overshooting or undershooting.
+    /// Uses the Animator to find the correct skeletal child for each bone,
+    /// avoiding non-bone children (colliders, etc.) that may appear at GetChild(0).
     /// </summary>
     private void MeasureCurrentAvatarBoneLengths()
     {
@@ -1016,15 +1020,7 @@ public class AvatarController : MonoBehaviour
 
         foreach (var config in _BoneMappingConfigs)
         {
-            Transform boneTransform = animator.GetBoneTransform(config.unityBone);
-
-            if (boneTransform == null)
-            {
-                continue;
-            }
-
-            // Measure bone length from the bone to its first child
-            float boneLength = MeasureAvatarBoneLength(boneTransform);
+            float boneLength = MeasureAvatarBoneLength(config.unityBone);
 
             if (boneLength <= 0f)
             {
@@ -1036,31 +1032,50 @@ public class AvatarController : MonoBehaviour
     }
 
     /// <summary>
-    /// Helper method to measure the length of an avatar bone.
-    /// Measures the distance from the bone to its first child using LOCAL space.
-    /// CRITICAL: Must use local space because FakeUMA manipulates localScale and applies inverse scale to children.
-    /// World space measurements would be corrupted by the inverse scale compensation.
+    /// Measures the length of an avatar bone by finding the next bone in the
+    /// humanoid chain via the Animator, rather than using GetChild(0) which
+    /// can return colliders or other non-bone transforms.
     /// </summary>
-    private float MeasureAvatarBoneLength(Transform bone)
+    private float MeasureAvatarBoneLength(HumanBodyBones bone)
     {
-        if (bone == null || bone.childCount == 0)
+        Transform boneTransform = animator.GetBoneTransform(bone);
+        HumanBodyBones? childBone = GetChildHumanoidBone(bone);
+
+        if (boneTransform == null || childBone == null)
         {
             return 0f;
         }
 
-        Transform firstChild = bone.GetChild(0);
-        if (firstChild == null)
+        Transform childTransform = animator.GetBoneTransform(childBone.Value);
+        if (childTransform == null)
         {
             return 0f;
         }
 
-        // CRITICAL: Use local position of child, which represents the bone's actual length
-        // The child's localPosition.y is the bone length along the Y-axis (the stretch axis)
-        // We take the magnitude of the local position vector to get the actual bone length
-        Vector3 childLocalPos = firstChild.localPosition;
-        float distance = childLocalPos.magnitude;
+        // Use localPosition when the child is a direct descendant of the bone.
+        // This stays in the bone's own coordinate space, unaffected by FakeUMA
+        // inverse-scale compensation applied in world space.
+        Vector3 childLocalPos = childTransform.localPosition;
+        return childLocalPos.magnitude;
+    }
 
-        return distance;
+    /// <summary>
+    /// Returns the next bone in the humanoid skeleton chain.
+    /// </summary>
+    private HumanBodyBones? GetChildHumanoidBone(HumanBodyBones bone)
+    {
+        switch (bone)
+        {
+            case HumanBodyBones.LeftUpperArm:  return HumanBodyBones.LeftLowerArm;
+            case HumanBodyBones.RightUpperArm: return HumanBodyBones.RightLowerArm;
+            case HumanBodyBones.LeftLowerArm:  return HumanBodyBones.LeftHand;
+            case HumanBodyBones.RightLowerArm: return HumanBodyBones.RightHand;
+            case HumanBodyBones.LeftUpperLeg:  return HumanBodyBones.LeftLowerLeg;
+            case HumanBodyBones.RightUpperLeg: return HumanBodyBones.RightLowerLeg;
+            case HumanBodyBones.LeftLowerLeg:  return HumanBodyBones.LeftFoot;
+            case HumanBodyBones.RightLowerLeg: return HumanBodyBones.RightFoot;
+            default: return null;
+        }
     }
 
     // ========================================================================================
@@ -1301,21 +1316,20 @@ public class AvatarController : MonoBehaviour
                 continue;
             }
 
-            // Phase 5.1: CRITICAL FIX - Account for parent's cumulative scale AND uniform scale factor
-            // Calculate parent's cumulative scale to determine required local scale
-            // NOW CORRECT: Parent has already been scaled in this frame (pre-order traversal)
+            // Calculate parent's cumulative scale (includes root uniform scale)
             Vector3 parentCumulativeScale = GetParentCumulativeScale(boneTransform);
 
-            // CRITICAL: Multiply by UniformScaleFactor to preserve the base uniform scaling!
-            // desiredLengthScale is ~1.0 because we measure against already-uniformly-scaled bones.
-            // Without multiplying by UniformScaleFactor, we would remove the uniform scale.
-            // Desired world scale for this bone (what we want in world space)
+            // desiredLengthScale = kinectLength / avatarLocalLength is already the total
+            // world-scale ratio needed relative to the raw model. parentCumulativeScale
+            // already contains UniformScaleFactor, so multiplying again would double-count.
+            // Thickness uses user-height-normalised ratios and DOES need * USF to convert
+            // from the user-height reference frame back to model-height world scale.
             float boneThicknessFactor = enableThicknessScaling
                 ? GetLimbThicknessFactor(config.unityBone)
                 : 1.0f;
             Vector3 desiredWorldScale = new Vector3(
                 boneThicknessFactor * UniformScaleFactor,
-                desiredLengthScale * UniformScaleFactor,
+                desiredLengthScale,
                 boneThicknessFactor * UniformScaleFactor
             );
 
@@ -1499,37 +1513,41 @@ public class AvatarController : MonoBehaviour
     }
 
     /// <summary>
-    /// Computes a per-segment thickness scale factor directly from the measured waist width.
-    /// userLimbWidth  = userWaistWidth  / POPULATION_RATIO  (estimated from population data)
-    /// avatarLimbWidth = avatarWaistWidth / POPULATION_RATIO  (avatar's expected limb at this scale)
-    /// factor = userLimbWidth / avatarLimbWidth
-    /// Replace the denominator with a directly measured avatar limb width for per-segment tuning.
+    /// Computes a per-segment thickness scale factor.
+    /// Numerator: user's estimated limb width = userWaist / POPULATION_RATIO
+    /// Denominator: avatar model's limb width = AVATAR_LIMB_RATIO × userHeight
+    /// The population ratio converts waist to limb width; the avatar ratio is an
+    /// independent measurement of the model, so the two do NOT cancel out.
     /// </summary>
     private float GetLimbThicknessFactor(HumanBodyBones bone)
     {
         float userWaist  = _MultiSourceManager.MeasuredSpineMidWidth;
-        float avatarWaist = AVATAR_WIDTH_HEIGHT_RATIO * _MultiSourceManager.MeasuredHeight;
+        float userHeight = _MultiSourceManager.MeasuredHeight;
 
         switch (bone)
         {
             case HumanBodyBones.LeftUpperArm:
             case HumanBodyBones.RightUpperArm:
-                return (userWaist / POPULATION_WAIST_ARM_RATIO) / (avatarWaist / POPULATION_WAIST_ARM_RATIO);
+                return (userWaist / POPULATION_WAIST_ARM_RATIO)
+                     / (AVATAR_UPPER_ARM_WIDTH_HEIGHT_RATIO * userHeight);
 
             case HumanBodyBones.LeftLowerArm:
             case HumanBodyBones.RightLowerArm:
-                return (userWaist / POPULATION_WAIST_FOREARM_RATIO) / (avatarWaist / POPULATION_WAIST_FOREARM_RATIO);
+                return (userWaist / POPULATION_WAIST_FOREARM_RATIO)
+                     / (AVATAR_FOREARM_WIDTH_HEIGHT_RATIO * userHeight);
 
             case HumanBodyBones.LeftUpperLeg:
             case HumanBodyBones.RightUpperLeg:
-                return (userWaist / POPULATION_WAIST_THIGH_RATIO) / (avatarWaist / POPULATION_WAIST_THIGH_RATIO);
+                return (userWaist / POPULATION_WAIST_THIGH_RATIO)
+                     / (AVATAR_THIGH_WIDTH_HEIGHT_RATIO * userHeight);
 
             case HumanBodyBones.LeftLowerLeg:
             case HumanBodyBones.RightLowerLeg:
-                return (userWaist / POPULATION_WAIST_CALF_RATIO) / (avatarWaist / POPULATION_WAIST_CALF_RATIO);
+                return (userWaist / POPULATION_WAIST_CALF_RATIO)
+                     / (AVATAR_CALF_WIDTH_HEIGHT_RATIO * userHeight);
 
             default:
-                return userWaist / avatarWaist;
+                return userWaist / (AVATAR_WIDTH_HEIGHT_RATIO * userHeight);
         }
     }
 
