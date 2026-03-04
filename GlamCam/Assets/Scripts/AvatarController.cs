@@ -391,6 +391,12 @@ public class AvatarController : MonoBehaviour
     // Inverse Kinematics Variables
     public bool enableInverseKinematics = true;
 
+    // Person Selection Variables
+    [Tooltip("Only track a person in the middle horizontal zone of the camera. " +
+             "Value is the X/Z ratio threshold: 0.236 ≈ middle 1/3 of Kinect v2's 70.6° FOV. " +
+             "Increase to widen the zone, decrease to narrow it. Set to a very large value to disable.")]
+    public float centerZoneXZRatio = 0.236f;
+
     // User Measurement Variables
     private HumanoidMeasurements _KinectUserMeasurements = new();
 
@@ -530,9 +536,11 @@ public class AvatarController : MonoBehaviour
     }
 
     /// <summary>
-    /// Selects the tracked body closest to the Kinect camera based on Z coordinate (depth).
-    /// Uses multiple torso joints (SpineBase, SpineMid, SpineShoulder) and averages their Z values
-    /// for more robust and accurate depth measurement.
+    /// Selects the tracked body that is closest to the Kinect camera AND within the horizontal
+    /// center zone of the frame. The center zone is defined by <see cref="centerZoneXZRatio"/>:
+    /// a body is accepted only if |avgX / avgZ| &lt; centerZoneXZRatio, which corresponds to the
+    /// middle 1/3 of the Kinect v2 FOV at the default value of 0.236.
+    /// Uses multiple torso joints (SpineBase, SpineMid, SpineShoulder) averaged for robustness.
     /// In Kinect's coordinate system, smaller Z values indicate bodies closer to the camera.
     /// </summary>
     private Kinect.Body GetClosestTrackedBody(Kinect.Body[] bodies)
@@ -540,45 +548,47 @@ public class AvatarController : MonoBehaviour
         Kinect.Body closestBody = null;
         float closestZ = float.MaxValue;
 
+        var torsoJoints = new[]
+        {
+            Kinect.JointType.SpineBase,
+            Kinect.JointType.SpineMid,
+            Kinect.JointType.SpineShoulder
+        };
+
         foreach (var body in bodies)
         {
-            if (body != null && body.IsTracked)
+            if (body == null || !body.IsTracked) continue;
+
+            var joints = body.Joints;
+            float avgX = 0f;
+            float avgZ = 0f;
+            int validJointCount = 0;
+
+            foreach (var jointType in torsoJoints)
             {
-                // Use multiple torso joints and average their Z values for more robust measurement
-                var joints = body.Joints;
-                float avgZ = 0f;
-                int validJointCount = 0;
-
-                // Average Z coordinates from torso joints
-                var torsoJoints = new[]
+                var joint = joints[jointType];
+                if (joint.TrackingState != Kinect.TrackingState.NotTracked)
                 {
-                    Kinect.JointType.SpineBase,
-                    Kinect.JointType.SpineMid,
-                    Kinect.JointType.SpineShoulder
-                };
-
-                foreach (var jointType in torsoJoints)
-                {
-                    var joint = joints[jointType];
-                    // Prefer tracked joints, but include inferred joints if needed
-                    if (joint.TrackingState != Kinect.TrackingState.NotTracked)
-                    {
-                        avgZ += joint.Position.Z;
-                        validJointCount++;
-                    }
+                    avgX += joint.Position.X;
+                    avgZ += joint.Position.Z;
+                    validJointCount++;
                 }
+            }
 
-                // Only use this body if we have at least one valid joint
-                if (validJointCount > 0)
-                {
-                    avgZ /= validJointCount;
+            if (validJointCount == 0) continue;
 
-                    if (avgZ < closestZ)
-                    {
-                        closestZ = avgZ;
-                        closestBody = body;
-                    }
-                }
+            avgX /= validJointCount;
+            avgZ /= validJointCount;
+
+            // Reject bodies outside the horizontal center zone.
+            // Kinect X=0 is the camera centre; X/Z is the tangent of the horizontal angle.
+            // centerZoneXZRatio = 0.236 ≈ middle 1/3 of the Kinect v2 70.6° horizontal FOV.
+            if (Mathf.Abs(avgX) > avgZ * centerZoneXZRatio) continue;
+
+            if (avgZ < closestZ)
+            {
+                closestZ = avgZ;
+                closestBody = body;
             }
         }
         return closestBody;
