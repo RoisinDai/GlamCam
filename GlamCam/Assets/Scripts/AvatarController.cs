@@ -396,7 +396,7 @@ public class AvatarController : MonoBehaviour
     private HumanoidMeasurements _AvatarMeasurements = new();
 
     // Scaling factor variables
-    private const float AVATAR_WIDTH_HEIGHT_RATIO = 0.1791f; // avatar SpineMid width / height (30.15cm / 168.33cm)
+    private const float AVATAR_WIDTH_HEIGHT_RATIO = 0.2049f; // avatar SpineMid width / height (30.15cm / 147.12cm)
 
     // Population-based waist-to-limb width ratios (N=2505)
     private const float POPULATION_WAIST_ARM_RATIO     = 2.9527f; // waist / bicep (upper arm)
@@ -404,15 +404,13 @@ public class AvatarController : MonoBehaviour
     private const float POPULATION_WAIST_THIGH_RATIO   = 1.6570f; // waist / thigh (upper leg)
     private const float POPULATION_WAIST_CALF_RATIO    = 2.3948f; // waist / calf (lower leg)
 
-    // Avatar-specific limb width-to-height ratios — MEASURE THESE FROM YOUR AVATAR MODEL.
+    // Avatar-specific limb width-to-height ratios — MEASURED from AvatarLimbMeasurer.
     // Each value = (limb cross-section width in cm) / (avatar height in cm).
-    // Defaults below assume population-average proportions derived from the avatar's waist
-    // (AVATAR_WIDTH_HEIGHT_RATIO / POPULATION_RATIO). Replace with actual measurements
-    // from your model for accurate per-limb thickness differentiation.
-    private const float AVATAR_UPPER_ARM_WIDTH_HEIGHT_RATIO = 0.0607f; // ~10.2cm / 168.33cm
-    private const float AVATAR_FOREARM_WIDTH_HEIGHT_RATIO   = 0.0530f; // ~8.9cm  / 168.33cm
-    private const float AVATAR_THIGH_WIDTH_HEIGHT_RATIO     = 0.1081f; // ~18.2cm / 168.33cm
-    private const float AVATAR_CALF_WIDTH_HEIGHT_RATIO      = 0.0748f; // ~12.6cm / 168.33cm
+    // Avatar height = 147.12 cm (1.4712 units).
+    private const float AVATAR_UPPER_ARM_WIDTH_HEIGHT_RATIO = 0.0692f; // 10.18cm / 147.12cm (measured)
+    private const float AVATAR_FOREARM_WIDTH_HEIGHT_RATIO   = 0.0510f; //  7.50cm / 147.12cm (measured)
+    private const float AVATAR_THIGH_WIDTH_HEIGHT_RATIO     = 0.1406f; // 20.69cm / 147.12cm (measured)
+    private const float AVATAR_CALF_WIDTH_HEIGHT_RATIO      = 0.1163f; // 17.12cm / 147.12cm (measured)
     private float UniformScaleFactor = -1f;
     private ExtensionFactors _ExtensionFactors = new();
     private bool hasValidBody = false;
