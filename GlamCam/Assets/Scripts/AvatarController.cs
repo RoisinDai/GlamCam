@@ -32,6 +32,7 @@ class ExtensionFactors
 class BoneScaleData
 {
     public Vector3 originalLocalScale;
+    public Vector3 originalLocalPosition;
     public Vector3 currentScale = Vector3.one;
     public Transform boneTransform;
 
@@ -39,6 +40,7 @@ class BoneScaleData
     {
         boneTransform = bone;
         originalLocalScale = bone.localScale;
+        originalLocalPosition = bone.localPosition;
     }
 }
 
@@ -252,6 +254,7 @@ public class FakeUMA
             if (bone != null)
             {
                 bone.localScale = data.originalLocalScale;
+                bone.localPosition = data.originalLocalPosition;
                 data.currentScale = Vector3.one;
             }
         }
@@ -418,6 +421,40 @@ public class FakeUMA
             Transform bone = kvp.Key;
             BoneScaleData data = kvp.Value;
             Debug.Log($"Bone: {bone.name}, Original Scale: {data.originalLocalScale}, Current Scale: {data.currentScale}, Children: {bone.childCount}");
+        }
+    }
+
+    // ========================================================================================
+    // HYBRID SCALING MODEL
+    // ========================================================================================
+    // Length is handled via TRANSLATION (moving child bone position) — zero shear.
+    // Thickness is handled via SCALE with rotation-aware inverse — minimal shear.
+    // This eliminates the dominant source of visual distortion (Y-axis stretch at joints).
+
+    /// <summary>
+    /// Handles length scaling by translating the child bone's localPosition along the bone axis.
+    /// This completely bypasses Y-axis shear at joints by using translation instead of scale.
+    /// The mesh stretches naturally through blended vertex weights between parent and child joints.
+    /// </summary>
+    /// <param name="humanBone">The HumanBodyBones enum value of the parent bone</param>
+    /// <param name="lengthScale">Length scale factor (e.g., 1.3f = 30% longer)</param>
+    public void ScaleBoneLengthViaTranslation(HumanBodyBones humanBone, float lengthScale)
+    {
+        if (_Animator == null) return;
+        Transform parentBone = _Animator.GetBoneTransform(humanBone);
+        if (parentBone == null || parentBone.childCount == 0) return;
+
+        Transform childBone = parentBone.GetChild(0);
+
+        if (_BoneScaleDatabase.ContainsKey(childBone))
+        {
+            // Get the original local position of the child bone
+            Vector3 origPos = _BoneScaleDatabase[childBone].originalLocalPosition;
+
+            // Push the child further along the parent's axis (scales the bone "length" via position)
+            childBone.localPosition = origPos * lengthScale;
+
+            Debug.Log($"Length via translation: '{parentBone.name}' child '{childBone.name}' moved from {origPos} to {childBone.localPosition} (scale {lengthScale:F3})");
         }
     }
 
@@ -1407,7 +1444,9 @@ public class AvatarController : MonoBehaviour
         // This ensures parent scales are applied before children calculate cumulative parent scales
         var sortedConfigs = SortBonesInHierarchicalOrder(_BoneMappingConfigs);
 
-        // Process each bone in HIERARCHICAL ORDER
+        // Process each bone in HIERARCHICAL ORDER using HYBRID SCALING MODEL:
+        // - LENGTH: via child bone translation (zero shear at joints)
+        // - THICKNESS: via localScale with rotation-aware inverse (minimal shear)
         foreach (var config in sortedConfigs)
         {
             // Check if we have a current measurement for this bone
@@ -1430,9 +1469,8 @@ public class AvatarController : MonoBehaviour
             // Phase 2.1: Retrieve CURRENT avatar bone length (measured this frame)
             float avatarLength = _CurrentAvatarBoneLengths[config.unityBone];
 
-            // Phase 4.1: Calculate DESIRED world scale factor
+            // Phase 4.1: Calculate DESIRED length scale factor
             float desiredLengthScale = CalculateBoneScaleFactor(kinectLength, avatarLength);
-            // if 
 
             // Get the bone transform
             Transform boneTransform = animator.GetBoneTransform(config.unityBone);
@@ -1442,26 +1480,34 @@ public class AvatarController : MonoBehaviour
                 continue;
             }
 
-            // Phase 5.1: CRITICAL FIX - Account for parent's cumulative scale AND uniform scale factor
-            // Calculate parent's cumulative scale to determine required local scale
-            // NOW CORRECT: Parent has already been scaled in this frame (pre-order traversal)
+            // ============================================================
+            // HYBRID STEP 1: Length via TRANSLATION (shear-free)
+            // ============================================================
+            // Move the child bone's localPosition to stretch the bone length.
+            // This creates zero shear because translation doesn't interact with
+            // the scale matrix — vertices stretch naturally through blended weights.
+            fakeUMA.ScaleBoneLengthViaTranslation(config.unityBone, desiredLengthScale);
+
+            // ============================================================
+            // HYBRID STEP 2: Thickness via SCALE (rotation-aware inverse)
+            // ============================================================
+            // Only X and Z axes are scaled (thickness). Y stays at 1.0 (no length in scale).
+            // This means the inverse scale compensator only has to fight minor X/Z differences,
+            // making visual artifacts almost imperceptible.
             Vector3 parentCumulativeScale = GetParentCumulativeScale(boneTransform);
 
-            // CRITICAL: Multiply by UniformScaleFactor to preserve the base uniform scaling!
-            // desiredLengthScale is ~1.0 because we measure against already-uniformly-scaled bones.
-            // Without multiplying by UniformScaleFactor, we would remove the uniform scale.
-            // Desired world scale for this bone (what we want in world space)
             float boneThicknessFactor = enableThicknessScaling
                 ? GetLimbThicknessFactor(config.unityBone)
                 : 1.0f;
+
+            // Desired world scale: thickness on X/Z, uniform (no stretch) on Y
             Vector3 desiredWorldScale = new Vector3(
-                boneThicknessFactor * UniformScaleFactor,
-                desiredLengthScale * UniformScaleFactor,
-                boneThicknessFactor * UniformScaleFactor
+                boneThicknessFactor * UniformScaleFactor,  // Thickness X
+                UniformScaleFactor,                         // Y = uniform only (length handled by translation)
+                boneThicknessFactor * UniformScaleFactor   // Thickness Z
             );
 
             // Required local scale = desiredWorldScale / parentCumulativeScale
-            // This accounts for scale inheritance from parent bones
             Vector3 requiredLocalScale = new Vector3(
                 desiredWorldScale.x / parentCumulativeScale.x,
                 desiredWorldScale.y / parentCumulativeScale.y,
@@ -1478,7 +1524,7 @@ public class AvatarController : MonoBehaviour
                 currentRelativeScale.z != 0 ? requiredLocalScale.z / currentRelativeScale.z : 1f
             );
 
-            // Apply the calculated scale factor
+            // Apply thickness-only scale (with rotation-aware inverse to children)
             fakeUMA.ScaleBoneIndependently(boneTransform, scaleFactorToApply);
         }
 
