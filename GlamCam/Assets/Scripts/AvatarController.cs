@@ -68,6 +68,20 @@ public class FakeUMA
     private GameObject _Avatar;
     private Animator _Animator;
 
+    // ========================================================================================
+    // ROTATION-AWARE INVERSE SCALE TRACKING
+    // ========================================================================================
+    // Tracks parent-child scale relationships to enable dynamic inverse scale updates
+    // when child bones rotate relative to their parents.
+    
+    // Stores the scale factor applied to each parent bone (used to compute child inverse)
+    private Dictionary<Transform, Vector3> _AppliedParentScale = new Dictionary<Transform, Vector3>();
+    
+    // Stores parent-child relationships for inverse scale updates
+    // Key: child transform, Value: (parent transform, inverse scale currently applied, rotation when inverse was applied)
+    private Dictionary<Transform, (Transform parent, Vector3 appliedInverse, Quaternion rotationAtApply)> _InverseScaleTracking 
+        = new Dictionary<Transform, (Transform, Vector3, Quaternion)>();
+
     public FakeUMA(GameObject avatar, Animator animator)
     {
         _Avatar = avatar;
@@ -83,6 +97,8 @@ public class FakeUMA
         if (_Initialized) return;
 
         _BoneScaleDatabase.Clear();
+        _AppliedParentScale.Clear();
+        _InverseScaleTracking.Clear();
 
         // Get all transforms in the avatar hierarchy
         Transform[] allTransforms = _Avatar.GetComponentsInChildren<Transform>();
@@ -128,24 +144,30 @@ public class FakeUMA
         // Update the database with the new scale
         _BoneScaleDatabase[bone].currentScale = Vector3.Scale(_BoneScaleDatabase[bone].currentScale, scaleFactor);
 
-        // Step 2: Apply inverse scale to all direct children to compensate
-        Vector3 inverseScale = new Vector3(
-            1.0f / scaleFactor.x,
-            1.0f / scaleFactor.y,
-            1.0f / scaleFactor.z
-        );
+        // Track the cumulative scale applied to this bone (for child inverse calculations)
+        if (!_AppliedParentScale.ContainsKey(bone))
+            _AppliedParentScale[bone] = scaleFactor;
+        else
+            _AppliedParentScale[bone] = Vector3.Scale(_AppliedParentScale[bone], scaleFactor);
 
+        // Step 2: Apply ROTATION-AWARE inverse scale to all direct children
+        // The inverse must account for how the child's local axes align with the parent's axes
         foreach (Transform child in bone)
         {
             if (_BoneScaleDatabase.ContainsKey(child))
             {
-                child.localScale = Vector3.Scale(child.localScale, inverseScale);
-                // Update the child's current scale in the database
-                _BoneScaleDatabase[child].currentScale = Vector3.Scale(_BoneScaleDatabase[child].currentScale, inverseScale);
+                // Compute rotation-aware inverse based on child's current local rotation
+                Vector3 rotationAwareInverse = ComputeRotationAwareInverseScale(scaleFactor, child.localRotation);
+                
+                child.localScale = Vector3.Scale(child.localScale, rotationAwareInverse);
+                _BoneScaleDatabase[child].currentScale = Vector3.Scale(_BoneScaleDatabase[child].currentScale, rotationAwareInverse);
+                
+                // Track this relationship for future rotation updates
+                _InverseScaleTracking[child] = (bone, rotationAwareInverse, child.localRotation);
             }
         }
 
-        Debug.Log($"Scaled bone '{bone.name}' by {scaleFactor}, applied inverse scale to {bone.childCount} children.");
+        Debug.Log($"Scaled bone '{bone.name}' by {scaleFactor}, applied rotation-aware inverse to {bone.childCount} children.");
     }
 
     /// <summary>
@@ -234,6 +256,10 @@ public class FakeUMA
             }
         }
 
+        // Clear rotation-aware tracking data
+        _AppliedParentScale.Clear();
+        _InverseScaleTracking.Clear();
+
         // Debug.Log("Reset all bone scales to original values.");
     }
 
@@ -250,6 +276,114 @@ public class FakeUMA
         }
 
         return _BoneScaleDatabase[bone].currentScale;
+    }
+
+    // ========================================================================================
+    // ROTATION-AWARE INVERSE SCALE COMPUTATION
+    // ========================================================================================
+
+    /// <summary>
+    /// Computes the inverse scale to apply to a child bone, accounting for the child's rotation.
+    /// When parent has non-uniform scale and child is rotated, the inverse must be applied
+    /// to the child's axes that align with the parent's scaled axes.
+    /// </summary>
+    /// <param name="parentScaleFactor">The scale factor applied to the parent bone</param>
+    /// <param name="childLocalRotation">The child's local rotation relative to parent</param>
+    /// <returns>Rotation-aware inverse scale vector for the child</returns>
+    private Vector3 ComputeRotationAwareInverseScale(Vector3 parentScaleFactor, Quaternion childLocalRotation)
+    {
+        // Get child's local axes expressed in parent's local coordinate system
+        // childLocalRotation rotates from child space to parent space
+        Vector3 childXInParent = childLocalRotation * Vector3.right;
+        Vector3 childYInParent = childLocalRotation * Vector3.up;
+        Vector3 childZInParent = childLocalRotation * Vector3.forward;
+
+        // Compute how much parent's scale stretches each of the child's axes
+        // For axis d, the stretch factor is |S * d| where S is the diagonal scale matrix
+        float stretchAlongChildX = CalculateDirectionalStretch(parentScaleFactor, childXInParent);
+        float stretchAlongChildY = CalculateDirectionalStretch(parentScaleFactor, childYInParent);
+        float stretchAlongChildZ = CalculateDirectionalStretch(parentScaleFactor, childZInParent);
+
+        // Return inverse of stretch factors (to compensate)
+        return new Vector3(
+            stretchAlongChildX > 0.001f ? 1f / stretchAlongChildX : 1f,
+            stretchAlongChildY > 0.001f ? 1f / stretchAlongChildY : 1f,
+            stretchAlongChildZ > 0.001f ? 1f / stretchAlongChildZ : 1f
+        );
+    }
+
+    /// <summary>
+    /// Calculates how much a scale factor stretches a particular direction.
+    /// For a unit vector d and scale S, the stretch is |S * d|.
+    /// </summary>
+    private float CalculateDirectionalStretch(Vector3 scale, Vector3 direction)
+    {
+        // Apply scale to direction: S * d = (Sx*dx, Sy*dy, Sz*dz)
+        Vector3 scaled = new Vector3(
+            scale.x * direction.x,
+            scale.y * direction.y,
+            scale.z * direction.z
+        );
+        // Return magnitude (how much the direction is stretched)
+        return scaled.magnitude;
+    }
+
+    /// <summary>
+    /// Updates inverse scales for all tracked child bones based on their current rotations.
+    /// Call this EVERY FRAME after applying forward kinematics (rotations) to correct
+    /// for rotation-scale interaction.
+    /// </summary>
+    public void UpdateInverseScalesForCurrentRotations()
+    {
+        if (!_Initialized) return;
+
+        // Collect updates to avoid modifying dictionary during enumeration
+        var updates = new List<(Transform child, Transform parent, Vector3 newInverse, Quaternion newRotation)>();
+
+        foreach (var kvp in _InverseScaleTracking)
+        {
+            Transform child = kvp.Key;
+            Transform parent = kvp.Value.parent;
+            Vector3 previousInverse = kvp.Value.appliedInverse;
+            Quaternion previousRotation = kvp.Value.rotationAtApply;
+
+            if (child == null || parent == null) continue;
+            if (!_AppliedParentScale.ContainsKey(parent)) continue;
+
+            // Check if rotation has changed significantly
+            float rotationDelta = Quaternion.Angle(previousRotation, child.localRotation);
+            if (rotationDelta < 0.1f) continue; // Skip if rotation hasn't changed much
+
+            // Compute new rotation-aware inverse based on current rotation
+            Vector3 parentScale = _AppliedParentScale[parent];
+            Vector3 newInverse = ComputeRotationAwareInverseScale(parentScale, child.localRotation);
+
+            // Compute correction factor: undo old inverse, apply new inverse
+            // correction = newInverse / previousInverse
+            Vector3 correction = new Vector3(
+                previousInverse.x > 0.001f ? newInverse.x / previousInverse.x : 1f,
+                previousInverse.y > 0.001f ? newInverse.y / previousInverse.y : 1f,
+                previousInverse.z > 0.001f ? newInverse.z / previousInverse.z : 1f
+            );
+
+            // Apply correction to child's localScale
+            child.localScale = Vector3.Scale(child.localScale, correction);
+
+            // Update tracking data
+            if (_BoneScaleDatabase.ContainsKey(child))
+            {
+                _BoneScaleDatabase[child].currentScale = Vector3.Scale(_BoneScaleDatabase[child].currentScale, correction);
+            }
+
+            // Queue tracking update (don't modify dictionary during iteration)
+            updates.Add((child, parent, newInverse, child.localRotation));
+        }
+
+        // Apply all tracking updates after enumeration is complete
+        foreach (var update in updates)
+        {
+            _InverseScaleTracking[update.child] = (update.parent, update.newInverse, update.newRotation);
+        }
     }
 
     /// <summary>
@@ -595,6 +729,13 @@ public class AvatarController : MonoBehaviour
 
         // 2. Then, apply forward kinematics (bone rotations)
         ApplyForwardKinematics(trackedBody);
+
+        // 2.5. Update inverse scales for rotation changes (CRITICAL for non-uniform scaling)
+        // After FK changes bone rotations, the inverse scale compensation must be updated
+        if (fakeUMA != null && UniformScaleFactor > 0f)
+        {
+            fakeUMA.UpdateInverseScalesForCurrentRotations();
+        }
 
         // 3. Rotate avatar root from shoulders
         RotateAvatarBasedOnShoulders(
