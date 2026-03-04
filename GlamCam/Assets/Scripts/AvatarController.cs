@@ -1316,28 +1316,24 @@ public class AvatarController : MonoBehaviour
                 continue;
             }
 
-            // Calculate parent's cumulative scale (includes root uniform scale)
-            Vector3 parentCumulativeScale = GetParentCumulativeScale(boneTransform);
-
-            // desiredWorldScale represents the TOTAL world-space scale needed for this bone.
-            // ALL axes must include UniformScaleFactor because parentCumulativeScale
-            // (which we divide by next) already contains USF from the root transform.
-            // Without USF in the numerator the division would shrink the axis to ~1/USF.
+            // Desired local-space scale ratios for this bone.
+            // Y = length ratio (kinect bone length / avatar bone length)
+            // X,Z = thickness ratio (statistical estimate)
+            // We set ratios directly in the bone's own coordinate frame.
+            // FakeUMA's inverse compensation isolates each bone from parent
+            // scaling, and currentRelativeScale already tracks those inverses.
+            // Previously this code multiplied by UniformScaleFactor and divided
+            // by parentCumulativeScale -- but that component-wise division
+            // ignores rotations between bones, mixing up which parent axis
+            // maps to which bone axis (e.g. spine Y vs arm Y when arm is
+            // horizontal). That caused pose-dependent distortion.
             float boneThicknessFactor = enableThicknessScaling
                 ? GetLimbThicknessFactor(config.unityBone)
                 : 1.0f;
-            Vector3 desiredWorldScale = new Vector3(
-                boneThicknessFactor * UniformScaleFactor,
-                desiredLengthScale * UniformScaleFactor,
-                boneThicknessFactor * UniformScaleFactor
-            );
-
-            // Required local scale = desiredWorldScale / parentCumulativeScale
-            // This accounts for scale inheritance from parent bones
             Vector3 requiredLocalScale = new Vector3(
-                desiredWorldScale.x / parentCumulativeScale.x,
-                desiredWorldScale.y / parentCumulativeScale.y,
-                desiredWorldScale.z / parentCumulativeScale.z
+                boneThicknessFactor,
+                desiredLengthScale,
+                boneThicknessFactor
             );
 
             // Get current local scale from FakeUMA database
@@ -1377,22 +1373,12 @@ public class AvatarController : MonoBehaviour
                 continue;
             }
 
-            // Calculate parent's cumulative scale
-            Vector3 parentCumulativeScale = GetParentCumulativeScale(boneTransform);
-
-            // For spine bones: apply thickness to X and Z, keep Y at uniform scale (no length change)
-            // This makes the torso wider/thinner without stretching it vertically
-            Vector3 desiredWorldScale = new Vector3(
-                thicknessFactor * UniformScaleFactor,  // Width (X)
-                UniformScaleFactor,                     // Height (Y) - no change
-                thicknessFactor * UniformScaleFactor * 0.75f   // Depth (Z) -> doesn't change as much as width, but we can scale it slightly for better proportions
-            );
-
-            // Required local scale = desiredWorldScale / parentCumulativeScale
+            // Spine bone local-space scale ratios: thickness on X/Z, no length change on Y.
+            // Same principle as limb bones -- set ratios directly, no world-scale conversion.
             Vector3 requiredLocalScale = new Vector3(
-                desiredWorldScale.x / parentCumulativeScale.x,
-                desiredWorldScale.y / parentCumulativeScale.y,
-                desiredWorldScale.z / parentCumulativeScale.z
+                thicknessFactor,               // Width (X)
+                1.0f,                          // Height (Y) - no change
+                thicknessFactor * 0.75f        // Depth (Z)
             );
 
             // Get current local scale from FakeUMA database
