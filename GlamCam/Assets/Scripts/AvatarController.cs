@@ -1545,12 +1545,20 @@ public class AvatarController : MonoBehaviour
     }
 
     /// <summary>
-    /// Calculates the cumulative scale of all parent transforms in the hierarchy.
-    /// This accounts for scale inheritance down the bone chain.
-    /// Essential for correct bone scaling when parent bones are already scaled.
+    /// Calculates the cumulative scale of all parent transforms in the hierarchy,
+    /// projected onto the bone's own local axes to account for rotations.
+    /// 
+    /// The naive approach (component-wise multiplication of parent localScales) assumes
+    /// all bones share the same axis orientation. This breaks for arm bones, which are
+    /// rotated ~90° relative to the spine — causing the spine's X/Z asymmetry to incorrectly
+    /// map onto the arm's cross-section (one thickness axis gets a different scale than the other).
+    /// 
+    /// This rotation-aware version uses the parent's lossyScale (world-space scale) and
+    /// projects it onto the bone's local axes via directional stretch, so each axis of
+    /// the bone sees the correct inherited scale regardless of the rotation chain.
     /// </summary>
     /// <param name="bone">The bone whose parent cumulative scale to calculate</param>
-    /// <returns>The cumulative scale vector of all parents</returns>
+    /// <returns>The cumulative scale vector of all parents, in the bone's local frame</returns>
     private Vector3 GetParentCumulativeScale(Transform bone)
     {
         if (bone == null || bone.parent == null)
@@ -1558,17 +1566,37 @@ public class AvatarController : MonoBehaviour
             return Vector3.one;
         }
 
-        Vector3 cumulativeScale = Vector3.one;
-        Transform current = bone.parent;
+        // Parent's world-space scale (accounts for all rotations in the chain)
+        Vector3 parentLossyScale = bone.parent.lossyScale;
 
-        // Traverse up the hierarchy and multiply all parent local scales
-        while (current != null)
-        {
-            cumulativeScale = Vector3.Scale(cumulativeScale, current.localScale);
-            current = current.parent;
-        }
+        // Get the bone's local axes expressed in world space
+        // bone.rotation = parentChainRotation * localRotation
+        Vector3 boneXWorld = bone.rotation * Vector3.right;
+        Vector3 boneYWorld = bone.rotation * Vector3.up;
+        Vector3 boneZWorld = bone.rotation * Vector3.forward;
 
-        return cumulativeScale;
+        // For each bone-local axis, compute how much the parent chain stretches it.
+        // Treat lossyScale as a diagonal scale matrix S in world space.
+        // Stretch along direction d = |S * d| = sqrt((Sx*dx)² + (Sy*dy)² + (Sz*dz)²)
+        float scaleX = ComputeWorldDirectionalStretch(parentLossyScale, boneXWorld);
+        float scaleY = ComputeWorldDirectionalStretch(parentLossyScale, boneYWorld);
+        float scaleZ = ComputeWorldDirectionalStretch(parentLossyScale, boneZWorld);
+
+        return new Vector3(scaleX, scaleY, scaleZ);
+    }
+
+    /// <summary>
+    /// Computes how much a world-space scale stretches a particular direction.
+    /// For a unit direction d and diagonal scale S, the stretch is |S * d|.
+    /// </summary>
+    private float ComputeWorldDirectionalStretch(Vector3 scale, Vector3 direction)
+    {
+        Vector3 scaled = new Vector3(
+            scale.x * direction.x,
+            scale.y * direction.y,
+            scale.z * direction.z
+        );
+        return scaled.magnitude;
     }
 
     /// <summary>
