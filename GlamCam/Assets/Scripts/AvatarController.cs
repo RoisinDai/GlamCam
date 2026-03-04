@@ -406,6 +406,7 @@ public class AvatarController : MonoBehaviour
     private const float POPULATION_WAIST_THIGH_RATIO = 1.6570f; // waist / thigh (upper leg)
     private const float POPULATION_WAIST_CALF_RATIO = 2.3948f; // waist / calf (lower leg)
     private float UniformScaleFactor = -1f;
+    private float _BuildFactor = 1f; // Body build factor (width ratio) applied at root XZ
     private ExtensionFactors _ExtensionFactors = new();
     private bool hasValidBody = false;
 
@@ -607,19 +608,27 @@ public class AvatarController : MonoBehaviour
         Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
         ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
 
-        // 5. Apply uniform scaling ONCE using T-pose height from MultiSourceManager
+        // 5. Apply scaling ONCE using T-pose height from MultiSourceManager
         if (UniformScaleFactor < 0f && _MultiSourceManager != null && _MultiSourceManager.MeasuredHeight > 0f && _AvatarMeasurements.height > 0f && _MultiSourceManager.MeasuredSpineMidWidth > 0f)
         {
             UniformScaleFactor =
                 _KinectUserMeasurements.height / _AvatarMeasurements.height;
 
-            ClothedBaseAvatar.transform.localScale =
-                Vector3.one * UniformScaleFactor;
+            // Body build factor: how much wider the real person is than expected.
+            // Applied at ROOT XZ so the entire avatar gets wider/thinner without
+            // any per-bone non-uniform scale (which causes shearing when bones rotate).
+            _BuildFactor = enableThicknessScaling ? EstimateBodyBuildFactor() : 1f;
 
-            // 1. Update bone scaling based on Kinect measurements
+            ClothedBaseAvatar.transform.localScale = new Vector3(
+                UniformScaleFactor * _BuildFactor,   // X — wider
+                UniformScaleFactor,                   // Y — height only
+                UniformScaleFactor * _BuildFactor     // Z — deeper
+            );
+
+            // Adjust individual bone lengths to match Kinect measurements
             UpdateContinuousBoneScaling();
 
-            Debug.Log($"UniformScaleFactor set to {UniformScaleFactor:F3} (T-pose height: {_MultiSourceManager.MeasuredHeight:F3}m, avatar height: {_AvatarMeasurements.height:F3})");
+            Debug.Log($"UniformScaleFactor={UniformScaleFactor:F3}, BuildFactor={_BuildFactor:F3} (T-pose height: {_MultiSourceManager.MeasuredHeight:F3}m, avatar height: {_AvatarMeasurements.height:F3})");
         }
 
         // 6. Optional: shoulder-based translation correction
@@ -1237,33 +1246,87 @@ public class AvatarController : MonoBehaviour
     // ========================================================================================
 
     /// <summary>
-    /// Phase 5.2: Main scaling update method called every frame to apply smoothed bone scaling.
-    /// CRITICAL: Processes bones in HIERARCHICAL ORDER (parent before children) to ensure
-    /// cumulative scale calculations are correct in a single pass.
-    /// Now includes both length and thickness scaling based on statistical estimation.
+    /// Returns true for bones that extend horizontally in T-pose (arms).
+    /// These bones are affected by the root XZ build-factor scale, so their
+    /// localPosition length adjustment must compensate by dividing by _BuildFactor.
+    /// Leg bones are vertical in T-pose and only see the root Y-scale (no build factor).
+    /// </summary>
+    private bool IsHorizontalTPoseBone(HumanBodyBones bone)
+    {
+        switch (bone)
+        {
+            case HumanBodyBones.LeftUpperArm:
+            case HumanBodyBones.RightUpperArm:
+            case HumanBodyBones.LeftLowerArm:
+            case HumanBodyBones.RightLowerArm:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
+    /// Adjusts per-bone lengths via child localPosition to match Kinect T-pose measurements.
+    /// Called once at calibration time.
+    ///
+    /// KEY DESIGN DECISIONS (why this approach avoids the "fat person arm elongation" bug):
+    ///
+    ///   1. Thickness is applied at the ROOT as non-uniform XZ scale.
+    ///      Every bone inherits it equally → no per-joint discontinuities.
+    ///
+    ///   2. Individual bones keep localScale = (1,1,1).
+    ///      No non-uniform scale anywhere in the bone chain → rotations never cause shearing.
+    ///
+    ///   3. Bone length is set via child localPosition (repositioning the next joint).
+    ///      This is rotation-agnostic and doesn't interact with parent scale axes.
+    ///
+    ///   4. Arm bones need a correction factor (÷ _BuildFactor) because in T-pose they
+    ///      extend along X, which is scaled by UniformScaleFactor × _BuildFactor at the root.
+    ///      Without this correction, arms would appear _BuildFactor× too long.
+    ///      Leg bones are vertical (Y-axis, scaled by UniformScaleFactor only) → no correction.
     /// </summary>
     private void UpdateContinuousBoneScaling()
     {
-        // Verify we have a valid tracked body
         if (!hasValidBody || trackedBody == null)
         {
             return;
         }
 
-        // Measure current avatar bone lengths BEFORE calculating scale factors
+        // Measure current avatar bone lengths (localPosition magnitude, unaffected by ancestors)
         MeasureCurrentAvatarBoneLengths();
 
-        float thicknessFactor = 1.0f;
-        if (enableThicknessScaling)
+        // ── Proportion-based scaling: unit-invariant ──────────────────────────────────────
+        // Kinect bone lengths (from MeasuredXxxLength) are in RAW meters (no ×10).
+        // Kinect height (MeasuredHeight) uses GetVector3FromJoint → ×10 applied.
+        // Avatar bone lengths (localPosition.magnitude) are in FBX local units.
+        // Avatar height (_AvatarMeasurements.height) is in the same FBX local units.
+        //
+        // Instead of comparing absolute lengths (which are in different unit systems),
+        // we compare each length as a FRACTION of total height on both sides:
+        //
+        //   userBoneProportion  = kinectBoneRaw  / kinectHeightRaw
+        //   avatarBoneProportion = avatarBoneLocal / avatarHeightLocal
+        //   desiredLengthScale  = userBoneProportion / avatarBoneProportion
+        //
+        // This cancels all unit/scale factors, leaving only the true proportional
+        // difference between the user's body and the avatar's default body.
+        //
+        // For arm bones (horizontal in T-pose), the root XZ = S × bf also scales them,
+        // while root Y = S only scales legs. Arms need an extra ÷ _BuildFactor correction
+        // so the world-space arm length isn't multiplied by the build factor.
+        // ─────────────────────────────────────────────────────────────────────────────────
+        float kinectRawHeight = _MultiSourceManager.MeasuredHeight / 10f; // strip the ×10
+        float avatarLocalHeight = _AvatarMeasurements.height;
+
+        if (kinectRawHeight <= 0f || avatarLocalHeight <= 0f)
         {
-            float rawBuildFactor = EstimateBodyBuildFactor();
-            thicknessFactor = rawBuildFactor;
+            Debug.LogError("[BONE SCALING] Cannot compute proportions: height is zero.");
+            return;
         }
 
-        // Sort bones in hierarchical order (parent before children)
+        // Sort bones parent-before-child so localPosition changes cascade correctly
         var sortedConfigs = SortBonesInHierarchicalOrder(_BoneMappingConfigs);
 
-        // Process each bone in HIERARCHICAL ORDER
         foreach (var config in sortedConfigs)
         {
             if (!_CurrentAvatarBoneLengths.ContainsKey(config.unityBone))
@@ -1272,72 +1335,38 @@ public class AvatarController : MonoBehaviour
                 continue;
             }
 
-            float kinectLength = GetTPoseBoneLength(config.unityBone);
+            float kinectLength = GetTPoseBoneLength(config.unityBone); // raw meters
             if (kinectLength <= 0f)
             {
                 Debug.LogWarning($"[BONE SCALING] SKIPPED {config.unityBone}: Invalid Kinect length ({kinectLength})");
                 continue;
             }
 
-            float avatarLength = _CurrentAvatarBoneLengths[config.unityBone];
+            float avatarLength = _CurrentAvatarBoneLengths[config.unityBone]; // FBX local units
 
             Transform boneTransform = animator.GetBoneTransform(config.unityBone);
-            if (boneTransform == null)
+            if (boneTransform == null || boneTransform.childCount == 0 || avatarLength <= 0f)
             {
-                Debug.LogError($"[BONE SCALING] SKIPPED {config.unityBone}: Bone transform is NULL from animator!");
                 continue;
             }
 
-            // ── LENGTH: Adjust the first child's localPosition ──
-            // Using localPosition instead of non-uniform localScale avoids shearing/stretching
-            // artifacts when bones are rotated away from T-pose (e.g., arm bending at elbow).
-            // Non-uniform parent localScale + child rotation = visible shearing in Unity's
-            // transform hierarchy.  Repositioning the child joint is shear-free.
-            if (boneTransform.childCount > 0 && avatarLength > 0f)
+            // Proportion-based scale: fully unit-invariant
+            float userProportion = kinectLength / kinectRawHeight;
+            float avatarProportion = avatarLength / avatarLocalHeight;
+            float desiredLengthScale = userProportion / avatarProportion;
+
+            // Arm bones are horizontal in T-pose → root XZ = S × bf stretches them.
+            // Divide out _BuildFactor so world-space arm length isn't doubled for fat users.
+            // Leg bones are vertical (root Y = S only) → no build-factor correction needed.
+            if (IsHorizontalTPoseBone(config.unityBone) && _BuildFactor > 0f)
             {
-                float desiredLengthScale = kinectLength / avatarLength;
-                Transform firstChild = boneTransform.GetChild(0);
-                firstChild.localPosition *= desiredLengthScale;
-                Debug.Log($"[BONE SCALING] {config.unityBone}: length scale {desiredLengthScale:F4} via localPosition (Kinect={kinectLength:F4}, Avatar={avatarLength:F4})");
+                desiredLengthScale /= _BuildFactor;
             }
 
-            // ── THICKNESS: Apply only X/Z scale via FakeUMA (Y stays at 1.0) ──
-            // Keeping Y at 1.0 means the bone's length axis has uniform scale,
-            // so rotations in the bone chain don't produce shearing artifacts.
-            if (enableThicknessScaling)
-            {
-                float boneThicknessFactor = GetLimbThicknessFactor(config.unityBone);
-                Vector3 parentCumulativeScale = GetParentCumulativeScale(boneTransform);
+            Transform firstChild = boneTransform.GetChild(0);
+            firstChild.localPosition *= desiredLengthScale;
 
-                // Y stays at UniformScaleFactor (no length component — handled by localPosition)
-                Vector3 desiredWorldScale = new Vector3(
-                    boneThicknessFactor * UniformScaleFactor,
-                    UniformScaleFactor,
-                    boneThicknessFactor * UniformScaleFactor
-                );
-
-                Vector3 requiredLocalScale = new Vector3(
-                    desiredWorldScale.x / parentCumulativeScale.x,
-                    desiredWorldScale.y / parentCumulativeScale.y,
-                    desiredWorldScale.z / parentCumulativeScale.z
-                );
-
-                Vector3 currentRelativeScale = fakeUMA.GetBoneScaleFactor(boneTransform);
-
-                Vector3 scaleFactorToApply = new Vector3(
-                    currentRelativeScale.x != 0 ? requiredLocalScale.x / currentRelativeScale.x : 1f,
-                    currentRelativeScale.y != 0 ? requiredLocalScale.y / currentRelativeScale.y : 1f,
-                    currentRelativeScale.z != 0 ? requiredLocalScale.z / currentRelativeScale.z : 1f
-                );
-
-                fakeUMA.ScaleBoneIndependently(boneTransform, scaleFactorToApply);
-            }
-        }
-
-        // Apply thickness-only scaling to spine/torso bones
-        if (enableThicknessScaling)
-        {
-            ApplySpineThicknessScaling(thicknessFactor);
+            Debug.Log($"[BONE SCALING] {config.unityBone}: scale={desiredLengthScale:F4} user={userProportion:F4} avatar={avatarProportion:F4} (kinect={kinectLength:F4}m, avatarLocal={avatarLength:F4})");
         }
     }
 
@@ -1538,6 +1567,7 @@ public class AvatarController : MonoBehaviour
     {
         // Reset uniform scaling
         UniformScaleFactor = -1f;
+        _BuildFactor = 1f;
         ClothedBaseAvatar.transform.localScale = Vector3.one;
 
         // Reset all bone scales to original FBX values
