@@ -9,6 +9,9 @@ public class DebugViewButton : MonoBehaviour
     public Camera avatarCamera;
     public float maxRayDistance = 30f;
     public LayerMask uiLayerMask;
+
+    [Header("Hotkey")]
+    [SerializeField] private KeyCode toggleKey = KeyCode.M;
     private float _nextAllowedTime = 0f;
     private Collider _collider;
     [SerializeField] private GameObject handCursorObj;
@@ -18,7 +21,7 @@ public class DebugViewButton : MonoBehaviour
     private HoverScale _hoverScale;
     private bool _wasFistInside = false;
     private bool _wasFistInsideLeft = false;
-    
+
     [Header("DebugViewButton specific variables")]
     [SerializeField] private Camera debugCamera;
     public static bool isAvatarCameraActive = true;
@@ -74,9 +77,14 @@ public class DebugViewButton : MonoBehaviour
             debugCamera.enabled = false;
         }
     }
-
     void Update()
     {
+        // Hotkey toggle
+        if (Input.GetKeyDown(toggleKey))
+        {
+            ToggleCamera();
+        }
+
         if (_collider == null) return;
         if (_handCursor == null && _handCursorLeft == null) return;
 
@@ -112,6 +120,7 @@ public class DebugViewButton : MonoBehaviour
                 _nextAllowedTime = Time.time + cooldownSeconds;
                 ToggleCamera();
             }
+
             _wasFistInside = isFistInsideNow;
         }
 
@@ -126,6 +135,7 @@ public class DebugViewButton : MonoBehaviour
                 _nextAllowedTime = Time.time + cooldownSeconds;
                 ToggleCamera();
             }
+
             _wasFistInsideLeft = isFistInsideNowLeft;
         }
     }
