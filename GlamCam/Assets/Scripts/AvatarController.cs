@@ -1250,9 +1250,7 @@ public class AvatarController : MonoBehaviour
             return;
         }
 
-        // CRITICAL: Measure current avatar bone lengths BEFORE calculating scale factors
-        // This ensures we compare against the CURRENT scaled lengths, not the original lengths
-        // This allows the system to correct errors from previous frames
+        // Measure current avatar bone lengths BEFORE calculating scale factors
         MeasureCurrentAvatarBoneLengths();
 
         float thicknessFactor = 1.0f;
@@ -1262,38 +1260,27 @@ public class AvatarController : MonoBehaviour
             thicknessFactor = rawBuildFactor;
         }
 
-        // CRITICAL FIX: Sort bones in hierarchical order (parent before children)
-        // This ensures parent scales are applied before children calculate cumulative parent scales
+        // Sort bones in hierarchical order (parent before children)
         var sortedConfigs = SortBonesInHierarchicalOrder(_BoneMappingConfigs);
 
         // Process each bone in HIERARCHICAL ORDER
         foreach (var config in sortedConfigs)
         {
-            // Check if we have a current measurement for this bone
             if (!_CurrentAvatarBoneLengths.ContainsKey(config.unityBone))
             {
                 Debug.LogWarning($"[BONE SCALING] SKIPPED {config.unityBone}: No current measurement in dictionary");
                 continue;
             }
 
-            // Use fixed T-pose bone length from MultiSourceManager (no per-frame Kinect jitter)
             float kinectLength = GetTPoseBoneLength(config.unityBone);
-
             if (kinectLength <= 0f)
             {
-                // No valid measurement yet
                 Debug.LogWarning($"[BONE SCALING] SKIPPED {config.unityBone}: Invalid Kinect length ({kinectLength})");
                 continue;
             }
 
-            // Phase 2.1: Retrieve CURRENT avatar bone length (measured this frame)
             float avatarLength = _CurrentAvatarBoneLengths[config.unityBone];
 
-            // Phase 4.1: Calculate DESIRED world scale factor
-            float desiredLengthScale = CalculateBoneScaleFactor(kinectLength, avatarLength);
-            // if 
-
-            // Get the bone transform
             Transform boneTransform = animator.GetBoneTransform(config.unityBone);
             if (boneTransform == null)
             {
@@ -1301,50 +1288,56 @@ public class AvatarController : MonoBehaviour
                 continue;
             }
 
-            // Phase 5.1: CRITICAL FIX - Account for parent's cumulative scale AND uniform scale factor
-            // Calculate parent's cumulative scale to determine required local scale
-            // NOW CORRECT: Parent has already been scaled in this frame (pre-order traversal)
-            Vector3 parentCumulativeScale = GetParentCumulativeScale(boneTransform);
+            // ── LENGTH: Adjust the first child's localPosition ──
+            // Using localPosition instead of non-uniform localScale avoids shearing/stretching
+            // artifacts when bones are rotated away from T-pose (e.g., arm bending at elbow).
+            // Non-uniform parent localScale + child rotation = visible shearing in Unity's
+            // transform hierarchy.  Repositioning the child joint is shear-free.
+            if (boneTransform.childCount > 0 && avatarLength > 0f)
+            {
+                float desiredLengthScale = kinectLength / avatarLength;
+                Transform firstChild = boneTransform.GetChild(0);
+                firstChild.localPosition *= desiredLengthScale;
+                Debug.Log($"[BONE SCALING] {config.unityBone}: length scale {desiredLengthScale:F4} via localPosition (Kinect={kinectLength:F4}, Avatar={avatarLength:F4})");
+            }
 
-            // CRITICAL: Multiply by UniformScaleFactor to preserve the base uniform scaling!
-            // desiredLengthScale is ~1.0 because we measure against already-uniformly-scaled bones.
-            // Without multiplying by UniformScaleFactor, we would remove the uniform scale.
-            // Desired world scale for this bone (what we want in world space)
-            float boneThicknessFactor = enableThicknessScaling
-                ? GetLimbThicknessFactor(config.unityBone)
-                : 1.0f;
-            Vector3 desiredWorldScale = new Vector3(
-                boneThicknessFactor * UniformScaleFactor,
-                desiredLengthScale * UniformScaleFactor,
-                boneThicknessFactor * UniformScaleFactor
-            );
+            // ── THICKNESS: Apply only X/Z scale via FakeUMA (Y stays at 1.0) ──
+            // Keeping Y at 1.0 means the bone's length axis has uniform scale,
+            // so rotations in the bone chain don't produce shearing artifacts.
+            if (enableThicknessScaling)
+            {
+                float boneThicknessFactor = GetLimbThicknessFactor(config.unityBone);
+                Vector3 parentCumulativeScale = GetParentCumulativeScale(boneTransform);
 
-            // Required local scale = desiredWorldScale / parentCumulativeScale
-            // This accounts for scale inheritance from parent bones
-            Vector3 requiredLocalScale = new Vector3(
-                desiredWorldScale.x / parentCumulativeScale.x,
-                desiredWorldScale.y / parentCumulativeScale.y,
-                desiredWorldScale.z / parentCumulativeScale.z
-            );
+                // Y stays at UniformScaleFactor (no length component — handled by localPosition)
+                Vector3 desiredWorldScale = new Vector3(
+                    boneThicknessFactor * UniformScaleFactor,
+                    UniformScaleFactor,
+                    boneThicknessFactor * UniformScaleFactor
+                );
 
-            // Get current local scale from FakeUMA database
-            Vector3 currentRelativeScale = fakeUMA.GetBoneScaleFactor(boneTransform);
+                Vector3 requiredLocalScale = new Vector3(
+                    desiredWorldScale.x / parentCumulativeScale.x,
+                    desiredWorldScale.y / parentCumulativeScale.y,
+                    desiredWorldScale.z / parentCumulativeScale.z
+                );
 
-            // Calculate the scale factor to apply (relative to current)
-            Vector3 scaleFactorToApply = new Vector3(
-                currentRelativeScale.x != 0 ? requiredLocalScale.x / currentRelativeScale.x : 1f,
-                currentRelativeScale.y != 0 ? requiredLocalScale.y / currentRelativeScale.y : 1f,
-                currentRelativeScale.z != 0 ? requiredLocalScale.z / currentRelativeScale.z : 1f
-            );
+                Vector3 currentRelativeScale = fakeUMA.GetBoneScaleFactor(boneTransform);
 
-            // Apply the calculated scale factor
-            fakeUMA.ScaleBoneIndependently(boneTransform, scaleFactorToApply);
+                Vector3 scaleFactorToApply = new Vector3(
+                    currentRelativeScale.x != 0 ? requiredLocalScale.x / currentRelativeScale.x : 1f,
+                    currentRelativeScale.y != 0 ? requiredLocalScale.y / currentRelativeScale.y : 1f,
+                    currentRelativeScale.z != 0 ? requiredLocalScale.z / currentRelativeScale.z : 1f
+                );
+
+                fakeUMA.ScaleBoneIndependently(boneTransform, scaleFactorToApply);
+            }
         }
 
         // Apply thickness-only scaling to spine/torso bones
         if (enableThicknessScaling)
         {
-            ApplySpineThicknessScaling(thicknessFactor); // *1.2 Based on experimental results for torso scaling
+            ApplySpineThicknessScaling(thicknessFactor);
         }
     }
 
