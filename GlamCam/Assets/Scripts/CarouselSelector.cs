@@ -36,7 +36,6 @@ public class CarouselSelector : MonoBehaviour
         ["Bottoms"] = new[]
         {
             "pleated_skirtelv1Mesh",
-            "mariaskirtMesh",
             "elvs_gored_elephantpant1Mesh",
             "elvs_disco_pant_drufflesMesh",
             "m_trousers_02Mesh",
@@ -47,7 +46,6 @@ public class CarouselSelector : MonoBehaviour
             "50sdressMesh",
             "elvs_sailormoon1Mesh",
             "qipaoMesh",
-            "elvs_goddessdress8Mesh",
             "elvs_short_halterdress1Mesh",
         },
         ["Fullbodies"] = new[]
@@ -66,7 +64,6 @@ public class CarouselSelector : MonoBehaviour
         ["Accessories"] = new[]
         {
             "elv_fduster1Mesh",
-            "multi_bangle1elvMesh",
             "bowMesh",
             "magic_sceptreMesh",
             "electricguitarMesh",
