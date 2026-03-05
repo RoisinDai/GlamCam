@@ -272,9 +272,9 @@ public class MultiSourceManager : MonoBehaviour {
         float rightUpperLeg = RawJointDistance(joints[JointType.HipRight], joints[JointType.KneeRight]);
         MeasuredUpperLegLength = (leftUpperLeg + rightUpperLeg) * 0.5f;
 
-        // Lower leg: Knee → Foot (avg left/right)
-        float leftLowerLeg = RawJointDistance(joints[JointType.KneeLeft], joints[JointType.FootLeft]);
-        float rightLowerLeg = RawJointDistance(joints[JointType.KneeRight], joints[JointType.FootRight]);
+        // Lower leg: Knee → Ankle (avg left/right)
+        float leftLowerLeg = RawJointDistance(joints[JointType.KneeLeft], joints[JointType.AnkleLeft]);
+        float rightLowerLeg = RawJointDistance(joints[JointType.KneeRight], joints[JointType.AnkleRight]);
         MeasuredLowerLegLength = (leftLowerLeg + rightLowerLeg) * 0.5f;
 
         Debug.Log($"[MultiSourceManager] Bone lengths (m): UpperArm={MeasuredUpperArmLength:F4}, LowerArm={MeasuredLowerArmLength:F4}, UpperLeg={MeasuredUpperLegLength:F4}, LowerLeg={MeasuredLowerLegLength:F4}");
