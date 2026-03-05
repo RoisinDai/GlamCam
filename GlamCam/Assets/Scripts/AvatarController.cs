@@ -4,6 +4,7 @@ using Kinect = Windows.Kinect;
 using Vector3 = UnityEngine.Vector3;
 using System;
 using System.Collections.Generic;
+using MagicaCloth2;
 
 class HumanoidMeasurements
 {
@@ -572,10 +573,10 @@ public class AvatarController : MonoBehaviour
     private const float AVATAR_WIDTH_HEIGHT_RATIO = 0.1791f; // avatar SpineMid width / height (30.15cm / 168.33cm)
 
     // Population-based waist-to-limb width ratios (N=2505)
-    private const float POPULATION_WAIST_ARM_RATIO     = 2.9527f; // waist / bicep (upper arm)
+    private const float POPULATION_WAIST_ARM_RATIO = 2.9527f; // waist / bicep (upper arm)
     private const float POPULATION_WAIST_FOREARM_RATIO = 3.3806f; // waist / forearm (lower arm)
-    private const float POPULATION_WAIST_THIGH_RATIO   = 1.6570f; // waist / thigh (upper leg)
-    private const float POPULATION_WAIST_CALF_RATIO    = 2.3948f; // waist / calf (lower leg)
+    private const float POPULATION_WAIST_THIGH_RATIO = 1.6570f; // waist / thigh (upper leg)
+    private const float POPULATION_WAIST_CALF_RATIO = 2.3948f; // waist / calf (lower leg)
     private float UniformScaleFactor = -1f;
     private ExtensionFactors _ExtensionFactors = new();
     private bool hasValidBody = false;
@@ -611,6 +612,14 @@ public class AvatarController : MonoBehaviour
     // Enable/disable thickness scaling
     [Tooltip("Enable statistical body build estimation for thickness scaling")]
     public bool enableThicknessScaling = true;
+
+    // teleport protection for magica cloth
+    private Vector3 _lastAvatarPosition = Vector3.zero;
+    private bool _hasLastPosition = false;
+    private bool _needsClothReset = false;
+
+    // Distance threshold (meters) that counts as a teleport and triggers a cloth reset"
+    public float clothTeleportThreshold = 0.5f;
 
     // Spine bones that receive thickness-only scaling (no length scaling)
     // These bones make the torso wider/thinner based on the build factor
@@ -804,7 +813,28 @@ public class AvatarController : MonoBehaviour
 
         // 4. Move avatar root to spine base
         Vector3 spineBasePos = BodySourceView.GetVector3FromJoint(joints[Kinect.JointType.SpineBase]);
-        ClothedBaseAvatar.transform.position = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
+        Vector3 newPosition = new Vector3(spineBasePos.x, spineBasePos.y, spineBasePos.z);
+
+        // Detect teleport: if the avatar moved far enough in one frame, reset cloth sim
+        if (_hasLastPosition)
+        {
+            float dist = Vector3.Distance(_lastAvatarPosition, newPosition);
+            if (dist > clothTeleportThreshold)
+            {
+                _needsClothReset = true;
+            }
+        }
+
+        ClothedBaseAvatar.transform.position = newPosition;
+        _lastAvatarPosition = newPosition;
+        _hasLastPosition = true;
+
+        // Apply cloth reset AFTER the position has been set so particles snap to the correct pose
+        if (_needsClothReset)
+        {
+            _needsClothReset = false;
+            ResetAllClothSimulations();
+        }
 
         // 6. Optional: shoulder-based translation correction
         ApplyUniformTranslationBasedOnShoulders();
@@ -1753,7 +1783,7 @@ public class AvatarController : MonoBehaviour
     /// </summary>
     private float GetLimbThicknessFactor(HumanBodyBones bone)
     {
-        float userWaist  = _MultiSourceManager.MeasuredSpineMidWidth;
+        float userWaist = _MultiSourceManager.MeasuredSpineMidWidth;
         float avatarWaist = AVATAR_WIDTH_HEIGHT_RATIO * _MultiSourceManager.MeasuredHeight;
 
         switch (bone)
@@ -1814,10 +1844,26 @@ public class AvatarController : MonoBehaviour
         // Clear user measurements
         _KinectUserMeasurements = new HumanoidMeasurements();
 
+        // Flag cloth for reset on next position update so the dress doesn't clip
+        _needsClothReset = true;
+        _hasLastPosition = false;
+
         // Re-trigger T-pose measurement
         if (_MultiSourceManager != null)
         {
             _MultiSourceManager.StartMeasurement();
         }
+    }
+
+    /// Resets all MagicaCloth simulations on the clothed avatar so particles snap
+    /// to the current pose instead of interpolating across a teleport.
+    private void ResetAllClothSimulations()
+    {
+        var clothComponents = ClothedBaseAvatar.GetComponentsInChildren<MagicaCloth>(true);
+        foreach (var cloth in clothComponents)
+        {
+            cloth.ResetCloth(); // keepPose = false → full reset
+        }
+        Debug.Log($"[AvatarController] Reset {clothComponents.Length} MagicaCloth simulations after teleport.");
     }
 }
