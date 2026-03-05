@@ -43,7 +43,6 @@ public class CarouselSelector : MonoBehaviour
         ["Dresses"] = new[]
         {
             "babydoll_elvruff1aMesh",
-            "50sdressMesh",
             "elvs_sailormoon1Mesh",
             "qipaoMesh",
             "elvs_short_halterdress1Mesh",
