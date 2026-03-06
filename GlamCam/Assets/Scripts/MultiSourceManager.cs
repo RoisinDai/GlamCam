@@ -18,6 +18,7 @@ public class MultiSourceManager : MonoBehaviour {
     public float MeasuredLowerArmLength { get; private set; } = -1f; // Elbow → Wrist
     public float MeasuredUpperLegLength { get; private set; } = -1f; // Hip → Knee
     public float MeasuredLowerLegLength { get; private set; } = -1f; // Knee → Foot
+    public float MeasuredShoulderDist { get; private set; } = -1f; // Avg(SpineShoulder → ShoulderLeft/Right)
 
     private KinectSensor _Sensor;
     private MultiSourceFrameReader _Reader;
@@ -45,6 +46,7 @@ public class MultiSourceManager : MonoBehaviour {
     private List<float> _LowerArmSamples = new List<float>();
     private List<float> _UpperLegSamples = new List<float>();
     private List<float> _LowerLegSamples = new List<float>();
+    private List<float> _ShoulderDistSamples = new List<float>();
     private bool _IsSampling = false; // True after TPOSE_HOLD_DURATION, collecting samples
     
     // For color-to-depth mapping (Body Mask)
@@ -198,6 +200,7 @@ public class MultiSourceManager : MonoBehaviour {
                         MeasuredLowerArmLength = _LowerArmSamples.Average();
                         MeasuredUpperLegLength = _UpperLegSamples.Average();
                         MeasuredLowerLegLength = _LowerLegSamples.Average();
+                        MeasuredShoulderDist = _ShoulderDistSamples.Average();
 
                         IsMeasured = true;
                         _IsSampling = false;
@@ -307,6 +310,7 @@ public class MultiSourceManager : MonoBehaviour {
         MeasuredLowerArmLength = -1f;
         MeasuredUpperLegLength = -1f;
         MeasuredLowerLegLength = -1f;
+        MeasuredShoulderDist = -1f;
         _TPoseHoldTimer = 0f;
         _IsSampling = false;
         ClearMeasurementSamples();
@@ -323,6 +327,7 @@ public class MultiSourceManager : MonoBehaviour {
         _LowerArmSamples.Clear();
         _UpperLegSamples.Clear();
         _LowerLegSamples.Clear();
+        _ShoulderDistSamples.Clear();
     }
 
     /// <summary>
@@ -365,6 +370,12 @@ public class MultiSourceManager : MonoBehaviour {
         float rightLowerLeg = RawJointDistance(joints[JointType.KneeRight], joints[JointType.FootRight]);
         float lowerLeg = (leftLowerLeg + rightLowerLeg) * 0.5f;
         if (lowerLeg > 0) _LowerLegSamples.Add(lowerLeg);
+
+        // Shoulder half-distance: avg(SpineShoulder → ShoulderRight, SpineShoulder → ShoulderLeft)
+        float shoulderlDist = RawJointDistance(joints[JointType.SpineShoulder], joints[JointType.ShoulderRight]);
+        float shoulderrDist = RawJointDistance(joints[JointType.SpineShoulder], joints[JointType.ShoulderLeft]);
+        float shoulderDist = (shoulderlDist + shoulderrDist) * 0.5f;
+        if (shoulderDist > 0) _ShoulderDistSamples.Add(shoulderDist);
     }
 
     /// <summary>
@@ -470,8 +481,8 @@ public class MultiSourceManager : MonoBehaviour {
     }
     
     /// <summary>
-    /// Measures body width at SpineMid joint.
-    /// Returns width in meters, or 0 if measurement failed.
+    /// Measures body width at the midpoint between SpineMid and SpineBase.
+    /// Returns width in units, or 0 if measurement failed.
     /// </summary>
     public float MeasureSpineMidWidth()
     {
@@ -479,9 +490,25 @@ public class MultiSourceManager : MonoBehaviour {
         {
             return 0f;
         }
-        
-        var joint = _TrackedBody.Joints[JointType.SpineMid];
-        return MeasureWidthAtJoint(joint);
+
+        var spineMid = _TrackedBody.Joints[JointType.SpineMid];
+        var spineBase = _TrackedBody.Joints[JointType.SpineBase];
+
+        if (spineMid.TrackingState == TrackingState.NotTracked ||
+            spineBase.TrackingState == TrackingState.NotTracked)
+        {
+            return 0f;
+        }
+
+        // Calculate midpoint between SpineMid and SpineBase in camera space
+        CameraSpacePoint midpoint = new CameraSpacePoint
+        {
+            X = (spineMid.Position.X + spineBase.Position.X) / 2f,
+            Y = (spineMid.Position.Y + spineBase.Position.Y) / 2f,
+            Z = (spineMid.Position.Z + spineBase.Position.Z) / 2f
+        };
+
+        return MeasureWidthAtPosition(midpoint);
     }
     
     /// <summary>
@@ -494,26 +521,34 @@ public class MultiSourceManager : MonoBehaviour {
             Debug.LogWarning("MeasureWidthAtJoint: Joint not tracked");
             return 0f;
         }
-        
+
+        return MeasureWidthAtPosition(joint.Position);
+    }
+
+    /// <summary>
+    /// Measures the body width at a specific camera-space position by scanning the silhouette horizontally.
+    /// </summary>
+    public float MeasureWidthAtPosition(CameraSpacePoint position)
+    {
         if (_BodyIndexData == null || _DepthData == null || _Mapper == null)
         {
-            Debug.LogWarning("MeasureWidthAtJoint: Required data not available");
+            Debug.LogWarning("MeasureWidthAtPosition: Required data not available");
             return 0f;
         }
-        
-        // Convert joint position (3D camera space) to depth space (2D pixels)
-        DepthSpacePoint depthPoint = _Mapper.MapCameraPointToDepthSpace(joint.Position);
-        
+
+        // Convert camera space position to depth space (2D pixels)
+        DepthSpacePoint depthPoint = _Mapper.MapCameraPointToDepthSpace(position);
+
         int centerX = (int)(depthPoint.X + 0.5f);
         int centerY = (int)(depthPoint.Y + 0.5f);
-        
+
         // Check bounds
         if (centerX < 0 || centerX >= DEPTH_WIDTH || centerY < 0 || centerY >= DEPTH_HEIGHT)
         {
-            Debug.LogWarning("MeasureWidthAtJoint: Joint position out of depth frame bounds");
+            Debug.LogWarning("MeasureWidthAtPosition: Position out of depth frame bounds");
             return 0f;
         }
-        
+
         // Scan LEFT from center to find left edge
         int leftEdge = centerX;
         for (int x = centerX; x >= 0; x--)
@@ -526,7 +561,7 @@ public class MultiSourceManager : MonoBehaviour {
             }
             if (x == 0) leftEdge = 0;
         }
-        
+
         // Scan RIGHT from center to find right edge
         int rightEdge = centerX;
         for (int x = centerX; x < DEPTH_WIDTH; x++)
@@ -539,25 +574,25 @@ public class MultiSourceManager : MonoBehaviour {
             }
             if (x == DEPTH_WIDTH - 1) rightEdge = DEPTH_WIDTH - 1;
         }
-        
+
         int widthInPixels = rightEdge - leftEdge + 1;
-        
+
         // Get depth at the center point (in millimeters)
         int centerIndex = centerY * DEPTH_WIDTH + centerX;
         float depthMm = _DepthData[centerIndex];
-        
+
         if (depthMm <= 0)
         {
-            Debug.LogWarning("MeasureWidthAtJoint: Invalid depth value");
+            Debug.LogWarning("MeasureWidthAtPosition: Invalid depth value");
             return 0f;
         }
-        
+
         // Convert pixels to meters
         float widthInMeters = PixelsToMeters(widthInPixels, depthMm);
         float widthInUnits = widthInMeters * 10f;
-        
-        Debug.Log($"MeasureWidthAtJoint: center=({centerX},{centerY}), pixels={widthInPixels}, depth={depthMm}mm, width={widthInMeters:F3}m, width={widthInUnits:F3} units");
-        
+
+        Debug.Log($"MeasureWidthAtPosition: center=({centerX},{centerY}), pixels={widthInPixels}, depth={depthMm}mm, width={widthInMeters:F3}m, width={widthInUnits:F3} units");
+
         return widthInUnits;
     }
     

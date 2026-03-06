@@ -1482,6 +1482,11 @@ public class AvatarController : MonoBehaviour
             ApplySpineThicknessScaling(thicknessFactor); // *1.2 Based on experimental results for torso scaling
         }
 
+        // Apply shoulder bone shortening to narrow shoulders
+        // This uses translation (not scale) to shorten LeftShoulder/RightShoulder bones,
+        // bringing the arms closer to center without affecting the UpperChest hierarchy
+        ApplyShoulderBoneShortening();
+
         // SYMMETRY FIX: Pre-compute bilaterally-averaged avatar bone lengths.
         // Even when the user holds a perfectly symmetric T-pose, the avatar model itself can have
         // slight skeletal asymmetry (different localPosition magnitudes on left vs right).
@@ -1622,6 +1627,10 @@ public class AvatarController : MonoBehaviour
                 UniformScaleFactor,                     // Height (Y) - no change
                 thicknessFactor * UniformScaleFactor * 0.75f   // Depth (Z) -> doesn't change as much as width, but we can scale it slightly for better proportions
             );
+
+            if (spineBone == HumanBodyBones.UpperChest || spineBone == HumanBodyBones.Chest) {
+                desiredWorldScale.x *= 0.8f; // Slightly reduce width for UpperChest
+            }
 
             // Required local scale = desiredWorldScale / parentCumulativeScale
             Vector3 requiredLocalScale = new Vector3(
@@ -1772,6 +1781,111 @@ public class AvatarController : MonoBehaviour
         float buildFactor = _MultiSourceManager.MeasuredSpineMidWidth / expectedWidth;
         Debug.Log($"[THICKNESS SCALING] Measured SpineMid Width = {_MultiSourceManager.MeasuredSpineMidWidth:F4}, Expected Width = {expectedWidth:F4}, Build Factor = {buildFactor:F4}");
         return buildFactor;
+    }
+
+    /// <summary>
+    /// Calculates the shoulder bone length scaling factor.
+    /// Compares the user's measured shoulder distance to the avatar's expected shoulder width.
+    /// A factor < 1.0 means shorter shoulders (narrower), > 1.0 means longer (wider).
+    /// 
+    /// IMPORTANT: Kinect measures ShoulderLeft to ShoulderRight at the JOINT CENTERS (inside the body),
+    /// not at the outer edge of the shoulders. To get the actual full shoulder span, we must add
+    /// the shoulder bone lengths on each side (the distance from joint center to outer shoulder edge).
+    /// </summary>
+    private float CalculateShoulderLengthFactor()
+    {
+        if (_MultiSourceManager == null || _MultiSourceManager.MeasuredShoulderDist <= 0f
+            || _MultiSourceManager.MeasuredHeight <= 0f)
+        {
+            return 1.0f;
+        }
+
+        // Kinect's shoulder distance is between joint CENTERS (inside the body)
+        // MeasuredShoulderDist is in raw meters, convert to ×10 units to match height
+        float kinectShoulderDist = _MultiSourceManager.MeasuredShoulderDist * 10f;
+
+        // Measure avatar's shoulder bone lengths to estimate outer shoulder offset
+        // The shoulder bone extends from UpperChest outward to where UpperArm connects
+        float leftShoulderBoneLength = MeasureAvatarBoneLength(animator.GetBoneTransform(HumanBodyBones.LeftShoulder));
+        float rightShoulderBoneLength = MeasureAvatarBoneLength(animator.GetBoneTransform(HumanBodyBones.RightShoulder));
+        float avgShoulderBoneLength = (leftShoulderBoneLength + rightShoulderBoneLength) * 0.5f;
+
+        // Scale avatar shoulder bone length to user's proportions
+        // Use height ratio to estimate user's shoulder bone length
+        float avatarToUserScale = _MultiSourceManager.MeasuredHeight / (_AvatarMeasurements.height * 10f);
+        float estimatedUserShoulderBoneLength = avgShoulderBoneLength * avatarToUserScale;
+
+        // Add shoulder bone lengths to get FULL shoulder width (outer edge to outer edge)
+        // Kinect measures center-to-center, so add one shoulder bone length on each side
+        float userFullShoulderWidth = kinectShoulderDist + (2f * estimatedUserShoulderBoneLength);
+
+        // Expected shoulder width based on avatar proportions and user height
+        // Using a typical shoulder-to-height ratio (~0.26 for adults)
+        const float SHOULDER_HEIGHT_RATIO = 0.26f;
+        float expectedShoulderWidth = SHOULDER_HEIGHT_RATIO * _MultiSourceManager.MeasuredHeight;
+
+        // Calculate factor: how much to scale shoulder bones
+        float shoulderFactor = userFullShoulderWidth / expectedShoulderWidth;
+
+        Debug.Log($"[SHOULDER SCALING] Kinect Dist = {kinectShoulderDist:F4}, Est. Shoulder Bone = {estimatedUserShoulderBoneLength:F4}, Full Width = {userFullShoulderWidth:F4}, Expected = {expectedShoulderWidth:F4}, Factor = {shoulderFactor:F4}");
+
+        return shoulderFactor;
+    }
+
+    /// <summary>
+    /// Applies shoulder bone shortening via translation to narrow/widen shoulders.
+    /// First narrows UpperChest in X direction to make room, then translates shoulder bones.
+    /// This prevents arms from being hidden inside a too-wide UpperChest.
+    /// </summary>
+    private void ApplyShoulderBoneShortening()
+    {
+        float shoulderFactor = CalculateShoulderLengthFactor(); // Reduce factor slightly to prevent clipping, based on experimental results
+
+        // STEP 1: Narrow UpperChest in X direction to match shoulder width
+        // This makes room for the shoulder bone translation, preventing arms from clipping into torso
+        // ApplyUpperChestNarrowing(shoulderFactor);
+
+        // STEP 2: Translate shoulder bones inward/outward (DISABLED: see user request 2026-03-05)
+        fakeUMA.ScaleBoneLengthViaTranslation(HumanBodyBones.LeftShoulder, shoulderFactor+0.2f); // DISABLED
+        fakeUMA.ScaleBoneLengthViaTranslation(HumanBodyBones.RightShoulder, shoulderFactor+0.2f); // DISABLED
+
+        Debug.Log($"[SHOULDER SCALING] Applied shoulder length factor: {shoulderFactor:F4}");
+    }
+
+    /// <summary>
+    /// Narrows the UpperChest bone in X direction to make room for shoulder translation.
+    /// This prevents arms from being hidden inside a too-wide torso when shoulders are pushed inward.
+    /// Uses ScaleBoneIndependently which applies inverse scale to children (shoulders).
+    /// </summary>
+    /// <param name="shoulderFactor">The shoulder width factor (< 1.0 = narrower)</param>
+    private void ApplyUpperChestNarrowing(float shoulderFactor)
+    {
+        Transform upperChest = animator.GetBoneTransform(HumanBodyBones.UpperChest);
+        if (upperChest == null) return;
+
+        // Calculate parent's cumulative scale
+        Vector3 parentCumulativeScale = GetParentCumulativeScale(upperChest);
+
+        // Get current UpperChest scale from database
+        Vector3 currentRelativeScale = fakeUMA.GetBoneScaleFactor(upperChest);
+
+        // Desired X scale: narrow based on shoulder factor
+        // Y and Z remain unchanged (already set by ApplySpineThicknessScaling)
+        // We only want to modify the X axis here
+        float desiredXWorldScale = shoulderFactor * UniformScaleFactor;
+        float requiredXLocalScale = desiredXWorldScale / parentCumulativeScale.x;
+        float xScaleFactorToApply = currentRelativeScale.x != 0 
+            ? requiredXLocalScale / currentRelativeScale.x 
+            : 1f;
+
+        // Only apply X-axis scaling (keep Y and Z at 1.0 = no change)
+        Vector3 scaleFactorToApply = new Vector3(xScaleFactorToApply, 1f, 1f);
+
+        // Use ScaleBoneIndependently so inverse scale is applied to children (shoulders)
+        // This prevents the X narrowing from distorting the shoulder/arm chain
+        fakeUMA.ScaleBoneIndependently(upperChest, scaleFactorToApply);
+
+        Debug.Log($"[SHOULDER SCALING] UpperChest X narrowed by factor: {xScaleFactorToApply:F4} (shoulder factor: {shoulderFactor:F4})");
     }
 
     /// <summary>
